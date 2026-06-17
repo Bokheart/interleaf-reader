@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Interleaf Reader icon</title>
+  <desc id="desc">A simple self-authored book and leaf mark.</desc>
+  <rect width="512" height="512" fill="#245f73"/>
+  <path d="M86 154 246 112v286L86 432z" fill="#f7f5f0"/>
+  <path d="M266 112 426 154v278L266 398z" fill="#f7f5f0"/>
+  <path d="M256 122v278" stroke="#e2dccd" stroke-width="10" stroke-linecap="round"/>
+  <path d="M256 96c76 68 76 151 0 236-76-85-76-168 0-236z" fill="#a7c957"/>
+  <path d="M256 138v190M256 230l-58-37M256 252l62-46" stroke="#5c8944" stroke-width="9" stroke-linecap="round"/>
+</svg>

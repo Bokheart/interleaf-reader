@@ -1,0 +1,27 @@
+[
+  {
+    "term": "Sam",
+    "category": "character",
+    "preserveInTranslation": true
+  },
+  {
+    "term": "Dean",
+    "category": "character",
+    "preserveInTranslation": true
+  },
+  {
+    "term": "Impala",
+    "category": "object",
+    "preserveInTranslation": true
+  },
+  {
+    "term": "hunter",
+    "category": "fandom",
+    "preserveInTranslation": true
+  },
+  {
+    "term": "salt and burn",
+    "category": "phrase",
+    "preserveInTranslation": true
+  }
+]

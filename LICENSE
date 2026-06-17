@@ -1,0 +1,123 @@
+Interleaf Reader Non-Commercial Community License
+
+Copyright (c) 2026 BookHeart / Interleaf Reader contributors
+
+This is a custom source-available, non-commercial community license. It is
+not an OSI-approved open-source license.
+
+Plain-English Summary
+
+This summary is provided for convenience only. If this summary conflicts with
+the full license terms below, the full license terms control.
+
+You may use, study, copy, modify, fork, and redistribute this software for
+personal, educational, research, hobby, and other non-commercial purposes.
+
+You must keep copyright notices and license notices. You must clearly mark
+modified versions.
+
+You may not sell, monetize, commercially deploy, package as a paid app, or
+offer this software as a paid service without separate written permission from
+the maintainer or copyright holder.
+
+1. Definitions
+
+"Software" means the Interleaf Reader source code, documentation, and project
+files distributed with this license, unless a specific file states a different
+license.
+
+"Non-commercial" means use that is not primarily intended for commercial
+advantage, monetary compensation, paid services, paid products, commercial
+deployment, or business operations.
+
+"Commercial use" includes selling the Software, packaging it as a paid app,
+offering it as a paid SaaS or service, deploying it commercially, using it as
+part of a paid product or paid course product, integrating it into a commercial
+closed-source product, or monetizing modified versions.
+
+2. Permissions
+
+Subject to the conditions and restrictions in this license, you may:
+
+- use the Software for personal purposes
+- use the Software for educational purposes
+- use the Software for research purposes
+- use the Software for hobby and other non-commercial purposes
+- read and study the source code
+- copy the Software for non-commercial purposes
+- modify the Software for non-commercial purposes
+- create non-commercial forks
+- redistribute the Software or modified versions for non-commercial purposes
+  with attribution
+- submit issues, suggestions, and pull requests to the project
+
+3. Conditions
+
+If you copy, modify, fork, or redistribute the Software or a modified version,
+you must:
+
+- preserve copyright notices
+- preserve this license notice
+- include this license with redistributed copies
+- clearly mark modified versions as modified
+- not imply official endorsement by Interleaf Reader, BookHeart, or the
+  maintainers
+
+Unless otherwise agreed in writing, contributions submitted to the project are
+licensed under this same license.
+
+4. Non-Commercial Restriction
+
+You may not do any of the following without separate written permission from
+the maintainer or copyright holder:
+
+- sell the Software
+- package the Software as a paid app
+- offer the Software as a paid SaaS, hosted service, or commercial service
+- commercially deploy the Software
+- use the Software as part of a paid product or paid course product
+- integrate the Software into a commercial closed-source product
+- monetize modified versions of the Software
+- use the Interleaf Reader or BookHeart name, logo, or branding for commercial
+  promotion
+
+5. Branding
+
+This license does not grant trademark, logo, brand name, or other branding
+rights.
+
+Modified versions must not imply that they are official Interleaf Reader
+releases unless approved in writing by the maintainer or copyright holder.
+
+6. User Content And Third-Party Content
+
+This license does not grant rights to EPUBs, books, fanfiction, lyrics,
+dictionaries, source materials, or other third-party content imported by users
+or supplied outside this project license.
+
+Contributors must not submit copyrighted EPUBs, fanfiction exports, copied
+dictionary entries, lyrics, private API keys, secrets, or other material they
+do not have the right to license to the project.
+
+7. No Warranty
+
+The Software is provided "as is", without warranty of any kind, express or
+implied, including but not limited to warranties of fitness for a particular
+purpose, reliability, availability, security, or non-infringement.
+
+The maintainers and copyright holders are not liable for any claim, damages, or
+other liability arising from use of the Software, inability to use the Software,
+or other dealings in the Software.
+
+8. Commercial Permission
+
+Commercial use requires separate written permission from the maintainer or
+copyright holder.
+
+Maintainer contact is currently TBD. Until a contact and commercial permission
+process are published, commercial permission is not granted by default.
+
+9. Legal Review Note
+
+This is a custom license. Legal review is recommended before broad public
+release or commercial-facing release.

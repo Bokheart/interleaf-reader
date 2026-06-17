@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#245f73">
+    <title>Interleaf Reader</title>
+    <link rel="manifest" href="./manifest.webmanifest">
+    <link rel="stylesheet" href="./styles.css">
+    <script>
+      window.slashReaderScriptStatus = {
+        jszip: "pending",
+        epubjs: "pending"
+      };
+    </script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"
+      defer
+      onload="window.slashReaderScriptStatus.jszip = 'loaded'"
+      onerror="window.slashReaderScriptStatus.jszip = 'failed'"
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js"
+      defer
+      onload="window.slashReaderScriptStatus.epubjs = 'loaded'"
+      onerror="window.slashReaderScriptStatus.epubjs = 'failed'"
+    ></script>
+    <script type="module" src="./app.js"></script>
+  </head>
+  <body>
+    <div id="homeView" class="app-view">
+      <header class="app-header home-header">
+        <div>
+          <p class="eyebrow">Interleaf Reader</p>
+          <h1>EPUB web novel reader</h1>
+        </div>
+        <p class="header-note">English Study Mode with gentle vocabulary support.</p>
+      </header>
+
+      <main class="app-shell home-shell">
+        <section class="import-panel" aria-labelledby="import-title">
+        <div>
+          <h2 id="import-title">Import an EPUB</h2>
+          <p>Drop an English EPUB here or choose a file to start a local reading session.</p>
+        </div>
+
+        <label class="drop-zone" id="dropZone">
+          <input id="epubInput" type="file" accept=".epub,application/epub+zip">
+          <span class="drop-title">Drop EPUB file</span>
+          <span class="drop-subtitle">or click to browse</span>
+        </label>
+
+        <p id="statusText" class="status-text" role="status" aria-live="polite">Waiting for an EPUB file.</p>
+
+        <details class="debug-panel" id="debugPanel">
+          <summary>EPUB import diagnostics</summary>
+          <dl class="debug-grid">
+            <dt>File</dt>
+            <dd id="debugFileName">None selected</dd>
+            <dt>Size</dt>
+            <dd id="debugFileSize">-</dd>
+            <dt>Type</dt>
+            <dd id="debugFileType">-</dd>
+            <dt>Extension</dt>
+            <dd id="debugFileExtension">-</dd>
+            <dt>Current step</dt>
+            <dd id="debugStep">Idle</dd>
+            <dt>epub.js</dt>
+            <dd id="debugEpubJs">Unknown</dd>
+            <dt>JSZip</dt>
+            <dd id="debugJsZip">Unknown</dd>
+            <dt>ArrayBuffer</dt>
+            <dd id="debugArrayBuffer">-</dd>
+            <dt>Metadata</dt>
+            <dd id="debugMetadata">-</dd>
+            <dt>Spine</dt>
+            <dd id="debugSpine">-</dd>
+            <dt>Last error</dt>
+            <dd id="debugError">None</dd>
+          </dl>
+        </details>
+      </section>
+
+        <button id="returnToReaderPanel" class="return-reader-card" type="button" hidden>
+          <span class="return-reader-title">Resume current session</span>
+          <span class="entry-hint">Back to your open reader. No reload needed.</span>
+          <span id="returnToReaderSubtext" class="return-reader-subtext"></span>
+          <span class="primary-card-action">Resume</span>
+        </button>
+
+        <section id="continueReadingPanel" class="continue-panel" hidden aria-labelledby="continue-title">
+          <div>
+            <h2 id="continue-title">Continue Reading</h2>
+            <p class="entry-hint">Restore your most recently saved local book.</p>
+            <strong id="restoreTitle">Saved book</strong>
+            <p id="restoreText">Saved locally in this browser.</p>
+          </div>
+          <div class="restore-actions">
+            <button id="restoreBookButton" type="button">Continue Reading</button>
+            <button id="dismissRestoreButton" type="button">Dismiss</button>
+          </div>
+        </section>
+
+        <section class="vocabulary-library-summary" aria-labelledby="vocabulary-library-title">
+          <div class="summary-heading">
+            <div>
+              <h2 id="vocabulary-library-title">Vocabulary Library</h2>
+              <p class="section-hint">Saved on this device.</p>
+            </div>
+            <div class="summary-heading-actions">
+              <span id="vocabularyLibraryLevel" class="summary-level">Level -</span>
+              <button id="openVocabularyLibraryButton" type="button" class="summary-open-button">View words</button>
+            </div>
+          </div>
+          <dl class="vocabulary-counts" aria-label="Vocabulary Library counts">
+            <div>
+              <dt>Learning</dt>
+              <dd id="vocabularyLearningCount">0</dd>
+            </div>
+            <div>
+              <dt>Mastered</dt>
+              <dd id="vocabularyMasteredCount">0</dd>
+            </div>
+            <div>
+              <dt>Hidden</dt>
+              <dd id="vocabularyHiddenCount">0</dd>
+            </div>
+          </dl>
+          <p id="vocabularyLibraryEmpty" class="vocabulary-summary-note">Save words from Vocabulary Preview to build your library.</p>
+        </section>
+
+        <section class="local-library" aria-labelledby="library-title">
+          <h2 id="library-title">Local Library</h2>
+          <p class="section-hint">Saved in this browser on this device.</p>
+          <p id="libraryEmpty" class="library-empty">No saved books yet. Import an EPUB to start your local library.</p>
+          <div id="libraryList" class="library-list" role="list" hidden></div>
+        </section>
+      </main>
+
+      <div id="forgetBookModal" class="modal-backdrop" hidden>
+        <section
+          class="confirm-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="forgetBookTitle"
+          aria-describedby="forgetBookBody"
+        >
+          <h2 id="forgetBookTitle">Forget this book?</h2>
+          <p id="forgetBookBody">Remove this book from this browser. This will delete its saved EPUB file and reading progress on this device.</p>
+          <div class="confirm-modal-actions">
+            <button id="cancelForgetBookButton" type="button">Cancel</button>
+            <button id="confirmForgetBookButton" type="button" class="danger-button">Forget book</button>
+          </div>
+        </section>
+      </div>
+
+    </div>
+
+    <div id="vocabularyLibraryView" class="app-view" hidden>
+      <header class="app-header vocabulary-page-header">
+        <div>
+          <p class="eyebrow">Vocabulary Library</p>
+          <h1>Saved word lists</h1>
+        </div>
+        <button id="vocabularyBackHomeButton" type="button" class="page-back-button">Back to Home</button>
+      </header>
+
+      <main class="app-shell vocabulary-library-page">
+        <section class="vocabulary-library-panel" aria-labelledby="vocabularyLibraryPanelTitle">
+          <div class="vocabulary-panel-header">
+            <div>
+              <h2 id="vocabularyLibraryPanelTitle">Vocabulary Library</h2>
+              <p>Saved word lists on this device.</p>
+              <p class="vocabulary-local-note">Your word lists are saved locally in this browser on this device. They are not synced or exported yet.</p>
+            </div>
+          </div>
+
+          <dl class="vocabulary-counts vocabulary-page-counts" aria-label="Vocabulary Library page counts">
+            <div>
+              <dt>Learning</dt>
+              <dd id="vocabularyPageLearningCount">0</dd>
+            </div>
+            <div>
+              <dt>Mastered</dt>
+              <dd id="vocabularyPageMasteredCount">0</dd>
+            </div>
+            <div>
+              <dt>Hidden</dt>
+              <dd id="vocabularyPageHiddenCount">0</dd>
+            </div>
+          </dl>
+          <p id="vocabularyPageLevel" class="vocabulary-page-level">Level -</p>
+
+          <form id="vocabularyManualAddForm" class="vocabulary-add-form" autocomplete="off">
+            <label for="vocabularyManualAddInput">Add a word to Learning</label>
+            <div class="vocabulary-add-row">
+              <input
+                id="vocabularyManualAddInput"
+                type="text"
+                maxlength="80"
+                placeholder="Add a word manually"
+                aria-describedby="vocabularyManualFeedback"
+              >
+              <button id="vocabularyManualAddButton" type="submit">Add to Learning</button>
+            </div>
+            <p id="vocabularyManualFeedback" class="vocabulary-manual-feedback" role="status" aria-live="polite"></p>
+          </form>
+
+          <section class="vocabulary-export-panel" aria-labelledby="vocabularyExportTitle">
+            <div>
+              <h3 id="vocabularyExportTitle">Export</h3>
+              <p>Export your local word lists for review or use in other apps later.</p>
+            </div>
+            <div class="vocabulary-export-actions">
+              <button id="copyLearningButton" type="button">Copy Learning</button>
+              <button id="copyAllVocabularyButton" type="button">Copy All</button>
+              <button id="downloadVocabularyCsvButton" type="button">Download CSV</button>
+            </div>
+            <p id="vocabularyExportFeedback" class="vocabulary-export-feedback" role="status" aria-live="polite">No words to export yet.</p>
+          </section>
+
+          <div class="vocabulary-tabs" role="tablist" aria-label="Vocabulary Library lists">
+            <button id="vocabularyTabLearning" type="button" role="tab" data-vocabulary-tab="learning" aria-selected="true">Learning (0)</button>
+            <button id="vocabularyTabMastered" type="button" role="tab" data-vocabulary-tab="mastered" aria-selected="false">Mastered (0)</button>
+            <button id="vocabularyTabHidden" type="button" role="tab" data-vocabulary-tab="hidden" aria-selected="false">Hidden (0)</button>
+          </div>
+
+          <div id="vocabularyLibraryPanelStatus" class="vocabulary-panel-status" hidden></div>
+          <ul id="vocabularyLibraryTermList" class="vocabulary-term-list"></ul>
+        </section>
+      </main>
+    </div>
+
+    <div id="readerView" class="app-view" hidden>
+      <header class="reader-top-bar">
+        <button id="backToHomeButton" type="button">Back to Home</button>
+        <div id="readerSavedPanel" class="reader-saved-panel" hidden>
+          <span id="readerSavedText">Saved locally in this browser.</span>
+          <button id="clearSavedBookButton" type="button">Forget saved book</button>
+        </div>
+      </header>
+
+      <div id="readerTapControls" class="reader-tap-controls" data-no-reader-toggle hidden>
+        <div class="tap-controls-top">
+          <button id="tapVocabButton" type="button">Preview</button>
+          <button id="tapHomeButton" type="button">Home</button>
+          <button id="tapModeButton" type="button">Mode</button>
+        </div>
+        <div class="tap-controls-status">
+          <button id="tapChaptersButton" type="button">Chapters</button>
+          <p id="tapChapterProgress">No chapter loaded</p>
+        </div>
+        <div class="tap-controls-bottom" aria-label="Reader chapter controls">
+          <button id="tapPrevChapterButton" type="button" disabled>Previous</button>
+          <button id="tapNextChapterButton" type="button" disabled>Next</button>
+        </div>
+      </div>
+
+      <main class="app-shell reader-shell">
+      <section class="reader-layout" aria-label="Reader workspace">
+        <aside class="reader-sidebar">
+          <section class="chapter-navigator" aria-labelledby="chapter-nav-title">
+            <div class="panel-heading">
+              <h2 id="chapter-nav-title">Chapters</h2>
+              <span id="chapterCount">0</span>
+            </div>
+            <p id="sidebarChapterProgress" class="sidebar-progress">No book loaded</p>
+            <select id="chapterSelect" class="native-chapter-select" disabled aria-label="Chapter selector fallback">
+              <option>No book loaded</option>
+            </select>
+            <div id="chapterList" class="chapter-list" role="listbox" aria-label="Table of contents">
+              <p class="empty-state">Import an EPUB to see chapters.</p>
+            </div>
+          </section>
+
+          <fieldset class="mode-selector">
+            <legend>Reading mode</legend>
+            <label>
+              <input type="radio" name="readingMode" value="english-study" checked>
+              <span>English Study</span>
+            </label>
+            <label>
+              <input type="radio" name="readingMode" value="chinese">
+              <span>Chinese</span>
+            </label>
+            <label>
+              <input type="radio" name="readingMode" value="cloze-mixed">
+              <span>Mixed Mode</span>
+            </label>
+          </fieldset>
+
+          <section class="vocab-preview" aria-labelledby="vocab-title">
+            <h2 id="vocab-title">Vocabulary Preview</h2>
+            <ul id="vocabList">
+              <li>Vocabulary matches will appear after a chapter loads.</li>
+            </ul>
+          </section>
+
+          <details class="glossary-panel">
+            <summary>
+              <span id="glossary-title">Book Glossary candidates</span>
+              <span id="glossaryCount">0</span>
+            </summary>
+            <p class="panel-note">For future translation protection.</p>
+            <ul id="glossaryList" aria-labelledby="glossary-title">
+              <li class="empty-state">Glossary candidates will appear after chapter text loads.</li>
+            </ul>
+          </details>
+        </aside>
+
+        <article class="reader-pane" tabindex="-1">
+          <div id="bookMeta" class="book-meta" tabindex="-1">
+            <p class="eyebrow">No book loaded</p>
+            <h2>Choose an EPUB to begin.</h2>
+          </div>
+
+          <div class="mobile-reader-actions" aria-label="Mobile reader tools">
+            <button id="mobileChaptersButton" type="button">Chapters</button>
+            <button id="mobileVocabButton" type="button">Vocabulary Preview · 0 terms</button>
+            <button id="mobileModeButton" type="button">Mode · English Study</button>
+          </div>
+
+          <nav class="reader-controls" aria-label="Chapter navigation">
+            <button id="prevChapterButton" type="button" disabled>Previous Chapter</button>
+            <div>
+              <p id="chapterProgress" class="chapter-progress">No chapter loaded</p>
+              <p class="reader-note">Scroll normally, then continue at the bottom.</p>
+            </div>
+            <button id="nextChapterButton" type="button" disabled>Next Chapter</button>
+          </nav>
+
+          <div id="chapterContent" class="chapter-content">
+            <p>This skeleton will render the first loaded chapter here. Chinese and Mixed modes intentionally show placeholders for now.</p>
+          </div>
+
+          <nav class="reader-controls bottom-reader-controls" aria-label="Bottom chapter navigation">
+            <button id="bottomPrevChapterButton" type="button" disabled>Previous Chapter</button>
+            <button id="backToTopButton" type="button" disabled>Back to Top</button>
+            <button id="bottomNextChapterButton" type="button" disabled>Next Chapter</button>
+          </nav>
+        </article>
+      </section>
+
+      <div id="vocabBubble" class="vocab-bubble" role="dialog" aria-label="Vocabulary note" hidden></div>
+
+      <div id="mobileSheetBackdrop" class="mobile-sheet-backdrop" hidden></div>
+
+      <section id="mobileChapterSheet" class="mobile-sheet" aria-labelledby="mobile-chapter-title" hidden>
+        <div class="mobile-sheet-header">
+          <h2 id="mobile-chapter-title">Chapters</h2>
+          <button type="button" class="mobile-sheet-close" data-close-mobile-sheet>Close</button>
+        </div>
+        <div id="mobileChapterList" class="chapter-list mobile-list" role="listbox" aria-label="Mobile chapter list">
+          <p class="empty-state compact-empty">Import an EPUB to see chapters.</p>
+        </div>
+      </section>
+
+      <section id="mobileVocabSheet" class="mobile-sheet" aria-labelledby="mobile-vocab-title" hidden>
+        <div class="mobile-sheet-header">
+          <h2 id="mobile-vocab-title">Vocabulary Preview</h2>
+          <button type="button" class="mobile-sheet-close" data-close-mobile-sheet>Close</button>
+        </div>
+        <ul id="mobileVocabList" class="mobile-vocab-list">
+          <li class="empty-state">Vocabulary matches will appear after a chapter loads.</li>
+        </ul>
+      </section>
+
+      <section id="mobileModeSheet" class="mobile-sheet" aria-labelledby="mobile-mode-title" hidden>
+        <div class="mobile-sheet-header">
+          <h2 id="mobile-mode-title">Reading Mode</h2>
+          <button type="button" class="mobile-sheet-close" data-close-mobile-sheet>Close</button>
+        </div>
+        <div class="mobile-mode-options">
+          <button type="button" data-mobile-mode="english-study">English Study</button>
+          <button type="button" data-mobile-mode="chinese">Chinese</button>
+          <button type="button" data-mobile-mode="cloze-mixed">Mixed Mode</button>
+        </div>
+      </section>
+      </main>
+    </div>
+  </body>
+</html>
