@@ -18,4 +18,5 @@ generated/
 .DS_Store
 Thumbs.db
 .vscode/
-.idea/
+.idea/__pycache__/ 
+*.pyc 
