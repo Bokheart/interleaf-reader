@@ -527,6 +527,7 @@ const state = {
   isContinueReadingDismissed: false,
   lastScrollProgress: null,
   readerControlsVisible: false,
+  pendingChapterIndex: -1,
   activeBubbleTerm: null,
   pendingForgetBook: null,
   vocabularyPersonalizationState: null,
@@ -854,8 +855,14 @@ function cacheElements() {
   elements.clearSavedBookButton = document.querySelector("#clearSavedBookButton");
   elements.readerTapControls = document.querySelector("#readerTapControls");
   elements.tapHomeButton = document.querySelector("#tapHomeButton");
+  elements.tapBookTitle = document.querySelector("#tapBookTitle");
+  elements.tapChapterTitle = document.querySelector("#tapChapterTitle");
   elements.tapChapterProgress = document.querySelector("#tapChapterProgress");
+  elements.tapChapterProgressTitle = document.querySelector("#tapChapterProgressTitle");
+  elements.tapChapterSlider = document.querySelector("#tapChapterSlider");
+  elements.tapChapterSliderPreview = document.querySelector("#tapChapterSliderPreview");
   elements.tapChaptersButton = document.querySelector("#tapChaptersButton");
+  elements.tapProgressButton = document.querySelector("#tapProgressButton");
   elements.tapVocabButton = document.querySelector("#tapVocabButton");
   elements.tapModeButton = document.querySelector("#tapModeButton");
   elements.tapPrevChapterButton = document.querySelector("#tapPrevChapterButton");
@@ -882,6 +889,7 @@ function cacheElements() {
   elements.mobileModeButton = document.querySelector("#mobileModeButton");
   elements.mobileSheetBackdrop = document.querySelector("#mobileSheetBackdrop");
   elements.mobileChapterSheet = document.querySelector("#mobileChapterSheet");
+  elements.mobileProgressSheet = document.querySelector("#mobileProgressSheet");
   elements.mobileVocabSheet = document.querySelector("#mobileVocabSheet");
   elements.mobileModeSheet = document.querySelector("#mobileModeSheet");
   elements.mobileVocabList = document.querySelector("#mobileVocabList");
@@ -1050,6 +1058,20 @@ function bindEvents() {
   elements.tapChaptersButton.addEventListener("click", () => {
     openMobileSheet(elements.mobileChapterSheet);
   });
+
+  elements.tapProgressButton.addEventListener("click", () => {
+    openMobileSheet(elements.mobileProgressSheet);
+  });
+
+  if (elements.tapChapterSlider) {
+    elements.tapChapterSlider.addEventListener("input", () => {
+      updateProgressSliderPreview(Number(elements.tapChapterSlider.value) - 1);
+    });
+
+    elements.tapChapterSlider.addEventListener("change", () => {
+      commitProgressSliderChapter(Number(elements.tapChapterSlider.value) - 1);
+    });
+  }
 
   elements.tapVocabButton.addEventListener("click", () => {
     openMobileSheet(elements.mobileVocabSheet);
@@ -1324,6 +1346,9 @@ function openMobileSheet(sheet) {
   hideBubble();
   hideReaderTapControls();
   closeMobileSheets();
+  if (sheet === elements.mobileProgressSheet) {
+    resetProgressSliderPreview();
+  }
   elements.mobileSheetBackdrop.hidden = false;
   sheet.hidden = false;
   sheet.querySelector("button")?.focus({ preventScroll: true });
@@ -1336,6 +1361,7 @@ function closeMobileSheets() {
 
   [
     elements.mobileChapterSheet,
+    elements.mobileProgressSheet,
     elements.mobileVocabSheet,
     elements.mobileModeSheet
   ].forEach((sheet) => {
@@ -1343,6 +1369,48 @@ function closeMobileSheets() {
       sheet.hidden = true;
     }
   });
+}
+
+function resetProgressSliderPreview() {
+  state.pendingChapterIndex = getCurrentChapterIndex();
+  renderProgressPanel();
+}
+
+function updateProgressSliderPreview(targetIndex) {
+  const chapters = state.book?.chapters || [];
+  const safeIndex = clampIndexForChapters(targetIndex, chapters.length);
+  state.pendingChapterIndex = safeIndex;
+  renderProgressPanel({ usePendingIndex: true });
+}
+
+function commitProgressSliderChapter(targetIndex) {
+  const chapters = state.book?.chapters || [];
+  const safeIndex = clampIndexForChapters(targetIndex, chapters.length);
+
+  if (safeIndex === -1) {
+    renderProgressPanel();
+    return;
+  }
+
+  state.pendingChapterIndex = safeIndex;
+  renderProgressPanel({ usePendingIndex: true });
+
+  const currentIndex = getCurrentChapterIndex();
+  if (safeIndex === currentIndex) {
+    return;
+  }
+
+  selectChapter(chapters[safeIndex].id);
+}
+
+function clampIndexForChapters(index, total) {
+  const numericIndex = Number(index);
+
+  if (!Number.isFinite(numericIndex) || total <= 0) {
+    return -1;
+  }
+
+  return Math.min(Math.max(Math.round(numericIndex), 0), total - 1);
 }
 
 function handleReaderPaneTap(event) {
@@ -2680,10 +2748,18 @@ function renderNavigationControls() {
   const total = chapters.length;
 
   const progressText = formatChapterProgress(chapters, currentIndex);
+  const currentChapter = currentIndex >= 0 ? chapters[currentIndex] : null;
   elements.chapterProgress.textContent = progressText;
+  if (elements.tapBookTitle) {
+    elements.tapBookTitle.textContent = state.book?.title || "Interleaf Reader";
+  }
+  if (elements.tapChapterTitle) {
+    elements.tapChapterTitle.textContent = currentChapter?.title || progressText;
+  }
   if (elements.tapChapterProgress) {
     elements.tapChapterProgress.textContent = formatReaderPositionText(progressText);
   }
+  renderProgressPanel();
   if (elements.sidebarChapterProgress) {
     elements.sidebarChapterProgress.textContent = progressText;
   }
@@ -2720,6 +2796,42 @@ function renderNavigationControls() {
   }
 
   renderChapterList(chapters);
+}
+
+function renderProgressPanel(options = {}) {
+  const chapters = state.book?.chapters || [];
+  const total = chapters.length;
+  const currentIndex = getCurrentChapterIndex();
+  const usePendingIndex = options.usePendingIndex === true;
+  const displayIndex = usePendingIndex
+    ? clampIndexForChapters(state.pendingChapterIndex, total)
+    : currentIndex;
+  const displayChapter = displayIndex >= 0 ? chapters[displayIndex] : null;
+  const displayTitle = displayChapter?.title || "No chapter loaded";
+  const positionText = displayIndex >= 0 && total > 0
+    ? `${displayIndex + 1} / ${total}`
+    : "No chapter loaded";
+
+  if (elements.tapChapterProgressTitle) {
+    elements.tapChapterProgressTitle.textContent = displayTitle;
+  }
+
+  if (elements.tapChapterProgress) {
+    elements.tapChapterProgress.textContent = positionText;
+  }
+
+  if (elements.tapChapterSliderPreview) {
+    elements.tapChapterSliderPreview.textContent = displayIndex >= 0
+      ? `Chapter ${displayIndex + 1}: ${displayTitle}`
+      : "Choose a chapter";
+  }
+
+  if (elements.tapChapterSlider) {
+    elements.tapChapterSlider.min = "1";
+    elements.tapChapterSlider.max = String(Math.max(1, total));
+    elements.tapChapterSlider.value = String(displayIndex >= 0 ? displayIndex + 1 : 1);
+    elements.tapChapterSlider.disabled = state.isLoadingChapter || total <= 1;
+  }
 }
 
 function saveCurrentReadingProgress(options = {}) {

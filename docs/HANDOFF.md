@@ -27,7 +27,7 @@ GitHub issue templates exist for bug reports, feature requests, and docs tasks, 
 
 Read root `AGENTS.md` first, then `PROJECT_STATE.md` and `AI_WORKFLOW_PROTOCOL.md` before starting an AI-assisted task.
 
-GitHub Pages deployment prep is documented in `docs/GITHUB_PAGES_DEPLOYMENT.md`. Use branch/root Pages deployment first: Source `Deploy from a branch`, branch `main`, folder `/ (root)`, then open `https://<owner>.github.io/<repo-name>/pwa-reader/`. A root `index.html` redirects to `./pwa-reader/`. Keep the app served from repo root so `pwa-reader/` can fetch `../data/`. `pwa-reader/manifest.webmanifest` provides minimal PWA metadata with relative `start_url`/`scope` and basic self-authored icons from `pwa-reader/assets/icons/`; there is still no service worker/offline cache.
+GitHub Pages deployment is live and documented in `docs/GITHUB_PAGES_DEPLOYMENT.md`. Use branch/root Pages deployment: Source `Deploy from a branch`, branch `main`, folder `/ (root)`, then open `https://<owner>.github.io/<repo-name>/pwa-reader/`. A root `index.html` redirects to `./pwa-reader/`. Keep the app served from repo root so `pwa-reader/` can fetch `../data/`. `pwa-reader/manifest.webmanifest` provides minimal PWA metadata with relative `start_url`/`scope` and basic self-authored icons from `pwa-reader/assets/icons/`; there is still no service worker/offline cache.
 
 Read `docs/PWA_OFFLINE_CACHE_PLAN.md` before creating or registering any service worker. The first service worker must be app-shell-only, must not cache user EPUBs or private files, and must not add analytics, provider calls, cloud sync, or API key storage.
 
@@ -48,7 +48,7 @@ The primary product path is the PWA reader. Enhanced EPUB export and AO3 import 
 - Chapter list generation from EPUB spine entries.
 - Fallback chapter labels such as `Chapter 1`, `Preface`, and `Title Page`.
 - Reader navigation with a custom clickable table of contents, synchronized hidden dropdown fallback, top and bottom Previous/Next controls, Back to Top, readable progress text, and first/last disabled states.
-- Reader tap controls: tapping/clicking the reader text toggles compact floating controls on mobile and desktop. The controls include Preview, Home, Mode, Contents, current chapter/progress text, and Previous/Next navigation. Contents opens the existing chapter list in a sheet and can jump to any chapter. Interactive targets such as vocabulary terms, bubbles, sheets, links, buttons, and form controls are ignored by the tap toggle.
+- Reader chrome: tapping/clicking the reader text toggles lightweight top and bottom bars on mobile and desktop without covering the reading text. The top bar shows Home plus book/chapter context. The bottom bar shows Contents, Progress, Preview, and Mode. Contents opens the existing chapter list as a mobile left drawer and centered sheet on wider screens. Progress opens a bottom reader panel with current/target chapter title, `X / Y` chapter position, a chapter-index slider for fast chapter jumping, and Previous/Next chapter controls. The slider is a chapter navigator only, not a paragraph/scroll-position scrubber. Interactive targets such as vocabulary terms, bubbles, sheets, links, buttons, and form controls are ignored by the tap toggle.
 - Chapter sidebar click-to-jump bug is fixed. Root cause was `escapeHtml()` returning empty strings for rendered chapter attributes/labels, which blanked `data-chapter-id` and made `selectChapter("")` return early; temporary navigation instrumentation was removed after verification.
 - Local book persistence through IndexedDB. The last imported EPUB file blob, file metadata, EPUB title/author, chapter count, and reading progress are stored in the browser so refresh can restore the book without re-uploading.
 - Reading progress now includes optional chapter scroll data: `scrollTop`, clamped `scrollRatio`, and `updatedAt`. Restore uses the saved ratio after chapter render, so scroll-level resume is approximate and tolerant of layout/content height changes.
@@ -59,6 +59,7 @@ The primary product path is the PWA reader. Enhanced EPUB export and AO3 import 
 - Dev-only browser diagnostics are available from the console with `window.__slashReaderDebug.getDiagnostics()`. This read-only helper reports active app view, Home/Reader/Vocabulary Library hidden state, Reader navigation control counts, `bindEvents()` completion, and Vocabulary Library control counts. It is not user-facing and must not trigger imports, renders, storage writes, or profile loading; it exists to debug view-state and Reader navigation binding regressions.
 - Home primary reading action priority: `Resume current session` appears when a book is already loaded in memory and returns to Reader without re-import or IndexedDB restore. `Continue Reading` appears only when there is no in-memory book and a recent saved local book exists. Continue Reading is hidden when Resume is available to avoid duplicate large reading cards for the same book.
 - Home Local Library lists browser-local saved EPUB metadata only (title, author, progress, last read). Open restores a selected saved book through the existing IndexedDB path; Forget removes that saved book and its progress from this browser only.
+- Home includes a non-storage Reader guide entry implemented as a native expandable section, not as an imported EPUB or IndexedDB book. It summarizes EPUB import, chapter navigation, Contents / Progress / Preview / Mode, Vocabulary Preview and bubbles, Known / Save / Hide, Vocabulary Library, local-only storage, export basics, and clearly states that Chinese Reading Mode and Mixed Mode are placeholders.
 - Home Vocabulary Library summary is a small secondary card showing local vocabulary profile counts: Learning (`learningWords`), Mastered (`knownWords`), Hidden (`ignoredWords`), plus selected level. Its `View words` button switches to the independent Vocabulary Library view with Learning / Mastered / Hidden tabs and terms only. Local Library means saved EPUB books; Vocabulary Library means saved vocabulary profile state. The Vocabulary Library view is not a modal and includes a quiet note that word lists are saved locally in this browser on this device. It supports a compact manual Add to Learning form, small row-level Remove actions, and basic local export through Copy Learning, Copy All, and Download CSV. There is still no sync, review mode, external app integration, or definitions/examples.
 - Local Library Forget uses an in-app confirmation modal with Cancel / Forget book actions. Browser-native `confirm()` is no longer used for this path.
 - Mobile-first reader UX pass: narrow screens hide the permanent sidebar, give the reading pane full width, and use compact mobile controls for Chapters, Vocabulary Preview, and Reading Mode.
@@ -185,16 +186,18 @@ From PowerShell:
 
 ```powershell
 cd "D:\BookHeart\slash reader\slash-reader-v2"
-python -m http.server 5173
+python -m http.server 8000
 ```
 
 Open:
 
 ```text
-http://localhost:5173/pwa-reader/
+http://127.0.0.1:8000/pwa-reader/
 ```
 
-Serve from the project root, not from `pwa-reader/`, because the app fetches JSON from `data/`.
+Serve from the project root, not from `pwa-reader/`, because the app fetches JSON from `data/`. Docs use port `8000` as the recommended default; any other free local port can work if the server starts from the repo root.
+
+If the UI looks stale, stop old local servers, use `127.0.0.1` instead of mixing hostnames, hard-refresh with Ctrl+F5 or enable DevTools Disable cache, and try a cache-busting URL such as `http://127.0.0.1:8000/pwa-reader/?v=manual-test`.
 
 ## Smoke EPUB Fixture
 
@@ -222,9 +225,24 @@ The fixture book is `Interleaf Smoke Test Book` by `Interleaf Test Fixture`. It 
 Use it for M1 browser smoke checks:
 
 1. Start the local static server from the project root.
-2. Open `http://127.0.0.1:5173/pwa-reader/` or `http://localhost:5173/pwa-reader/`.
+2. Open `http://127.0.0.1:8000/pwa-reader/`.
 3. Import `tests\fixtures\interleaf_smoke.epub`.
 4. Confirm Reader opens, three chapters appear, Vocabulary Preview has matches, bubbles work, Local Library save/restore works, and Chinese/Mixed modes remain placeholders.
+
+Reader chrome / Contents smoke checklist:
+
+1. Start `python -m http.server 8000` from the repo root.
+2. Open `http://127.0.0.1:8000/pwa-reader/`.
+3. Import `tests\fixtures\interleaf_smoke.epub`.
+4. Open Reader.
+5. Click or tap the reading area and confirm only the top/bottom reader chrome appears.
+6. Click Contents and confirm the chapter list opens.
+7. Jump to another chapter.
+8. Click Progress and confirm the bottom sheet shows chapter title, `X / Y`, a chapter slider, and Previous / Next.
+9. Drag the slider and confirm the target chapter label updates, then release and confirm it jumps once to the selected chapter.
+10. Confirm Previous and Next still work.
+11. Confirm Vocabulary Preview and the vocabulary bubble still work.
+12. Confirm Home still works.
 
 ## Browser Diagnostics Smoke Test
 

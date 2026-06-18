@@ -36,7 +36,7 @@ Mixed target: Dean opened 门。
 | Mixed Mode | **Placeholder** | Code may still call this Cloze Mixed Mode; no real mixed output yet. |
 | Translation Provider system | **Planned** | Provider-agnostic architecture is planned; DeepL is not integrated. |
 | PWA installability | **Partial** | Static PWA-oriented app has a minimal manifest and basic self-authored icons; service worker/offline support is still missing. |
-| GitHub Pages deployment | **Planned** | Not necessarily configured yet. |
+| GitHub Pages deployment | **Live** | Static deployment is live; service worker/offline support remains planned. |
 
 ## Features
 
@@ -47,7 +47,7 @@ Mixed target: Dean opened 门。
 - Chapter navigation with fallback labels, custom chapter list, Previous/Next, and progress display.
 - English Study Mode as the main working reading mode.
 - Vertical scrolling reader with approximate scroll progress restore.
-- Mobile reader overlay with Home, Preview, Mode, Chapters, Previous, and Next controls.
+- Reader overlay with Home, Preview, Mode, Contents, Previous, and Next controls.
 - Home, Reader, and Vocabulary Library views.
 - Local Library for saved EPUBs in this browser.
 
@@ -124,16 +124,18 @@ From PowerShell:
 
 ```powershell
 cd "D:\BookHeart\slash reader\slash-reader-v2"
-python -m http.server 5173
+python -m http.server 8000
 ```
 
 Open:
 
 ```text
-http://localhost:5173/pwa-reader/
+http://127.0.0.1:8000/pwa-reader/
 ```
 
-Serve from the project root, not from `pwa-reader/`, because the app fetches JSON from `data/`.
+Serve from the project root, not from `pwa-reader/`, because the app fetches JSON from `data/`. Docs use port `8000` as the recommended default; any other free local port can work if the server starts from the repo root.
+
+If the UI looks stale, stop old local servers, use `127.0.0.1` instead of mixing hostnames, hard-refresh with Ctrl+F5 or enable DevTools Disable cache, and try a cache-busting URL such as `http://127.0.0.1:8000/pwa-reader/?v=manual-test`.
 
 ## GitHub Pages Deployment
 
@@ -223,7 +225,7 @@ Public release preparation is in progress.
 - `CONTRIBUTING.md`: **Drafted**.
 - `PRIVACY.md`: **Drafted** for the local-first MVP.
 - Issue and pull request templates: **Drafted**.
-- GitHub Pages deployment prep: **Documented**; remote enablement and smoke test still pending.
+- GitHub Pages deployment: **Live**; deployed smoke testing and release readiness checks remain pending.
 - Source-material policy: still needs final review before broad public release.
 
 Before public launch, the project should clearly document local storage, CDN dependencies, future translation-provider data flow, copyright expectations, and contribution rules.

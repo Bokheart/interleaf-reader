@@ -1,8 +1,10 @@
-# Interleaf Reader — Project State
+# Interleaf Reader 閳?Project State
 
-**Last updated:** 2026-06-16  
-**Active phase:** M0 — Stabilization & governance docs  
+**Last updated:** 2026-06-18  
+**Active phase:** M2 — Reader UX + Vocabulary workflow + Storage trust  
 **Canonical product spec:** `docs/INTERLEAF_READER_PRD.md`
+
+**Current note:** M2 has started. GitHub Pages deployment is live, lightweight Reader chrome with Contents access has been added, and Home now includes a non-storage in-app Reader guide entry. Chinese Reading Mode, Mixed Mode, and translation providers remain placeholder/planned.
 
 ---
 
@@ -14,7 +16,7 @@
 | **Former codename** | Slash Reader v2 (still used by some internal paths, storage/debug namespaces, and older docs) |
 | **Creator / internal brand** | BookHeart |
 | **Mission** | Help users enjoy English fiction while naturally understanding the story and gradually absorbing vocabulary during reading. |
-| **Positioning** | Local-first English fiction / long-form reading PWA for non-native readers. Vocabulary and translation support immersive reading—not memorization drills, generic translation, or social reading. |
+| **Positioning** | Local-first English fiction / long-form reading PWA for non-native readers. Vocabulary and translation support immersive reading閳ユ攺ot memorization drills, generic translation, or social reading. |
 
 ---
 
@@ -26,24 +28,24 @@ M1 stabilization smoke testing was completed on 2026-06-16; automated checks pas
 
 M1 (Reader MVP) and M2 (Vocabulary Library v1) are **largely implemented** but not fully closed: user-facing app copy now says Interleaf Reader and Mixed Mode, some docs are stale, and full PWA / open-source release artifacts are missing.
 
-**Active phase M0** focuses on governance docs, doc hierarchy, and decision logging—not new product features. Governance docs (`AGENTS.md`, `PROJECT_STATE.md`, `DECISION_LOG.md`, `AI_WORKFLOW_PROTOCOL.md`) are **created**, `README.md` has been refreshed for Interleaf Reader, `PRIVACY.md` / `CONTRIBUTING.md` have been drafted for the local-first MVP, the final `LICENSE` file now documents the custom non-commercial community license, GitHub issue/PR templates are drafted, GitHub Pages deployment prep is documented, and the commercial permission process is documented. M0 remains open for maintainer contact, legal review, remote Pages verification, PWA release work, and any remaining PRD/HANDOFF drift cleanup.
+M2 has started with Reader UX, vocabulary workflow, and storage-trust polish. GitHub Pages deployment is live, lightweight Reader chrome with Contents access has been added, and Home now includes a non-storage in-app Reader guide entry. Chinese Reading Mode, Mixed Mode, and translation providers remain placeholder/planned. Remaining release-readiness work includes legal review, PWA/offline planning, and any remaining PRD/HANDOFF drift cleanup.
 
 ---
 
-## Active phase: M0 — Stabilization & governance docs
+## Active phase: M2 — Reader UX + Vocabulary workflow + Storage trust
 
 | | |
 |---|---|
-| **Goal** | Align docs and agent workflow before public release. |
-| **In progress** | M0 close-out: maintainer contact; legal review decision; remote Pages verification; HANDOFF/PRD drift cleanup; M3 release planning. |
+| **Goal** | Polish Reader UX, vocabulary workflow clarity, and local-storage trust without changing translation placeholder scope. |
+| **In progress** | Reader chrome / Contents smoke follow-up; vocabulary workflow clarity; Local Library / storage trust review. |
 | **Completed (M0)** | Root `AGENTS.md`; `PROJECT_STATE.md`, `DECISION_LOG.md`, `AI_WORKFLOW_PROTOCOL.md`; PRD + CN PRD; `PRD_SOURCE_AUDIT.md`; Interleaf Reader `README.md` refresh; `OPEN_SOURCE_RELEASE_CHECKLIST.md`; `PRIVACY.md` local-first MVP draft; `CONTRIBUTING.md` open-source workflow draft; `LICENSE_DECISION.md` custom non-commercial license direction and commercial permission process; final `LICENSE` file; GitHub issue templates and PR template; GitHub Pages deployment prep doc + `.nojekyll` + root redirect `index.html`; minimal PWA manifest and self-authored app icons; PWA offline/cache plan; user-facing app rename cleanup; user-facing Mixed Mode copy cleanup; M1 stabilization smoke report; repeatable smoke EPUB fixture generator. |
-| **Definition of done** | Contributors know which doc to read first; decision log seeded; governance docs linked from HANDOFF. |
+| **Definition of done** | Reader chrome / Contents, vocabulary workflow, and local storage trust paths pass targeted smoke checks on mobile-sized and desktop screens. |
 
 ---
 
 ## Implemented features
 
-*Per `docs/PRD_SOURCE_AUDIT.md` and `docs/HANDOFF.md` — conservative list.*
+*Per `docs/PRD_SOURCE_AUDIT.md` and `docs/HANDOFF.md` 閳?conservative list.*
 
 ### Reading & library
 
@@ -53,16 +55,17 @@ M1 (Reader MVP) and M2 (Vocabulary Library v1) are **largely implemented** but n
 - Chapter navigation (TOC, Previous/Next, Back to Top, progress text, mobile tap controls)
 - English Study Mode with vertical scroll
 - Home / Reader / Vocabulary Library views (mutually exclusive)
+- Home Reader guide entry (non-storage help item; not an imported EPUB)
 - Local Library (saved EPUB metadata; Open / Forget with in-app modal)
 - IndexedDB: EPUB blob, metadata, reading progress (`scrollRatio`, `currentMode`, etc.)
 - Scroll progress restore (approximate); Resume / Continue Reading / Forget saved book
-- Mobile reader overlay; bottom sheets for Chapters, Preview, Mode
+- Reader chrome with Contents access; Contents drawer/sheet plus chapter-slider Progress, Preview, and Mode sheets
 
 ### Vocabulary
 
 - Vocabulary Preview from curated seed datasets (`vocabulary.json`, `slang_idioms.json`)
-- Underlined terms; click/tap bubble (term, 中文, English definition, IELTS usage when available)
-- Level baseline filtering (`levelBaselineEngine.js`, `data/levels/level*.json`) — lazy-loaded, fail-open
+- Underlined terms; click/tap bubble (term, 娑擃厽鏋? English definition, IELTS usage when available)
+- Level baseline filtering (`levelBaselineEngine.js`, `data/levels/level*.json`) 閳?lazy-loaded, fail-open
 - Profile: `knownWords`, `learningWords`, `ignoredWords`; default `selectedLevel` level3
 - Preview actions: **Known**, **Save**, **Hide**
 - Vocabulary Library: Learning / Mastered / Hidden tabs; manual Add to Learning; Remove
@@ -72,7 +75,7 @@ M1 (Reader MVP) and M2 (Vocabulary Library v1) are **largely implemented** but n
 
 - Pure-logic tests: `vocabEngine`, `glossaryEngine`, `navigationEngine`, `storage`, `levelBaselineEngine`, `homeState`
 - Dev diagnostics: `window.__slashReaderDebug.getDiagnostics()`
-- Book Glossary skeleton (rule extraction + mock classifier) — dev/support, not core user MVP
+- Book Glossary skeleton (rule extraction + mock classifier) 閳?dev/support, not core user MVP
 
 ---
 
@@ -80,15 +83,15 @@ M1 (Reader MVP) and M2 (Vocabulary Library v1) are **largely implemented** but n
 
 | Area | Status |
 |---|---|
-| Chinese Reading Mode | **Placeholder** — post-MVP |
-| Mixed Mode (`cloze-mixed` internally) | **Placeholder** — post-MVP; user-facing copy says Mixed Mode |
-| Translation providers | **Planned** — not implemented |
+| Chinese Reading Mode | **Placeholder** 閳?post-MVP |
+| Mixed Mode (`cloze-mixed` internally) | **Placeholder** 閳?post-MVP; user-facing copy says Mixed Mode |
+| Translation providers | **Planned** 閳?not implemented |
 | Whole-book translation workflow | **Planned** |
-| Comfort-level onboarding UI | **Planned** — API exists; default level3 only |
+| Comfort-level onboarding UI | **Planned** 閳?API exists; default level3 only |
 | Full candidate scoring / enrichment | **Post-MVP** |
-| True learning → mastered lifecycle | **Post-MVP** |
+| True learning 閳?mastered lifecycle | **Post-MVP** |
 | PWA manifest + service worker | **Partial** (M3); minimal manifest, self-authored app icons, and offline/cache plan exist; service worker remains planned |
-| GitHub Pages deployment | **Prep documented** (M3); remote enablement and deployed smoke test pending |
+| GitHub Pages deployment | **Live**; deployed smoke testing remains part of release readiness |
 | Legal/contact follow-ups | **TBD** (M3); commercial permission process is documented, but maintainer contact and legal review remain pending |
 | Internal legacy names / namespaces | **Intentional compatibility** - some paths, storage keys, and debug globals still use Slash naming |
 | Cloud sync / accounts | **Out of MVP scope** |
@@ -103,9 +106,9 @@ M1 (Reader MVP) and M2 (Vocabulary Library v1) are **largely implemented** but n
 | **Doc drift** | `README.md` refreshed on 2026-06-16; `PRODUCT_SPEC.md` and parts of `VOCABULARY_PERSONALIZATION_PLAN.md` may still lag PRD/HANDOFF |
 | **Naming confusion** | Public copy uses Interleaf Reader and Mixed Mode; legacy internal names such as `cloze-mixed` still need care |
 | **Known vs Mastered UX** | Mastered tab shows `knownWords`; users may expect flashcards or post-learning archive |
-| **CDN dependency** | epub.js / JSZip from jsDelivr — offline/PWA weakness |
-| **IndexedDB quotas** | Large EPUBs + future translation cache — no eviction policy yet |
-| **Translation (future)** | Cost, API key handling, free provider quality — all TBD |
+| **CDN dependency** | epub.js / JSZip from jsDelivr 閳?offline/PWA weakness |
+| **IndexedDB quotas** | Large EPUBs + future translation cache 閳?no eviction policy yet |
+| **Translation (future)** | Cost, API key handling, free provider quality 閳?all TBD |
 | **Privacy follow-ups** | Translation provider data flow, user API key UX, analytics policy, CDN vs vendored scripts, and children-friendly edition remain TBD |
 | **License follow-ups** | Commercial permission process is documented; maintainer contact and legal review remain TBD |
 | **Copyright / OSS** | `source_materials/` PDFs; public repo policy TBD |
@@ -121,22 +124,22 @@ Unless a task explicitly targets them **and** follows `docs/AI_WORKFLOW_PROTOCOL
 2. **Do not put API keys** in `pwa-reader/` or any committed frontend code.
 3. **Do not block import/render** on optional modules (personalization, translation, glossary).
 4. **Do not implement real translation providers** in the browser bundle without secure key boundary (per PRD M4).
-5. **Do not replace placeholder Chinese/Mixed modes** with fake “translations” without provider architecture.
-6. **Do not mutate global vocabulary datasets** from user actions — personalization lives in IndexedDB profile only.
+5. **Do not replace placeholder Chinese/Mixed modes** with fake 閳ユ涪ranslations閳?without provider architecture.
+6. **Do not mutate global vocabulary datasets** from user actions 閳?personalization lives in IndexedDB profile only.
 7. **Do not host copyrighted books or bulk dictionary text** in `data/` or the app bundle.
 
 ---
 
 ## Backlog
 
-Ordered by PRD milestones after M0:
+Ordered by current M2/M3 priorities:
 
 | Priority | Milestone | Summary |
 |---|---|---|
 | 1 | **M0 close-out** | Decide maintainer contact for license/commercial permission requests; keep legal review and privacy follow-ups tracked |
 | 2 | **M1 stabilization** | Smoke test and repeatable copyright-safe EPUB fixture workflow complete |
-| 3 | **M2 polish** | Comfort-level UI decision; Known/Mastered copy clarity |
-| 4 | **M3** | Remote GitHub Pages enablement/smoke test, service worker, vendored scripts, release smoke assets |
+| 3 | **M2 polish** | Reader UX, vocabulary workflow clarity, and storage-trust follow-up |
+| 4 | **M3** | Deployed Pages smoke test, service worker, vendored scripts, release smoke assets |
 | 5 | **M4** | Translation provider abstraction + secure key strategy |
 | 6 | **M5** | Chinese + Mixed mode implementation |
 | 7 | **M6** | Enrichment, true mastered lifecycle, profile import/export, optional AO3/export |
@@ -145,7 +148,7 @@ Ordered by PRD milestones after M0:
 
 ## Next recommended task
 
-**M3 PWA readiness: implement a minimal app-shell service worker only after following `docs/PWA_OFFLINE_CACHE_PLAN.md`.**
+**M2 follow-up: run the Reader chrome / Contents smoke checklist on the live local path and record any vocabulary workflow or storage-trust UX gaps.**
 
 ---
 
@@ -157,7 +160,7 @@ Ordered by PRD milestones after M0:
 | `docs/INTERLEAF_READER_PRD.md` | Product requirements (canonical) |
 | `docs/PRD_SOURCE_AUDIT.md` | Implementation inventory |
 | `docs/HANDOFF.md` | Engineering handoff / run instructions |
-| `docs/PROJECT_STATE.md` | This file — where we are now |
+| `docs/PROJECT_STATE.md` | This file 閳?where we are now |
 | `docs/DECISION_LOG.md` | Dated decisions |
 | `docs/AI_WORKFLOW_PROTOCOL.md` | Agent/contributor workflow |
 

@@ -129,6 +129,57 @@
           <p id="vocabularyLibraryEmpty" class="vocabulary-summary-note">Save words from Vocabulary Preview to build your library.</p>
         </section>
 
+        <section class="home-guide-entry" aria-labelledby="home-guide-title">
+          <div>
+            <p class="eyebrow">Guide</p>
+            <h2 id="home-guide-title">Start with Interleaf Reader</h2>
+            <p class="section-hint">A local-first guide for import, reading, vocabulary, storage, and export basics.</p>
+          </div>
+
+          <details class="home-guide-details">
+            <summary>Open reader guide</summary>
+            <div class="home-guide-content">
+              <section aria-labelledby="home-guide-import">
+                <h3 id="home-guide-import">Import and read</h3>
+                <ul>
+                  <li>Import an EPUB with the file picker or drag-and-drop area.</li>
+                  <li>Use Previous, Next, Back to Top, and Contents to move through chapters.</li>
+                  <li>Progress is saved approximately in this browser so you can resume later.</li>
+                </ul>
+              </section>
+
+              <section aria-labelledby="home-guide-reader-tools">
+                <h3 id="home-guide-reader-tools">Reader tools</h3>
+                <ul>
+                  <li>Contents opens the chapter list.</li>
+                  <li>Progress shows the chapter slider and chapter position.</li>
+                  <li>Preview shows vocabulary candidates for the current reading context.</li>
+                  <li>Mode shows reading mode options. English Study works now; Chinese Reading Mode and Mixed Mode are placeholders.</li>
+                </ul>
+              </section>
+
+              <section aria-labelledby="home-guide-vocabulary">
+                <h3 id="home-guide-vocabulary">Vocabulary</h3>
+                <ul>
+                  <li>Vocabulary Preview underlines useful words and phrases from bundled word lists.</li>
+                  <li>Tap or click an underlined term to open a vocabulary bubble with available notes.</li>
+                  <li>Known marks a familiar word, Save adds it to Learning, and Hide removes it from future Preview results.</li>
+                  <li>Vocabulary Library keeps Learning, Mastered, and Hidden lists on this device.</li>
+                </ul>
+              </section>
+
+              <section aria-labelledby="home-guide-storage-export">
+                <h3 id="home-guide-storage-export">Storage and export</h3>
+                <ul>
+                  <li>Imported books, progress, and vocabulary lists are stored locally in this browser only.</li>
+                  <li>Clearing browser data, changing devices, or using private browsing can remove or hide local data.</li>
+                  <li>Use Copy Learning, Copy All, or Download CSV from Vocabulary Library for basic vocabulary export.</li>
+                </ul>
+              </section>
+            </div>
+          </details>
+        </section>
+
         <section class="local-library" aria-labelledby="library-title">
           <h2 id="library-title">Local Library</h2>
           <p class="section-hint">Saved in this browser on this device.</p>
@@ -241,18 +292,18 @@
       </header>
 
       <div id="readerTapControls" class="reader-tap-controls" data-no-reader-toggle hidden>
-        <div class="tap-controls-top">
-          <button id="tapVocabButton" type="button">Preview</button>
+        <div class="reader-chrome-bar reader-chrome-top">
           <button id="tapHomeButton" type="button">Home</button>
-          <button id="tapModeButton" type="button">Mode</button>
+          <div class="reader-chrome-title">
+            <p id="tapBookTitle">Interleaf Reader</p>
+            <p id="tapChapterTitle">No chapter loaded</p>
+          </div>
         </div>
-        <div class="tap-controls-status">
+        <div class="reader-chrome-bar reader-chrome-bottom" aria-label="Reader quick controls">
           <button id="tapChaptersButton" type="button">Contents</button>
-          <p id="tapChapterProgress">No chapter loaded</p>
-        </div>
-        <div class="tap-controls-bottom" aria-label="Reader chapter controls">
-          <button id="tapPrevChapterButton" type="button" disabled>Previous</button>
-          <button id="tapNextChapterButton" type="button" disabled>Next</button>
+          <button id="tapProgressButton" type="button">Progress</button>
+          <button id="tapVocabButton" type="button">Preview</button>
+          <button id="tapModeButton" type="button">Mode</button>
         </div>
       </div>
 
@@ -345,13 +396,31 @@
 
       <div id="mobileSheetBackdrop" class="mobile-sheet-backdrop" hidden></div>
 
-      <section id="mobileChapterSheet" class="mobile-sheet" aria-labelledby="mobile-chapter-title" hidden>
+      <section id="mobileChapterSheet" class="mobile-sheet reader-contents-sheet" aria-labelledby="mobile-chapter-title" hidden>
         <div class="mobile-sheet-header">
           <h2 id="mobile-chapter-title">Contents</h2>
           <button type="button" class="mobile-sheet-close" data-close-mobile-sheet>Close</button>
         </div>
         <div id="mobileChapterList" class="chapter-list mobile-list" role="listbox" aria-label="Mobile chapter list">
           <p class="empty-state compact-empty">Import an EPUB to see chapters.</p>
+        </div>
+      </section>
+
+      <section id="mobileProgressSheet" class="mobile-sheet reader-progress-sheet" aria-labelledby="mobile-progress-title" hidden>
+        <div class="mobile-sheet-header">
+          <h2 id="mobile-progress-title">Progress</h2>
+          <button type="button" class="mobile-sheet-close" data-close-mobile-sheet>Close</button>
+        </div>
+        <div class="reader-progress-summary">
+          <p id="tapChapterProgressTitle" class="reader-progress-title">No chapter loaded</p>
+          <p id="tapChapterProgress" class="reader-progress-position">No chapter loaded</p>
+        </div>
+        <div class="reader-progress-actions" aria-label="Reader chapter controls">
+          <button id="tapPrevChapterButton" type="button" disabled>Previous Chapter</button>
+          <label class="reader-progress-slider-wrap" for="tapChapterSlider">
+            <input id="tapChapterSlider" type="range" min="1" max="1" value="1" step="1" disabled>
+          </label>
+          <button id="tapNextChapterButton" type="button" disabled>Next Chapter</button>
         </div>
       </section>
 

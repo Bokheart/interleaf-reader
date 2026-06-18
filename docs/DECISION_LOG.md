@@ -1,5 +1,29 @@
 # Interleaf Reader — Decision Log
 
+## 2026-06-18 - Book Project data model proposal drafted
+
+| Field | Value |
+|---|---|
+| **Status** | Active direction; future architecture |
+| **Decision** | Future Book Project modeling should be treated as a conceptual, local-first architecture layer with `BookProject`, version, alignment, Mixed artifact, and progress concepts before any storage migration is designed. Existing local book records should be wrapped or referenced conservatively, and internal compatibility names should remain unchanged unless a future migration is explicitly scoped. |
+| **Rationale** | A conceptual model clarifies multilingual architecture without committing M2 to IndexedDB changes, translation generation, provider integration, or Mixed Mode rendering. |
+| **Follow-up** | Future milestones must decide the actual storage schema, migration plan, provider boundary, alignment repair UX, and tests. |
+| **References** | `docs/BOOK_PROJECT_DATA_MODEL_PROPOSAL.md`; `docs/MULTILINGUAL_BOOK_PROJECT_STRATEGY.md` |
+
+---
+
+## 2026-06-18 - Multilingual Book Project architecture direction
+
+| Field | Value |
+|---|---|
+| **Status** | Active direction; future architecture |
+| **Decision** | Future multilingual support should be organized around a **Book Project** that can contain the source book plus one or more translation versions. Translation versions may be user-provided or AI-generated, and future Mixed Mode should distinguish **Generated Mixed** from **paired-version Mixed**. Alignment should start at chapter level before paragraph, sentence, or word alignment. |
+| **Rationale** | Treating translations as versions inside a Book Project keeps multilingual reading, translation provenance, Mixed Mode, and alignment work connected instead of designing isolated features. Chapter alignment is the lowest-risk foundation for paired reading and future deeper alignment. |
+| **Follow-up** | Define the Book Project data model, translation-version metadata, import/generation workflows, provider boundary, privacy implications, and alignment repair UX in future translation milestones. This is not an M2 implementation commitment. |
+| **References** | `docs/MULTILINGUAL_BOOK_PROJECT_STRATEGY.md`; PRD translation milestones |
+
+---
+
 ## 2026-06-17 - Commercial permission process documented
 
 | Field | Value |
