@@ -1,0 +1,80 @@
+# M2 Acceptance Matrix
+
+Status values: `NOT_STARTED`, `IN_PROGRESS`, `IMPLEMENTED_UNVERIFIED`, `PASS`, `BLOCKED`, `DEFERRED`.
+
+Do not mark pending behavior `PASS`. `PASS` requires recorded evidence in `docs/M2_EXECUTION_STATE.md` or clearly cited prior evidence.
+
+| ID | Area | Requirement | Priority | Verification type | Evidence required | Dependency | Status |
+|---|---|---|---|---|---|---|---|
+| HARNESS-001 | Harness | M2 parent spec links active child specs, acceptance matrix, runbook, and execution state. | P0 | automated + manual | File readback confirms links exist. | none | PASS |
+| HARNESS-002 | Harness | M2 execution-state file exists as mutable evidence/recovery record. | P0 | automated + manual | File exists and has resume instructions. | none | PASS |
+| HARNESS-003 | Harness | Autonomous stop rules exist and prevent unsafe scope expansion. | P0 | manual | Runbook stop conditions reviewed. | HARNESS-001 | PASS |
+| LANG-001 | Language | First-run bilingual chooser appears before normal Home interaction. | P0 | automated + manual | Unit/state evidence plus browser smoke. | HARNESS-001 | PASS |
+| LANG-002 | Language | Selected UI language persists locally. | P0 | automated + manual | Storage/state test and browser refresh smoke. | LANG-001 | PASS |
+| LANG-003 | Language | Settings language switch updates UI without reload failure. | P1 | automated + manual | State test plus manual switch evidence. | SETTINGS-001, LANG-002 | IMPLEMENTED_UNVERIFIED |
+| LANG-004 | Language | Core UI text supports 中文 / English for M2 surfaces. | P1 | automated + manual | Translation key coverage review plus browser smoke. | LANG-002 | IMPLEMENTED_UNVERIFIED |
+| LANG-005 | Language | Imported EPUB titles, authors, and content remain unchanged by UI language. | P0 | manual | Import smoke confirms metadata/content unchanged. | LANG-004 | IMPLEMENTED_UNVERIFIED |
+| LANG-006 | Language | Debug/internal identifiers and compatibility names remain unchanged. | P0 | automated + manual | Diff review for storage keys, debug globals, `cloze-mixed`, `clozeHtml`. | LANG-004 | IMPLEMENTED_UNVERIFIED |
+| LANG-007 | Language | UI language uses key-based translation, not duplicate en/zh HTML apps. | P1 | manual | Code review of i18n structure. | LANG-004 | IMPLEMENTED_UNVERIFIED |
+| ILC-001 | Interface language contract | Interface Language changes UI only and never changes Reading Mode or Reading Content. | P0 | automated + manual | State/unit evidence plus the Interface Language x Reading Mode browser truth table defined by the localization contract and coverage matrix. | LANG-002, GUIDE-006 | NOT_STARTED |
+| ILC-002 | Interface language contract | Switching Interface Language updates all currently visible static, dynamic, and accessibility copy without reload. | P0 | automated + manual | Translation-key/render-state assertions plus current-surface browser switches across the coverage matrix. | ILC-001, LANG-003 | NOT_STARTED |
+| ILC-003 | Chinese UI completeness | Chinese UI contains no untranslated explanatory English beyond approved preservation classes. | P0 | automated + manual | English-leak scan using the protected-token classifications plus Chinese browser review of every required surface. | ILC-002, PRESERVE-001 | NOT_STARTED |
+| ILC-004 | Localization coverage | Every localizable string has a key and English/Chinese locale parity is enforced. | P0 | automated + manual | String inventory, locale-key parity test, hard-coded-copy audit, and coverage-matrix readback. | LANG-007 | NOT_STARTED |
+| ILC-005 | Accessibility localization | Accessibility labels, tooltips, placeholders, dialog descriptions, and live regions are fully localized. | P0 | automated + manual | Static/generated accessibility-string assertions plus desktop/mobile accessibility-tree inspection from the coverage matrix. | ILC-004 | NOT_STARTED |
+| ILC-006 | Feedback localization | Feedback, errors, confirmations, and success messages are complete in both languages and do not expose raw exceptions. | P0 | automated + manual | Message-key/error-isolation tests plus browser evidence for normal, empty, malformed, unsupported, success, and failure paths. | ILC-004, DEVLANG-001 | NOT_STARTED |
+| CONTENT-001 | Guide content | Guide `english-study` is fully English and Guide `chinese` is fully Chinese except approved protected terms. | P0 | automated + manual | Guide variant audit, protected-token scan, editorial readback, and browser rendering in both Interface Languages. | ILC-003, PRESERVE-001 | NOT_STARTED |
+| CONTENT-002 | Guide content | Guide content follows Reading Mode only, and the current Guide chapter remains stable across Reading Mode and Interface Language changes. | P0 | automated + manual | State/module truth table plus browser mode/language switching with chapter-index preservation. | CONTENT-001, GUIDE-006 | NOT_STARTED |
+| CONTENT-003 | Imported content | Imported EPUB titles, authors, filenames, chapter titles, and body remain unchanged by Interface Language. | P0 | automated + manual | Before/after content snapshots and imported-EPUB browser regression in both Interface Languages and all Reading Modes. | ILC-001, REGRESSION-001 | NOT_STARTED |
+| MIXED-001 | Mixed Guide content | Mixed Guide prose uses Chinese grammatical and paragraph structure as its base. | P0 | automated + manual | Mixed-variant structure audit, editorial readback, and Guide browser review. | CONTENT-001 | NOT_STARTED |
+| MIXED-002 | Mixed Guide content | Every retained English lexical span is a declared chapter target or approved protected term/proper noun. | P0 | automated + manual | Chapter target-list validator, English-span audit, protected-token scan, and editorial review. | MIXED-001, PRESERVE-001 | NOT_STARTED |
+| MIXED-003 | Mixed Guide content | No paired English/Chinese heading, sentence, or duplicated paragraph appears in Mixed content. | P0 | automated + manual | Paired-content scan covering separators/alternating paragraphs plus all-chapter browser readback. | MIXED-001 | NOT_STARTED |
+| MIXED-004 | Mixed Guide content | Declared multiword target phrases are retained as complete units. | P1 | automated + manual | Target-list phrase validator and editorial comparison of declared phrases to rendered Mixed content. | MIXED-002 | NOT_STARTED |
+| MIXED-005 | Mixed Guide content | Mixed content passes reading-comfort review, and sentences without target vocabulary may remain fully Chinese. | P1 | manual | Editorial comfort review of every chapter using the contract density guidance plus responsive browser reading. | MIXED-002, MIXED-003, MIXED-004 | NOT_STARTED |
+| PRESERVE-001 | Preservation | Product/technical tokens, imported content, and target vocabulary follow the preservation taxonomy. | P0 | automated + manual | Allowlist/classification scan plus UI, Guide, import, Preview, bubble, library, and export readback defined by the coverage matrix. | ILC-004 | NOT_STARTED |
+| DEVLANG-001 | Developer language | No forbidden developer terminology, internal ID, raw schema field, database/storage name, or diagnostic detail is user-facing. | P0 | automated + manual | Static forbidden-term scan plus normal UI, Guide, import-error, restore-error, diagnostics-boundary, and accessibility inspection. | ILC-004 | NOT_STARTED |
+| BROWSER-LOC-001 | Localization closeout | Required desktop, mobile, responsive, language, mode, dynamic-feedback, and accessibility browser evidence is recorded. | P0 | manual | Complete browser verification matrix from `docs/M2_LOCALIZATION_COVERAGE_MATRIX.md` with evidence recorded in execution state. | ILC-001-ILC-006, CONTENT-001-CONTENT-003, MIXED-001-MIXED-005, PRESERVE-001, DEVLANG-001 | NOT_STARTED |
+| SETTINGS-001 | Settings | Settings view opens and returns Home. | P0 | automated + manual | State test plus browser smoke. | LANG-002 | PASS |
+| SETTINGS-002 | Settings | Settings Language / 语言 section works. | P1 | automated + manual | State test plus manual switch evidence. | SETTINGS-001, LANG-003 | IMPLEMENTED_UNVERIFIED |
+| SETTINGS-003 | Settings | Help Center is reachable from Settings. | P1 | automated + manual | State test plus manual navigation evidence. | SETTINGS-001 | PASS |
+| GUIDE-001 | Guide | Built-in Guide is visible in Local Library by default. | P0 | automated + manual | Existing implementation evidence plus manual browser smoke. | none | PASS |
+| GUIDE-002 | Guide | Hide from Library hides the Guide without deletion. | P1 | automated + manual | State test plus browser smoke. | SETTINGS-001 | PASS |
+| GUIDE-003 | Guide | Guide does not show normal user-book Forget action. | P0 | automated + manual | Existing implementation evidence plus manual browser smoke. | GUIDE-001 | PASS |
+| GUIDE-004 | Guide | Hidden Guide remains openable from Help Center. | P1 | automated + manual | State test plus browser smoke. | GUIDE-002, HELP-003 | PASS |
+| GUIDE-005 | Guide | Show Guide in Library restores the Guide card. | P1 | automated + manual | State test plus browser smoke. | GUIDE-002, HELP-003 | PASS |
+| GUIDE-006 | Guide | Built-in Guide content follows Reading Mode; Interface Language does not change Guide content or Mode. | P0 | automated + manual | Six-case `homeState` truth table plus 2026-06-20 browser truth-table smoke; chapter 3 remained selected across mode change. | GUIDE-001 | PASS |
+| GUIDE-007 | Guide | Six-chapter Guide exposes English, Chinese, and mixed content variants on one virtual book. | P1 | automated + manual | Guide module assertions plus 2026-06-20 Reader smoke showing six chapters and mode-specific headings. | GUIDE-001 | PASS |
+| HELP-001 | Help | Help Center has Getting Started / Reading / Vocabulary / Storage / Feature Status categories. | P1 | automated + manual | State test or DOM review plus browser smoke. | SETTINGS-003 | PASS |
+| HELP-002 | Help | Help Center has full Guide open action. | P1 | automated + manual | Browser smoke opens Guide Reader flow. | HELP-001, GUIDE-001 | IMPLEMENTED_UNVERIFIED |
+| HELP-003 | Help | Help Center has Show/restore Guide in Library action. | P1 | automated + manual | State test plus browser smoke. | HELP-001, GUIDE-002 | PASS |
+| HELP-004 | Help | Help Center localized content follows Interface Language. | P1 | automated + manual | Language switch smoke. | HELP-001, LANG-003 | IMPLEMENTED_UNVERIFIED |
+| CONTEXT-001 | Contextual help | Circular `?` button exists in Reader bar bottom-right. | P1 | manual | Browser smoke and visual placement check. | LANG-004 | IMPLEMENTED_UNVERIFIED |
+| CONTEXT-002 | Contextual help | Reader help button accessible label is localized. | P1 | automated + manual | DOM/state assertion plus manual check. | CONTEXT-001, LANG-004 | PASS |
+| CONTEXT-003 | Contextual help | Contextual help panel opens. | P1 | automated + manual | State test plus browser smoke. | CONTEXT-001 | PASS |
+| CONTEXT-004 | Contextual help | Contextual help content follows Interface Language. | P1 | automated + manual | Language switch smoke. | CONTEXT-003, LANG-003 | IMPLEMENTED_UNVERIFIED |
+| CONTEXT-005 | Contextual help | Help Center and Guide actions work from contextual help. | P1 | automated + manual | Browser smoke opens both targets. | CONTEXT-003, HELP-002 | IMPLEMENTED_UNVERIFIED |
+| CONTEXT-006 | Contextual help | Reader controls are not blocked by the help control. | P0 | manual | Browser smoke checks Reader text and Mode controls. | CONTEXT-001 | IMPLEMENTED_UNVERIFIED |
+| TXT-001 | TXT export | 不背单词 TXT export includes Learning words only. | P0 | automated + manual | Formatter/unit evidence plus downloaded file review. | none | IMPLEMENTED_UNVERIFIED |
+| TXT-002 | TXT export | TXT file is UTF-8 plain text. | P0 | automated + manual | Blob MIME/encoding review plus downloaded file check. | TXT-001 | IMPLEMENTED_UNVERIFIED |
+| TXT-003 | TXT export | TXT file has one term or phrase per line. | P0 | automated + manual | Unit evidence and file review. | TXT-001 | IMPLEMENTED_UNVERIFIED |
+| TXT-004 | TXT export | TXT export includes no definitions, examples, source sentences, book text, or copyrighted context. | P0 | automated + manual | Unit evidence and code review. | TXT-001 | IMPLEMENTED_UNVERIFIED |
+| TXT-005 | TXT export | Empty Learning list is disabled or handled calmly. | P1 | automated + manual | State test plus browser smoke. | TXT-001 | IMPLEMENTED_UNVERIFIED |
+| BACKUP-001 | Backup/Restore | Backup exports only allowed vocabulary profile fields. | P0 | automated + manual | Unit/storage test plus JSON review. | none | IMPLEMENTED_UNVERIFIED |
+| BACKUP-002 | Backup/Restore | Backup includes `schemaVersion` and `exportedAt`. | P0 | automated + manual | Unit/storage test plus JSON review. | BACKUP-001 | IMPLEMENTED_UNVERIFIED |
+| BACKUP-003 | Backup/Restore | Valid restore passes through profile normalization/storage. | P0 | automated + manual | Storage test plus browser smoke. | BACKUP-001 | IMPLEMENTED_UNVERIFIED |
+| BACKUP-004 | Backup/Restore | Malformed JSON restore is rejected without partial changes. | P0 | automated + manual | Storage/home state test plus manual error check. | BACKUP-003 | IMPLEMENTED_UNVERIFIED |
+| BACKUP-005 | Backup/Restore | Unsupported schema restore is rejected without partial changes. | P0 | automated + manual | Storage/home state test plus manual error check. | BACKUP-003 | IMPLEMENTED_UNVERIFIED |
+| BACKUP-006 | Backup/Restore | Backup/Restore includes no EPUB blobs, book text, Local Library files, or reading progress. | P0 | automated + manual | JSON review, code review, and smoke. | BACKUP-001 | IMPLEMENTED_UNVERIFIED |
+| REGRESSION-001 | Regression | EPUB import still works. | P0 | manual | Browser smoke with `tests/fixtures/interleaf_smoke.epub`. | phase-specific changes | PASS |
+| REGRESSION-002 | Regression | Reader opens and renders imported EPUB chapters. | P0 | manual | Browser smoke. | REGRESSION-001 | PASS |
+| REGRESSION-003 | Regression | Contents works for imported EPUBs. | P0 | manual | Browser smoke. | REGRESSION-002 | PASS |
+| REGRESSION-004 | Regression | Progress works for imported EPUBs and Guide chapters. | P0 | manual | Browser smoke. | REGRESSION-002, GUIDE-001 | PASS |
+| REGRESSION-005 | Regression | Preview opens and remains fail-open. | P0 | automated + manual | `vocabEngine` if relevant plus browser smoke. | REGRESSION-002 | PASS |
+| REGRESSION-006 | Regression | Vocabulary bubble works where matched terms exist. | P0 | manual | Browser smoke. | REGRESSION-005 | PASS |
+| REGRESSION-007 | Regression | Local Library restore works for user-imported saved EPUBs. | P0 | manual | Browser smoke after refresh/reopen. | REGRESSION-001 | PASS |
+| REGRESSION-008 | Regression | User-book Forget works and does not apply to built-in Guide. | P0 | automated + manual | Home state test plus browser smoke. | REGRESSION-007, GUIDE-003 | PASS |
+| REGRESSION-009 | Regression | Vocabulary Library still works. | P1 | automated + manual | State test plus browser smoke. | phase-specific changes | PASS |
+| REGRESSION-010 | Regression | Chinese Reading Mode remains placeholder. | P0 | automated + manual | Copy/state review plus browser smoke. | phase-specific changes | PASS |
+| REGRESSION-011 | Regression | Mixed Mode remains placeholder and providers remain planned/not implemented. | P0 | automated + manual | Copy/state review plus browser smoke. | phase-specific changes | PASS |
+| DOCS-001 | Docs | User guides remain aligned with actual M2 behavior. | P1 | manual | 2026-06-20 UTF-8 readback confirms all three guides separate Interface Language from Reading Mode, remove separate Guide Version, and retain imported placeholder boundaries. | final behavior | PASS |
+| DOCS-002 | Docs | Status docs reflect actual behavior without claiming pending features. | P1 | manual | 2026-06-20 readback confirms harness, child spec, execution state, and HANDOFF match the recovered Guide model. | final behavior | PASS |
+| DOCS-003 | Docs | M2 execution state records files, commands, evidence, manual gaps, and next phase. | P0 | manual | Readback of `docs/M2_EXECUTION_STATE.md`. | HARNESS-002 | PASS |
