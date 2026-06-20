@@ -1,278 +1,396 @@
 # Contributing to Interleaf Reader
 
-Thanks for helping improve Interleaf Reader. The project is early-stage, local-first, and reading-first: it helps non-native English readers stay inside English fiction and long-form EPUB reading while getting lightweight vocabulary support.
+## 1. Project Scope
 
-The current MVP is English Study Mode plus local EPUB import, Local Library, reading progress restore, Vocabulary Preview, and Vocabulary Library. Chinese Reading Mode, Mixed Mode, and real translation providers are planned placeholders. Please do not treat them as implemented features.
+Interleaf Reader is a mobile-first, local-first, reading-first application for long-form English reading.
 
-## Before Contributing
+Contributions should preserve reading continuity and remain within the current Active milestone.
 
-Please read these first:
+Do not silently turn the project into:
 
-- `README.md`
-- `docs/INTERLEAF_READER_PRD.md`
-- `docs/PROJECT_STATE.md`
-- `docs/DECISION_LOG.md`
-- `docs/AI_WORKFLOW_PROTOCOL.md`
-- `docs/HANDOFF.md`
-- `PRIVACY.md`
+* a flashcard, quiz, drill, streak, or spaced-repetition application;
+* a general dictionary;
+* a generic translation service;
+* an IELTS training application;
+* a social reading platform;
+* a public book or translation library;
+* an AO3 scraper.
 
-The short version:
+Manual Add is vocabulary capture, not dictionary lookup.
 
-- Interleaf Reader is a reading app, not a flashcard/drill app.
-- It is local-first.
-- EPUB import, English Study Mode, Local Library, Vocabulary Preview, and Vocabulary Library are the MVP paths to protect.
-- Translation is future work and needs architecture/security decisions first.
+Vocabulary Library is a collection, organization, backup, and export layer, not a complete learning engine.
 
-## Contribution License
+---
 
-Interleaf Reader uses the Interleaf Reader Non-Commercial Community License, a custom source-available, non-commercial community license. By contributing, you agree that your contribution will be licensed under the project license unless otherwise agreed in writing. Please do not submit code, text, data, or assets unless you have the right to license them to the project.
+## 2. Read Before Contributing
 
-Commercial use requires separate written permission. Opening an issue, pull request, fork, or discussion does not grant commercial permission. The commercial permission request process is documented in `docs/LICENSE_DECISION.md`; maintainer contact is still TBD.
+Start with:
 
-## Good Contribution Types
+1. `docs/PROJECT_STATE.md`
+2. `docs/MILESTONES.md`
+3. the directly relevant files
 
-Helpful contributions include:
+Read more only when the change requires it:
 
-- bug reports
-- documentation fixes
-- small UI polish
-- focused tests
-- vocabulary dataset improvements
-- PWA/deployment work
-- translation architecture discussion
-- accessibility improvements
-- mobile reading improvements
+| Change area | Read |
+| --- | --- |
+| Product meaning | `docs/INTERLEAF_READER_PRD.md` |
+| Durable decision | relevant entries in `docs/DECISION_LOG.md` |
+| Runtime structure | `docs/ARCHITECTURE.md` |
+| Persisted data or migration | `docs/DATA_MODEL.md` |
+| Setup, tests, smoke, troubleshooting | `docs/HANDOFF.md` |
+| Privacy or external data flow | `PRIVACY.md` |
+| AI-assisted repository work | `AGENTS.md` |
+| License or commercial use | `LICENSE` and `docs/LICENSE_DECISION.md` |
 
-Keep contributions focused. One goal per pull request is much easier to review and safer for the reader.
+The former AI workflow protocol is superseded.
 
-GitHub issue templates are available for bug reports, feature requests, and documentation tasks. A pull request template is also available; use it to summarize scope, tests, privacy/security impact, copyright/source-material checks, and follow-up risks.
+Archived reports, roadmaps, and milestone execution records are historical evidence, not current authority.
 
-## What Not To Submit
+If documents conflict, report the conflict instead of silently choosing one.
 
-Please do not submit:
+---
 
-- copyrighted EPUBs
-- fanfiction exports
-- paid books
-- song lyrics
-- copied dictionary entries
-- bulk extracted PDF/book text
-- private EPUB samples
-- API keys
-- secrets or tokens
-- analytics, upload, or cloud-sync code without a prior decision
-- translation provider integrations that expose keys in frontend code
-- broad refactors without an issue or discussion
-- features that turn Interleaf Reader into a flashcard/drill app
+## 3. Current Milestone
 
-Interleaf Reader does not host copyrighted books, public translated works, or scraped AO3 content.
+Check the Active milestone in:
 
-## Branch Naming
+```text
+docs/PROJECT_STATE.md
+```
+
+Scope and exit criteria are defined in:
+
+```text
+docs/MILESTONES.md
+```
+
+A contribution should normally belong to the Active milestone.
+
+New ideas default to Later / uncommitted.
+
+While R0 is Active, focus on:
+
+* documentation truth;
+* file classification;
+* Git reproducibility;
+* verification;
+* baseline cleanup.
+
+Do not independently begin:
+
+* new product features;
+* localization expansion;
+* translation-provider integration;
+* real imported-book Chinese or Mixed Mode;
+* a service worker;
+* Book Project migration;
+* broad refactoring;
+* UI redesign.
+
+---
+
+## 4. Before Editing
+
+Define:
+
+1. one focused goal;
+2. task type;
+3. acceptance criteria;
+4. files expected to change;
+5. files that must not change;
+6. out-of-scope behavior;
+7. required tests and manual checks;
+8. privacy, copyright, compatibility, and migration impact.
+
+Prefer the smallest safe change.
+
+Avoid unrelated cleanup and formatting churn.
+
+Major product, architecture, storage, privacy, or licensing changes require prior approval.
+
+---
+
+## 5. Branches and Commits
 
 Use lowercase branch names with a short prefix:
 
-- `docs/...`
-- `fix/...`
-- `feature/...`
-- `polish/...`
-- `test/...`
-- `experiment/...`
+* `docs/`
+* `fix/`
+* `feature/`
+* `test/`
+* `chore/`
 
 Examples:
 
-- `docs/privacy-link`
-- `fix/chapter-navigation`
-- `polish/mobile-reader-overlay`
-- `test/storage-progress`
-
-## Development Workflow
-
-Recommended workflow:
-
-1. Create one branch per task.
-2. Keep changes small.
-3. Prefer one goal per pull request.
-4. Read the current PRD and handoff before changing behavior.
-5. Update docs when behavior changes.
-6. Update `docs/PROJECT_STATE.md` when project status changes.
-7. Update `docs/DECISION_LOG.md` when a product or architecture decision changes.
-8. Update `docs/HANDOFF.md` when implementation behavior changes.
-
-For AI-assisted work, follow `docs/AI_WORKFLOW_PROTOCOL.md`.
-
-## Local Setup
-
-Run the app as a static site from the project root:
-
-```powershell
-cd "D:\BookHeart\slash reader\slash-reader-v2"
-python -m http.server 5173
-```
-
-Open:
-
 ```text
-http://localhost:5173/pwa-reader/
+docs/update-handoff
+fix/chapter-navigation
+feature/approved-reader-control
+test/storage-restore
+chore/baseline-cleanup
 ```
 
-Serve from the project root, not directly from `pwa-reader/`, because the app fetches JSON from `data/`.
+Use `feature/` only for approved feature scope.
 
-If `localhost` behaves oddly in a Windows/browser automation context, try:
+Commits should:
 
-```text
-http://127.0.0.1:5173/pwa-reader/
-```
-
-## Smoke Test Fixture
-
-Generate the copyright-safe smoke EPUB:
-
-```powershell
-python scripts\generate_smoke_epub.py
-```
-
-If plain `python` resolves incorrectly, use the bundled runtime documented in `README.md` / `docs/HANDOFF.md`.
-
-The script writes:
-
-```text
-tests\fixtures\interleaf_smoke.epub
-```
-
-This fixture is self-authored and copyright-safe. It exists so browser smoke tests do not depend on private EPUBs or copyrighted samples. Do not commit private EPUB samples.
-
-## Testing
-
-Generate the smoke EPUB:
-
-```powershell
-python scripts\generate_smoke_epub.py
-```
-
-JavaScript syntax check:
-
-```powershell
-$node = "C:\Users\Susie\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe"
-Get-ChildItem -Path "pwa-reader" -Filter "*.js" | ForEach-Object { & $node --check $_.FullName }
-```
-
-Pure-logic tests:
-
-```powershell
-& $node tests\levelBaselineEngine.test.mjs
-& $node tests\navigationEngine.test.mjs
-& $node tests\vocabEngine.test.mjs
-& $node tests\glossaryEngine.test.mjs
-& $node tests\storage.test.mjs
-& $node tests\homeState.test.mjs
-```
-
-Vocabulary dataset check:
-
-```powershell
-python scripts\check_vocabulary_dataset.py
-```
-
-If plain Python resolves incorrectly, use the bundled Python runtime documented in `README.md` / `docs/HANDOFF.md`.
-
-## Manual Browser Checklist
-
-For reader-facing changes, check the browser manually:
-
-- import `tests\fixtures\interleaf_smoke.epub`
-- confirm Reader opens
-- confirm chapter navigation works
-- confirm Vocabulary Preview appears
-- confirm vocabulary bubble opens and closes
-- confirm Known / Save / Hide actions work
-- confirm Vocabulary Library opens
-- confirm manual Add to Learning works
-- confirm Copy Learning / Copy All / CSV export works
-- confirm Local Library Open works
-- confirm Forget modal works
-- refresh and confirm Continue Reading restore works
-- confirm Chinese Reading Mode remains a placeholder
-- confirm Mixed Mode remains a placeholder
-- check mobile viewport if the change affects layout or reader controls
-
-## Documentation Rules
-
-Use the docs this way:
-
-- `docs/INTERLEAF_READER_PRD.md` is the product source of truth.
-- `docs/HANDOFF.md` is the current implementation handoff.
-- `docs/PROJECT_STATE.md` is the current milestone/status snapshot.
-- `docs/DECISION_LOG.md` is the decision history.
-- `docs/AI_WORKFLOW_PROTOCOL.md` is the agent/contributor workflow.
-- `PRIVACY.md` describes the current MVP privacy posture.
-
-If docs disagree, do not guess silently. Update the right document or call out the drift.
-
-## Privacy and Security Rules
-
-Do not put API keys, secrets, or tokens in frontend code or committed files.
-
-Do not add analytics, upload flows, cloud sync, translation provider calls, or API key storage without:
-
-- a prior product/architecture decision
-- an update to `PRIVACY.md`
-- an update to `docs/DECISION_LOG.md`
-
-Optional modules must fail open. Vocabulary personalization, translation, glossary enrichment, and future providers must not block:
-
-- app startup
-- EPUB import
-- first chapter render
-- English Study Mode reading
-
-Translation provider data flow must be documented before implementation.
-
-## Vocabulary and Data Rules
-
-Vocabulary/data contributions should be small, curated, and source-safe.
-
-Do:
-
-- keep entries compact
-- use original wording
-- include only data that is safe to ship
-- run `python scripts\check_vocabulary_dataset.py` after dataset changes
+* represent one focused purpose;
+* use a clear message;
+* avoid unrelated changes;
+* exclude generated clutter, private data, and copyrighted material;
+* include only reviewed files.
 
 Do not:
 
-- copy dictionary definitions
-- copy examples from books, lyrics, fanfiction, or paid sources
-- bulk extract text from PDFs or books into app datasets
-- mutate global vocabulary datasets from runtime user actions
+* use `git add .` when unrelated changes exist;
+* force-push a shared protected branch;
+* rewrite shared history without approval;
+* hard-reset or delete another contributor’s work;
+* commit secrets or private machine data.
 
-User vocabulary personalization belongs in the local IndexedDB profile, not in shared JSON datasets.
+---
 
-## Pull Request Expectations
+## 6. Pull Requests
 
-Use `.github/pull_request_template.md` when opening a pull request. A useful pull request should include:
+A pull request should include:
 
-- summary of the change
-- files changed
-- screenshots for UI changes
-- exact tests/checks run
-- manual browser result if relevant
-- docs updated
-- what was not implemented
-- any risks or follow-up tasks
+### Goal
 
-If a change touches user-visible behavior, update docs before asking for review.
+What problem does the change solve?
 
-## Code Style and Architecture Guardrails
+### Scope
 
-- Keep existing module boundaries.
-- Avoid growing `pwa-reader/app.js` unless the UI controller truly owns the behavior.
-- Prefer pure helpers for testable logic.
-- Preserve IndexedDB and `localStorage` compatibility names unless a migration is explicitly planned.
-- Do not casually rename internal compatibility values such as `cloze-mixed` or `clozeHtml`.
-- Do not rename debug globals such as `window.__slashReaderDebug`.
-- Do not regress English Study Mode.
-- Do not regress EPUB import.
-- Do not regress Local Library.
-- Do not regress Vocabulary Preview, underlines, bubbles, Known / Save / Hide, or Vocabulary Library.
+What is included and excluded?
 
-When in doubt, make the smaller change and document the remaining follow-up.
+### Files changed
+
+List code, tests, data, and documentation.
+
+### Behavior changed
+
+Describe user-visible or system-visible effects.
+
+### Verification
+
+List exact commands and manual checks.
+
+Use:
+
+* **Passed**
+* **Failed**
+* **Not run**
+* **Blocked**
+* **Partially verified**
+
+Do not write “all tests pass” unless those tests were run.
+
+### Privacy and security impact
+
+State whether the change introduces:
+
+* external requests;
+* credentials;
+* analytics;
+* uploads;
+* accounts;
+* cloud sync;
+* provider calls;
+* new stored user data.
+
+### Copyright and source impact
+
+State the source and permission basis of added text, vocabulary data, images, fixtures, icons, or examples.
+
+### Compatibility impact
+
+State whether the change affects:
+
+* IndexedDB;
+* localStorage;
+* backup schemas;
+* persisted fields;
+* Reading Mode identifiers;
+* existing saved data.
+
+### Remaining risk
+
+Report limitations and unverified behavior.
+
+Use `.github/pull_request_template.md` when available.
+
+Screenshots must not expose private books, filenames, vocabulary exports, account data, or reading history.
+
+---
+
+## 7. Verification Expectations
+
+Use `docs/HANDOFF.md` for commands and smoke procedures.
+
+| Change | Expected verification |
+| --- | --- |
+| JavaScript | Relevant syntax checks |
+| Pure logic | Relevant Node tests |
+| Reader UI or navigation | Browser smoke for the affected path |
+| Storage or backup | Pure tests plus browser save, refresh, restore, malformed-input, and failure checks |
+| Localization | Each affected language and surface |
+| Mobile UI | Appropriate mobile-sized viewport |
+| Vocabulary data | Dataset checker |
+| PWA or deployment | Official path, assets, manifest, update behavior, and offline boundary |
+| Documentation only | No full app tests unless executable claims or commands changed |
+
+Pure-module tests do not replace browser verification for DOM events, IndexedDB, downloads, layout, module startup, or CDN behavior.
+
+Report skipped checks as unverified.
+
+---
+
+## 8. Product and Compatibility Guardrails
+
+Do not add general dictionary search or automatic manual-term enrichment without an approved product decision.
+
+Do not add flashcards, drills, quizzes, spaced repetition, streaks, or mandatory review as incidental vocabulary work.
+
+Imported-book Chinese Reading Mode and Mixed Mode must not display fake translated content.
+
+Guide-authored multilingual content is a Guide exception.
+
+Changes must protect:
+
+* startup;
+* EPUB import;
+* first chapter;
+* English Study Mode;
+* chapter navigation;
+* local persistence;
+* saved-book restore.
+
+Do not change without an approved migration:
+
+* IndexedDB database or store names;
+* localStorage keys;
+* backup schema names or versions;
+* persisted fields;
+* Reading Mode values;
+* `cloze-mixed`;
+* `clozeHtml`;
+* debug globals;
+* Slash-era compatibility identifiers.
+
+A migration proposal must include existing-data impact, fallback, rollback, tests, and browser verification.
+
+---
+
+## 9. Privacy, Security, and Copyright
+
+Never commit:
+
+* API keys, tokens, passwords, credentials, or secrets;
+* private EPUBs;
+* reading history;
+* private filenames;
+* user vocabulary exports;
+* browser database dumps;
+* copyrighted EPUBs, fanfiction exports, paid books, song lyrics, copied dictionary entries, or bulk-extracted source text.
+
+Do not add analytics, uploads, accounts, cloud sync, provider calls, or remote user-data storage without approval.
+
+Any new external data flow requires review of:
+
+* `PRIVACY.md`;
+* `docs/DECISION_LOG.md`;
+* `docs/ARCHITECTURE.md`;
+* credential and threat boundaries.
+
+Test and demonstration content should be self-authored, public domain, clearly licensed, or generated as a safe fixture.
+
+`source_materials/` is reference material, not an automatically publishable dataset.
+
+---
+
+## 10. Documentation Ownership
+
+Update only the responsible document.
+
+| Change | Document |
+| --- | --- |
+| Product meaning or boundary | `docs/INTERLEAF_READER_PRD.md` |
+| Current implementation or verification | `docs/PROJECT_STATE.md` |
+| Milestone scope or order | `docs/MILESTONES.md` |
+| Durable decision | `docs/DECISION_LOG.md` |
+| Runtime architecture | `docs/ARCHITECTURE.md` |
+| Persisted data | `docs/DATA_MODEL.md` |
+| Setup, tests, smoke, troubleshooting | `docs/HANDOFF.md` |
+| Public project entry | `README.md` |
+| Privacy | `PRIVACY.md` |
+
+Do not put execution logs into the PRD or Project State.
+
+Do not create a new planning document when a canonical document owns the information.
+
+---
+
+## 11. AI-Assisted Contributions
+
+AI-assisted work is allowed, but the human contributor remains responsible.
+
+Before submission:
+
+* review the complete diff;
+* verify referenced files and APIs;
+* remove fabricated status or behavior;
+* run required checks;
+* inspect generated data;
+* confirm no private or copyrighted content entered the repository;
+* confirm scope stayed focused;
+* label unverified behavior honestly.
+
+Repository-specific AI rules are in `AGENTS.md`.
+
+Archived AI workflow material is not current instruction.
+
+---
+
+## 12. License and Commercial Use
+
+The controlling license is:
+
+```text
+LICENSE
+```
+
+Interleaf Reader uses a custom non-commercial, source-available license.
+
+It is not MIT-licensed or OSI-approved open source.
+
+By contributing, you confirm that:
+
+* you have the right to provide the material;
+* it does not violate another license or copyright;
+* it may be distributed under the project license unless otherwise agreed in writing.
+
+Contributing, forking, opening an issue, or submitting a pull request does not grant commercial-use permission.
+
+Commercial use requires separate written permission.
+
+See `docs/LICENSE_DECISION.md` for explanatory context.
+
+---
+
+## 13. Contact and Conduct
+
+A formal Code of Conduct and public private-reporting contact have not yet been published.
+
+Until then:
+
+* communicate respectfully;
+* keep discussions project-focused;
+* do not publish sensitive security details;
+* do not share private user data;
+* use the public issue tracker only for non-sensitive reports.
+
+Do not invent or publish a private contact address.
+
+---
+
+*Keep contributions focused, reproducible, source-safe, compatible with existing local data, and aligned with the current Active milestone.*

@@ -3,592 +3,909 @@
 ## 1. Document Control
 
 | Field | Value |
-|---|---|
+| --- | --- |
 | **Title** | Interleaf Reader — Product Requirements Document |
-| **Version** | 1.0 |
-| **Date** | 2026-06-16 |
+| **Version** | 2.0 |
+| **Date** | 2026-06-20 |
 | **Status** | Active — canonical product specification |
-| **Audience** | BookHeart maintainers, Codex/Cursor agents, open-source contributors, future reviewers |
-| **Former codename** | Slash Reader v2 |
-
-### Source document relationship
-
-| Document | Role |
-|---|---|
-| **`docs/PRD_SOURCE_AUDIT.md`** | Primary audit input for this PRD; implementation inventory and gaps |
-| **`docs/HANDOFF.md`** | Current engineering handoff; implementation truth for agents |
-| **`docs/VOCABULARY_INTERACTION_SEMANTICS.md`** | Vocabulary action semantics (partially superseded on Mastered by v1 decision below) |
-| **`docs/VOCABULARY_PERSONALIZATION_PLAN.md`** | Personalization design reference (partial implementation) |
-| **`docs/ARCHITECTURE.md`**, **`docs/DATA_MODEL.md`**, **`docs/ROADMAP.md`** | Engineering structure and phased direction |
-
-**Hierarchy:** This PRD is the canonical **product** specification. `HANDOFF.md` remains the canonical **implementation snapshot**. When they conflict, update `HANDOFF.md` after deliberate product decisions; flag doc drift in `DECISION_LOG.md` (TBD).
-
-**Documentation risk:** `README.md`, `PRODUCT_SPEC.md`, and parts of older planning docs are stale relative to code and this PRD. Future work should prefer this PRD + `PRD_SOURCE_AUDIT.md` + `HANDOFF.md`.
-
----
-
-## 2. Executive Summary
-
-**Interleaf Reader** is a local-first English fiction and long-form reading PWA for non-native English readers. Users import their own EPUB files and read inside a controlled browser environment with lightweight vocabulary support—underlined terms, a small tap bubble, and a chapter-level Vocabulary Preview—without leaving the story for a separate memorization app or generic translator.
-
-**Mission:** Help users enjoy English fiction while naturally understanding the story and gradually absorbing vocabulary during reading.
-
-**MVP (current product target):** English Study Mode with EPUB import, chapter navigation, Home / Reader / Vocabulary Library views, Local Library with IndexedDB persistence, scroll progress restore, mobile reader overlay, Vocabulary Preview and bubble, level-baseline filtering, user vocabulary profile (Known / Save / Hide), manual vocabulary add, and term-only export (Copy Learning, Copy All, CSV). Chinese Reading Mode and Mixed Mode exist as **placeholders only** and are **not** MVP deliverables.
-
-**Post-MVP direction:** Provider-agnostic translation architecture, Chinese and Mixed reading modes, whole-book translation workflow with chapter/block queue and local cache, richer vocabulary enrichment, full PWA installability, GitHub Pages deployment, and open-source release with governance docs.
-
----
-
-## 3. Product Identity
-
-| Field | Value |
-|---|---|
 | **Product name** | Interleaf Reader |
-| **Former codename** | Slash Reader v2 (still present in app UI and some repo docs) |
-| **Creator / internal brand** | BookHeart |
+| **Former codename** | Slash Reader v2 |
+| **Internal creator brand** | BookHeart |
+| **Audience** | Product owner, maintainers, contributors, AI coding agents, and future reviewers |
 
-### Naming note
+### 1.1 Purpose
 
-“Interleaf” evokes pages, leaves, and layered reading between languages. It fits the planned mixed English–Chinese experience—for example: `Dean opened 门。`
+This document defines stable product truth:
 
-### Positioning statement
+* target users;
+* user problems;
+* product identity and boundaries;
+* core journeys;
+* product-level requirements;
+* vocabulary semantics;
+* reading-mode semantics;
+* long-term direction.
 
-Interleaf Reader is a **reading app** where vocabulary and translation features support immersive reading. It is **not** a vocabulary memorization app, a generic translator, or a social reading platform.
+It is not:
 
----
+* an implementation-status report;
+* a task tracker;
+* a test log;
+* a branch or commit record;
+* a detailed architecture specification;
+* an AI operating guide;
+* a milestone execution record.
 
-## 4. Problem & Opportunity
+### 1.2 Source-of-truth responsibilities
 
-### Problem
+| Document | Responsibility |
+| --- | --- |
+| `docs/INTERLEAF_READER_PRD.md` | Canonical product definition |
+| `docs/PROJECT_STATE.md` | Current implementation, verification, blockers, and next action |
+| `docs/MILESTONES.md` | Milestone order, scope, and exit criteria |
+| `docs/DECISION_LOG.md` | Durable product, architecture, privacy, compatibility, and governance decisions |
+| `docs/ARCHITECTURE.md` | Current technical architecture |
+| `docs/DATA_MODEL.md` | Current persisted-data and compatibility contracts |
+| `docs/HANDOFF.md` | Setup, testing, smoke, troubleshooting, and operational handoff |
+| `AGENTS.md` | AI-assisted repository rules |
 
-Non-native English readers who enjoy fiction and long-form text frequently **leave the reader** to look up words—switching to dictionaries, browser translate, or flashcard apps. That breaks narrative flow, increases fatigue, and turns entertainment reading into study homework.
+When sources disagree:
 
-**Browser translation** helps plot comprehension but does not provide structured, reader-controlled vocabulary learning inside the text. **Ordinary vocabulary apps** optimize for drills and decks, not chapter context, fanfiction pacing, or “just one more chapter” motivation.
-
-### Opportunity
-
-A **reading-first support layer**: keep the original English text primary, surface only the most useful words per chapter, let the reader save words they care about, and (post-MVP) offer Chinese and Mixed modes for comprehension without replacing the reading product with a translation tool.
-
----
-
-## 5. Target Users & Personas
-
-### Primary users
-
-- **Non-native English fiction / long-form readers** (roughly **14+**) with some existing English foundation.
-- Readers who learn through **entertainment**—novels, web fiction, fanfiction as one use case, not the only market.
-- Users who want **contextual vocabulary help** while staying inside the story.
-
-### Personas (illustrative)
-
-| Persona | Need |
-|---|---|
-| **IELTS-oriented fiction reader** | IELTS-useful words highlighted without overwhelming every line |
-| **Fanfic / web-novel reader** | Slang, idioms, fandom terms explained lightly; names can be hidden |
-| **Returning reader** | Resume chapter and scroll position; local book shelf |
-
-### Future only (not MVP)
-
-- **Children-friendly edition** — simplified filtering, age-appropriate UX; **no decision** on fork vs mode vs separate product.
-- **Teen learner** — mentioned in personalization plans; same core product with possible future tuning.
-
----
-
-## 6. Goals & Non-goals
-
-### Product goals
-
-1. Deliver a calm, mobile-first English fiction reading experience with EPUB support.
-2. Reduce friction for unknown vocabulary via Preview, underlines, and lightweight bubbles.
-3. Let users build a **reading-derived** Vocabulary Library locally—save, review lists, export—without becoming a drill app.
-4. Persist books and progress locally (IndexedDB); no account required for MVP.
-5. Prepare architecture for post-MVP translation modes and provider-agnostic translation.
-
-### Non-goals
-
-- Vocabulary memorization product (spaced repetition, flashcard decks, gamified drills).
-- Generic full-document translator or replacement for dedicated translation services.
-- Social reading (comments, sharing shelves, reading groups).
-- Hosting copyrighted books or public translated works.
-- Cloud sync, accounts, or cross-device library in MVP.
-
-### MVP goals
-
-Ship a trustworthy **English Study Mode** vertical slice: import → read → vocabulary help → save/export → resume, all local-first.
-
-### Post-MVP goals
-
-- Chinese Reading Mode and Mixed Mode with real translation output.
-- Translation provider settings and secure API key handling.
-- Vocabulary enrichment, comfort-level onboarding UI, true learning→mastered lifecycle.
-- Full PWA, GitHub Pages deploy, open-source governance, optional companion local server.
+1. product meaning follows this PRD;
+2. current status follows `docs/PROJECT_STATE.md`;
+3. current source code and executable evidence determine code reality;
+4. durable exceptions belong in `docs/DECISION_LOG.md`;
+5. uncertainty must be reported rather than silently resolved.
 
 ---
 
-## 7. Core User Journeys
+## 2. Product Summary
 
-| Journey | MVP status | Summary |
-|---|---|---|
-| **Import EPUB** | Implemented | Drop or pick file → diagnostics → chapter list → read |
-| **Read English with hints** | Implemented | English Study Mode, vertical scroll, underlines + bubble |
-| **Use Vocabulary Preview** | Implemented | Chapter sidebar / mobile sheet; Known / Save / Hide |
-| **Save vocabulary** | Implemented | Save → `learningWords`; Vocabulary Library view |
-| **Manage Local Library** | Implemented | Home list; Open / Forget; IndexedDB restore |
-| **Export vocabulary** | Implemented | Copy Learning, Copy All, Download CSV |
-| **Translate book / switch modes** | Post-MVP | Chinese / Mixed placeholders today; real translation later |
+Interleaf Reader is a **mobile-first, local-first, reading-first long-form English reader** for non-native English readers who have some English ability but experience resistance, fatigue, or anxiety when facing long English texts.
 
-### Journey detail — MVP read loop
+Many target users have an ongoing English-learning goal, such as IELTS preparation, academic reading improvement, or long-term language development. They may still lack sustained English-language exposure and struggle to remain inside a long English text.
 
-1. User opens app (static web URL).
-2. User imports EPUB or continues from Local Library.
-3. App opens Reader on last or first chapter; restores approximate scroll.
-4. User reads English text; taps underlined word for bubble if needed.
-5. User opens Vocabulary Preview; marks words Known / Save / Hide.
-6. User optionally opens Vocabulary Library to add terms or export.
-7. User returns via Home; book and progress remain in this browser.
+Interleaf Reader helps users begin with content they genuinely enjoy:
 
----
+* novels;
+* web fiction;
+* fanfiction;
+* serialized stories;
+* other interest-driven long-form English texts.
 
-## 8. Core Reading Modes
+Story interest and emotional motivation help users gradually:
 
-### Mode comparison
+* reduce resistance to long English texts;
+* stay inside an English reading session longer;
+* build tolerance for sustained reading;
+* reduce unnecessary context switching;
+* collect useful vocabulary without turning reading into homework.
 
-| Mode | Description | Example | Status |
-|---|---|---|---|
-| **English Study Mode** | Original English + lightweight vocabulary help | `Dean opened the door.` — *door* may be underlined; tap for bubble | **Implemented** |
-| **Chinese Reading Mode** | Chinese translation for plot comprehension | `Dean打开了门。` | **Placeholder** |
-| **Mixed Mode** | Chinese context; selected English words/phrases preserved | `Dean opened 门。` | **Placeholder** |
+Interleaf Reader supports reading with lightweight vocabulary assistance, local progress persistence, vocabulary collection, and export to the user’s existing study tools.
 
-**Engineering note:** Code and some docs use **Cloze Mixed Mode** (`cloze-mixed`) for Mixed Mode. Product language should prefer **Mixed Mode** in user-facing copy.
-
-### Mode-switch behavior (current)
-
-- Switching modes preserves book, chapter, and approximate scroll position.
-- Placeholder modes must not behave like chapter changes or reset progress incorrectly.
-- MVP value is delivered entirely in English Study Mode.
+It does not replace a dedicated dictionary, translation platform, exam-training platform, or vocabulary-learning application.
 
 ---
 
-## 9. Feature Requirements
+## 3. Vision and Product Promise
 
-### 9.1 EPUB Import & Diagnostics
+### 3.1 Vision
 
-| | |
-|---|---|
-| **Purpose** | Let users bring their own English EPUBs into a local session with clear failure feedback. |
-| **Current status** | **Implemented** |
-| **Requirements** | File picker and drag-and-drop; epub.js + JSZip load path; metadata and spine parsing; chapter list with fallback labels; diagnostics panel (file name, size, MIME, extension, load step, library status, errors). |
-| **Definition of done** | User can import a supported EPUB, see title/author/chapter count, and open first chapter without console errors on supported browsers. |
+> Help non-native English readers use stories they genuinely care about to become comfortable with long-form English reading.
 
-**Partial / limits:** EPUB compatibility bounded by epub.js and current spine loader; CDN-hosted JSZip/epub.js (**Planned** vendoring for offline PWA).
+### 3.2 Core reading loop
 
----
+> **Import → Read → Receive lightweight in-context vocabulary assistance → Save useful words → Continue reading → Restore progress**
 
-### 9.2 Reader & Navigation
+The user should not need to repeatedly switch among a reader, translator, dictionary, notes app, and vocabulary app for routine reading support.
 
-| | |
-|---|---|
-| **Purpose** | Readable chapter navigation for long vertical fiction. |
-| **Current status** | **Implemented** |
-| **Requirements** | Custom TOC + hidden select fallback; Previous/Next (desktop + mobile tap controls); progress text; Back to Top; first/last chapter disabled states; vertical scroll (not pagination); mobile sidebar → bottom sheets for Chapters, Preview, Mode; tap-to-toggle reader overlay that ignores vocab/bubbles/controls. |
-| **Definition of done** | User can move across chapters, jump from TOC, and use mobile controls without view overlap bugs. |
+### 3.3 External vocabulary-capture loop
 
-**Post-MVP:** Page-flip pagination; EPUB CFI position tracking.
+> **Encounter a word elsewhere → Manually record it → Accumulate terms → Export → Study in an existing vocabulary application**
 
----
+This is related to reading support but is a separate workflow.
 
-### 9.3 Home, Local Library, and Vocabulary Library Views
+### 3.4 Product promise
 
-| | |
-|---|---|
-| **Purpose** | Separate import/shelf, reading workspace, and vocabulary management. |
-| **Current status** | **Implemented** |
-| **Requirements** | Three mutually exclusive views (Home, Reader, Vocabulary Library); Home shows import, Resume / Continue Reading, Vocabulary Library summary card, Local Library list; Reader has Back to Home; Vocabulary Library has Learning / Mastered / Hidden tabs, manual add, remove, export; Local Library Open restores from IndexedDB; Forget uses in-app modal. |
-| **Definition of done** | Only one view visible and interactive; Local Library ≠ Vocabulary Library semantics preserved. |
+Interleaf Reader should help the user:
 
-**Partial:** UI branding still says Slash Reader v2 (**Planned** rename to Interleaf Reader).
+* start reading despite resistance;
+* remain immersed in a story;
+* obtain enough vocabulary support to continue;
+* preserve reading progress;
+* collect useful words with minimal effort;
+* connect casual vocabulary discovery with an existing learning system.
 
----
+It does not promise:
 
-### 9.4 Progress & Persistence
-
-| | |
-|---|---|
-| **Purpose** | Resume reading without re-importing EPUB each visit. |
-| **Current status** | **Implemented** (approximate scroll restore) |
-| **Requirements** | IndexedDB stores EPUB blob, metadata, progress (`chapterId`, index, `scrollRatio`, `scrollTop`, `updatedAt`, optional `currentMode`); Restore / Dismiss / Forget saved book; list saved books for Local Library. |
-| **Definition of done** | Refresh browser → user can restore book and approximate reading position in same browser. |
-
-**Not in MVP:** Cloud sync, multi-device, account backup. **Future:** profile import/export as sync-lite.
+* complete dictionary coverage;
+* automatic explanation for every manually entered word;
+* vocabulary mastery;
+* automatic exam-score improvement;
+* perfect machine translation;
+* cloud availability across devices.
 
 ---
 
-### 9.5 Vocabulary Preview & Bubble
+## 4. Target Users
 
-| | |
-|---|---|
-| **Purpose** | Chapter-level vocabulary recommendations and in-text lightweight help. |
-| **Current status** | **Implemented** (curated seed dataset; partial personalization) |
-| **Requirements** | Match against curated `vocabulary.json` + `slang_idioms.json`; build Preview list; underline terms in HTML; tap bubble with term, Chinese meaning, English definition and IELTS usage when available; bubble toggle behavior; Preview richer than bubble (source sentence, badges, metadata); Preview actions Known / Save / Hide; Saved badge for learning words. |
-| **Definition of done** | After chapter render, Preview and underlines appear; actions update profile and re-filter on refresh. |
+### 4.1 Primary user
 
-**Partial:** Full scoring model not implemented (filtering + priority + max items only). Comfort-level UI not implemented (default `level3`). Unknown candidates with pending meanings — **Post-MVP**.
+The primary user:
 
-**Fail-open:** Personalization lazy-loads; failure must not block import or chapter render.
+* is a non-native English reader;
+* has a basic or intermediate English foundation;
+* has an ongoing English-learning goal;
+* may be preparing for IELTS or another English-related exam;
+* lacks sustained English-language exposure;
+* can often understand individual sentences but resists long passages;
+* may feel tired, intimidated, or discouraged by uninterrupted English pages;
+* enjoys novels, web fiction, fanfiction, or other entertainment-oriented long-form content;
+* is motivated by favorite stories, characters, relationships, or topics;
+* wants lightweight vocabulary support without repeatedly leaving the story;
+* wants to save useful words without turning reading into drills;
+* may already use a dedicated vocabulary-learning app and wants to export collected words.
 
----
+### 4.2 Capability assumptions
 
-### 9.6 Vocabulary Profile & Library
+Interleaf Reader is not designed primarily for complete beginners.
 
-| | |
-|---|---|
-| **Purpose** | Persist user vocabulary decisions locally; support export. |
-| **Current status** | **Implemented** (v1 semantics) |
-| **Requirements** | IndexedDB profile: `selectedLevel`, `knownWords`, `learningWords`, `ignoredWords`, `preferredCategories`, `updatedAt`; level baseline JSON `level1`–`level5` for effective-known filtering; Vocabulary Library tabs; manual Add to Learning; row Remove; export Copy Learning, Copy All, CSV (`term,status`). |
-| **Definition of done** | Save/Hide/Known persist across sessions; export produces correct term lists. |
+The product may assume the user can:
 
-#### v1 vocabulary semantics (canonical)
+* recognize common English sentence structures;
+* read short passages;
+* understand some vocabulary without assistance;
+* decide which words are personally useful;
+* import a personal reading file;
+* use another learning tool for deeper memorization.
 
-| Action | Meaning | Storage | Preview | Library tab |
-|---|---|---|---|---|
-| **Known** | Already know this English word | `knownWords` | Hidden | **Mastered** (v1 archive label) |
-| **Save** | Want to learn / keep | `learningWords` | Stays visible; Saved badge | **Learning** |
-| **Hide** | Not a learning target | `ignoredWords` | Hidden | **Hidden** |
-| **Mastered** (v1) | Same as Known archive | `knownWords` | — | **Mastered** tab |
+The product should still reduce cognitive pressure and avoid requiring technical expertise.
 
-**Post-MVP:** True **learning → mastered** lifecycle (separate from Known); definitions/examples on entries; source book/chapter; review mode; Anki/JSON export; batch import.
+### 4.3 Illustrative personas
 
-**Clarification:** Vocabulary Library is a **reading-derived collection**, not a flashcard or memorization-drill product. No spaced repetition in MVP.
+#### Interest-driven exam learner
 
----
+Has an IELTS or academic-English goal but struggles to sustain long-form reading. Uses fiction to build tolerance and exposure.
 
-### 9.7 Translation & Providers
+#### Fanfiction or web-fiction reader
 
-| | |
-|---|---|
-| **Purpose** | Enable Chinese and Mixed modes with protected terms and cached chapter output. |
-| **Current status** | **Planned** (placeholder UI only) |
-| **Requirements** | Provider-agnostic `translationEngine` boundary; no real provider calls in MVP. |
+Is motivated by characters, relationships, fandoms, or serialized plots. Needs lightweight help with vocabulary, slang, idioms, and proper nouns.
 
-#### Translation Provider model (planned)
+#### Returning mobile reader
 
-| Provider type | Role |
-|---|---|
-| **None** | Default; English Study only |
-| **Free / basic provider** | Low-barrier option; quality/limits TBD |
-| **DeepL** | Optional high-quality provider; **not** the only option |
-| **Google / other + user API key** | User-supplied credentials |
-| **Custom endpoint** | Advanced / self-hosted |
-| **Local / self-hosted provider** | Future companion server or proxy |
+Reads in short phone sessions and needs reliable persistence, navigation, and quick return to the previous position.
 
-#### Architecture rules
+#### Everyday vocabulary collector
 
-- **Do not** hardcode DeepL as the only provider.
-- **Do not** expose developer-owned API keys in frontend code.
-- **User-provided API key UX:** **TBD**
-- **Local companion server / secure proxy:** **TBD**
-- **Whole-book translation:** user-facing workflow (e.g. “Translate this book”).
-- **Internal implementation:** chapter/block queue + local cache (`translatedHtml`, `clozeHtml` per chapter).
-- **Glossary / protected terms:** preserve names, proper nouns, fandom terms, and selected target vocabulary in Chinese and Mixed output.
-
-**Current placeholders:** Chinese and Mixed modes show non-functional placeholder panels; mode switch preserves position.
+Encounters useful words in media, websites, advertisements, classes, or daily life and wants to export them into an existing study application.
 
 ---
 
-### 9.8 Glossary / Protected Terms
+## 5. User Problems
 
-| | |
-|---|---|
-| **Purpose** | Improve translation quality and protect story-specific terms. |
-| **Current status** | **Partial** |
-| **Requirements** | Global protected terms in `data/protected_terms.json`; Book Glossary skeleton (rule extraction + mock classifier) for current chapter; User Glossary Overrides — **Post-MVP**. |
-| **Definition of done (MVP)** | Global list loads; Book Glossary available as dev/skeleton support—not core user-facing MVP marketing. |
+### 5.1 Long-form English resistance
 
-**Post-MVP:** Wire Book + Global + User glossary into translation requests; user override editing UI.
+The main problem is not only unknown words.
 
----
+Long English texts can create:
 
-### 9.9 PWA & Deployment
+* psychological resistance;
+* visual overload;
+* reading fatigue;
+* fear of not understanding enough;
+* pressure to look up every unknown word;
+* loss of motivation before the story becomes engaging.
 
-| | |
-|---|---|
-| **Purpose** | Ship as installable, hostable static web app. |
-| **Current status** | **Partial** — PWA-oriented static app; full installability incomplete |
-| **Requirements** | Static ES modules from `pwa-reader/`; serve from repo root for `data/` fetch; target **GitHub Pages** or equivalent static hosting — **Planned**, not configured. |
-| **Definition of done (MVP deploy)** | Public HTTPS URL; README setup; users can import EPUB and read. |
+Interleaf should reduce this barrier without removing English from the experience.
 
-**Missing today:** `manifest.json`, service worker (**Planned** for M3). CDN dependency for epub.js/JSZip (**risk**; vendoring **Planned**).
+### 5.2 Broken immersion
 
----
+A conventional workflow often becomes:
 
-## 10. UX Principles
+> Read → Encounter unknown word → Copy → Open dictionary → Search → Interpret → Return → Find location → Resume
 
-1. **Mobile-first reading** — full-width text on narrow screens; sheets for secondary panels.
-2. **Low interruption** — no modal for every Known action; optional toasts acceptable later.
-3. **Lightweight bubble** — short fields only; rich detail stays in Vocabulary Preview.
-4. **Preview helps, does not overwhelm** — capped items; not every unknown token.
-5. **Reading remains primary** — vocabulary subordinate to story text.
-6. **Fail-open personalization** — optional modules lazy-load; EPUB import and chapter render never depend on them.
-7. **Honest placeholders** — Chinese / Mixed modes must not pretend to translate.
-8. **Local transparency** — quiet copy that data stays on this device/browser.
+Repeated context switching interrupts narrative memory, emotional engagement, reading rhythm, and willingness to continue.
 
----
+Interleaf should provide only the assistance necessary to continue.
 
-## 11. Data & Privacy
+### 5.3 Fragmented vocabulary collection
 
-| Topic | MVP policy |
-|---|---|
-| **Storage** | IndexedDB (books, progress, vocabulary profile); small `localStorage` metadata |
-| **Local-first** | No account; no cloud sync in MVP |
-| **User content** | EPUB files supplied by user; stored locally |
-| **Hosted content** | App does not ship copyrighted books or public translated works |
-| **Vocabulary seed data** | Curated compact JSON; source PDFs not copied into datasets |
-| **CDN** | epub.js / JSZip from CDN today — third-party request; document in PRIVACY (**TBD**) |
-| **API keys** | User keys must not ship in repo; translation sends chapter text to provider — flow **TBD** in privacy doc |
-| **Analytics** | None required for MVP — **TBD** if added later |
+Useful vocabulary may appear in books, television, films, games, websites, advertisements, classes, and daily life.
 
-**Future:** Profile import/export as sync-lite without full account system.
+Interleaf should provide a lightweight collection layer that connects these discoveries to the user’s existing study system.
+
+### 5.4 Reading becoming homework
+
+The product must not require users to:
+
+* save every unknown word;
+* complete a quiz after each chapter;
+* review cards before continuing;
+* maintain a streak;
+* clear a vocabulary queue;
+* prove mastery before reading more.
+
+Reading remains the primary activity.
 
 ---
 
-## 12. Technical Architecture & Constraints
+## 6. Product Positioning
 
-### Stack (current)
+### 6.1 Positioning statement
 
-- Static web app — no build step
-- Browser ES modules: `app.js`, `epubLoader.js`, `vocabEngine.js`, `levelBaselineEngine.js`, `storage.js`, `readingModes.js`, `translationEngine.js`, `glossaryEngine.js`, `navigationEngine.js`
-- epub.js + JSZip (CDN)
-- IndexedDB persistence
-- Node tests for pure logic (`tests/*.test.mjs`)
+Interleaf Reader is an **interest-driven long-form English reading tool** where vocabulary support, local persistence, and future multilingual capabilities exist to protect reading continuity.
 
-### Module boundaries
+### 6.2 Product priority
 
-| Module | Responsibility |
-|---|---|
-| `app.js` | UI state, views, events, orchestration |
-| `epubLoader.js` | EPUB parse/load only |
-| `vocabEngine.js` | Vocabulary match, Preview, annotate HTML |
-| `levelBaselineEngine.js` | Baseline + effective known words |
-| `storage.js` | IndexedDB + profile helpers |
-| `readingModes.js` | Mode render decisions |
-| `translationEngine.js` | Future provider boundary |
+1. Sustained reading
+2. Narrative immersion
+3. Reduced vocabulary friction
+4. Vocabulary collection
+5. Export into an existing study system
+6. Future multilingual reading support
 
-### Hard constraints
+Vocabulary management must not overtake reading as the product center.
 
-1. **No API keys in frontend-owned code.**
-2. **Optional modules** (personalization, translation) must lazy-load with safe fallback.
-3. **EPUB import and chapter render** are primary paths — never blocked by optional features.
-4. **Do not** implement DeepL (or any paid provider) directly in browser bundle with secrets.
-5. Keep pure logic testable; prefer small modules over monolithic `app.js` growth.
+### 6.3 Interleaf Reader is
 
----
+* a mobile-first long-form reader;
+* a local-first personal reading environment;
+* an English-reading support tool;
+* an interest-driven language-exposure tool;
+* a lightweight vocabulary collection and export layer;
+* a future foundation for controlled multilingual reading modes.
 
-## 13. Milestones & Release Phases
+### 6.4 Interleaf Reader is not
 
-### M0 — Stabilization & governance docs
-
-| | |
-|---|---|
-| **Goal** | Align docs and agent workflow before public release noise. |
-| **Deliverables** | This PRD + CN mirror; `PROJECT_STATE.md`, `DECISION_LOG.md`, `AI_WORKFLOW_PROTOCOL.md` (**TBD** creation); resolve HANDOFF vs PRD drift items. |
-| **Definition of done** | Contributors know which doc to read first; decision log has rename + Mastered v1 entry. |
-| **Risks** | Doc drift continues if README not refreshed. |
-
-### M1 — Reader MVP
-
-| | |
-|---|---|
-| **Goal** | Stable English Study reading loop. |
-| **Deliverables** | EPUB import, navigation, progress restore, mobile overlay — largely **Implemented**; regression tests green; rename UI to Interleaf Reader (**Planned**). |
-| **Definition of done** | New user can import, read, resume, forget book without navigation/view bugs. |
-| **Risks** | CDN outage; epub.js compatibility edge cases. |
-
-**Status:** Largely **Implemented**; stabilization and rename remain.
-
-### M2 — Vocabulary Library v1
-
-| | |
-|---|---|
-| **Goal** | Reading-derived vocabulary collection shippable. |
-| **Deliverables** | Preview, bubble, profile, Library, export, baseline filtering — largely **Implemented**; comfort-level UI optional for v1 (**TBD**). |
-| **Definition of done** | Known/Save/Hide + export work across refresh; semantics documented. |
-| **Risks** | Known vs Mastered label confusion; users expect flashcards. |
-
-**Status:** Largely **Implemented**.
-
-### M3 — PWA / open-source release readiness
-
-| | |
-|---|---|
-| **Goal** | Public static deploy + OSS hygiene. |
-| **Deliverables** | GitHub Pages config; manifest + service worker (**Planned**); vendored scripts (**Planned**); LICENSE (**TBD**); CONTRIBUTING; PRIVACY; README refresh; screenshots. |
-| **Definition of done** | Public repo (or **TBD** private beta) with installable or bookmarkable HTTPS app and legal docs. |
-| **Risks** | `source_materials/` PDFs in public repo; license choice. |
-
-**Status:** **Planned**.
-
-### M4 — Translation architecture / provider settings
-
-| | |
-|---|---|
-| **Goal** | Secure, provider-agnostic translation pipeline. |
-| **Deliverables** | Provider interface; settings UI; key storage strategy (**TBD**); chapter queue + cache; one provider integrated (provider choice **TBD**). |
-| **Definition of done** | One chapter translates end-to-end with protected terms and cached replay. |
-| **Risks** | API key handling; cost; free provider quality. |
-
-**Status:** **Planned**.
-
-### M5 — Chinese & Mixed mode implementation
-
-| | |
-|---|---|
-| **Goal** | Deliver post-MVP reading modes. |
-| **Deliverables** | Real `translatedHtml` and Mixed output; mode UX; whole-book translation workflow. |
-| **Definition of done** | User can read full chapter in Chinese and Mixed with glossary preservation. |
-| **Risks** | Translation cost at book scale; Mixed word-selection rules **TBD**. |
-
-**Status:** **Placeholder**.
-
-### M6 — Post-MVP enrichment / export / sync
-
-| | |
-|---|---|
-| **Goal** | Depth without scope creep on core reading. |
-| **Deliverables** | Dictionary enrichment; true mastered lifecycle; profile import/export; optional AO3 helper / enhanced EPUB export — all **optional** and prioritized separately. |
-| **Definition of done** | Per-feature PRD amendments in `DECISION_LOG.md`. |
-| **Risks** | Scope creep; maintenance burden. |
-
-**Status:** **Post-MVP**.
+* a general dictionary;
+* a universal word-search tool;
+* a flashcard or spaced-repetition system;
+* a quiz, drill, streak, or gamification product;
+* an IELTS question bank or mock-test platform;
+* a generic document translator;
+* a public EPUB or translation library;
+* a social reading network;
+* a cloud bookshelf;
+* an AO3 scraper;
+* a platform for hosting copyrighted books or fanfiction exports.
 
 ---
 
-## 14. Success Metrics
+## 7. Product Principles
 
-| Metric | Type | Notes |
-|---|---|---|
-| **Chapter completion** | Quantitative | User reaches next chapter or % scroll through chapter |
-| **Restore success** | Quantitative | Restore returns to correct chapter + approximate scroll |
-| **Vocabulary save rate** | Quantitative | Save actions per session; Library growth |
-| **Export usage** | Quantitative | Copy / CSV actions |
-| **Translation cache hit rate** | Quantitative | Post-MVP — % chapters served from cache |
-| **Qualitative feedback** | Qualitative | “Stayed in the story”; “Preview not too noisy” |
-| **No startup/import regression** | Guardrail | Import and first chapter render succeed with personalization disabled/failing |
+### Reading-first
 
-MVP does not require analytics SDK; metrics may be manual dogfood + issue reports until **TBD** telemetry policy.
+Every major feature should help the user start, continue, understand enough, return to position, or reduce interruption.
 
----
+### Interest-driven exposure
 
-## 15. Risks & Mitigations
+Entertainment-oriented reading is a legitimate mechanism for sustained English exposure.
 
-| Risk | Mitigation |
-|---|---|
-| **Translation cost** | Cache aggressively; block queue; user confirmation before whole-book translate; show cost hints **TBD** |
-| **Free provider quality/limits** | Provider abstraction; allow switching; fall back to English Study |
-| **API key handling** | No keys in frontend; companion proxy or OS storage — decision in M4 |
-| **IndexedDB / storage limits** | Quota messaging; eviction policy for translation cache **TBD**; warn on large EPUBs |
-| **CDN / offline dependency** | Vendor epub.js/JSZip; service worker caching in M3 |
-| **Naming / doc drift** | Interleaf rename checklist; PRD + HANDOFF hierarchy; README refresh in M3 |
-| **Known vs Mastered semantics** | v1 decision documented here; post-MVP lifecycle separately |
-| **Scope creep** | Non-goals section; milestone gates; DECISION_LOG for new features |
-| **Open-source maintenance** | CONTRIBUTING; good first issues; narrow MVP |
-| **Copyright / privacy** | No hosted books; PRIVACY doc; `source_materials/` policy **TBD** for public repo |
+The product must not shame or devalue personally meaningful reading.
 
----
+### Lightweight assistance
 
-## 16. Open-source Release Plan
+Vocabulary support should provide enough information to continue, not every possible dictionary detail.
 
-| Item | Status |
-|---|---|
-| **GitHub repository** | **Planned** — public immediately vs private beta **TBD** |
-| **README refresh** | **Planned** — align with PRD MVP |
-| **LICENSE** | **TBD** — MIT suggested placeholder only |
-| **CONTRIBUTING.md** | **TBD** |
-| **PRIVACY.md** | **TBD** — required before broad public launch |
-| **Issue / PR templates** | **Planned** |
-| **Release checklist** | Version tag, changelog, smoke test on GitHub Pages |
-| **Screenshots / demo** | **Planned** — no copyrighted book content in marketing assets |
-| **Source material policy** | Reference PDFs under `source_materials/` — public repo inclusion **TBD**; never ship bulk extracted dictionary/book text in `data/` |
+### User-controlled vocabulary
+
+The user decides whether a word is Known, worth saving, irrelevant, worth manually recording, or ready to export.
+
+### Local-first by default
+
+Books, progress, preferences, and vocabulary remain on-device unless a future approved feature explicitly requires external transmission.
+
+### Honest capability boundaries
+
+Placeholder and planned features must not appear functional when they are not.
+
+### Fail-open reading
+
+Optional support features must not unnecessarily block startup, import, first chapter, English Study Mode, or basic navigation.
 
 ---
 
-## 17. AI-assisted Development Workflow
+## 8. Core User Journeys
 
-The following governance docs **should be created** (currently missing):
+### Journey A — Import and read
 
-- `docs/PROJECT_STATE.md` — current milestone, branch, blockers
-- `docs/DECISION_LOG.md` — dated product/engineering decisions
-- `docs/AI_WORKFLOW_PROTOCOL.md` — agent rules
+1. Open Interleaf Reader.
+2. Import a personal EPUB or open a saved local book.
+3. Read available metadata and chapters.
+4. Open the first chapter or restore the previous location.
+5. Read in English Study Mode.
+6. Store progress locally.
 
-### Recommended agent rules (summary)
+**Outcome:** The user reaches the story with minimal setup and no required account.
 
-1. **One task per session** — focused diff; update docs when behavior changes.
-2. **Read first:** `INTERLEAF_READER_PRD.md` → `PRD_SOURCE_AUDIT.md` → `HANDOFF.md`.
-3. **Branch naming:** `feature/`, `fix/`, `docs/` prefixes — exact convention **TBD**.
-4. **Allowed without ask:** docs, tests for pure modules, small bugfixes per HANDOFF rules.
-5. **Forbidden without explicit ask:** API keys in frontend; blocking import/render on optional modules; regressing MVP features.
-6. **Return format:** what changed, status labels (Implemented/Planned/TBD), test notes.
-7. **After each task:** update `HANDOFF.md` if implementation changed; log decisions in `DECISION_LOG.md`.
-8. **Optional modules:** lazy-load + fail-open — mandatory from M1 onward.
+### Journey B — In-context vocabulary assistance
+
+1. Encounter an unfamiliar interactive term.
+2. Tap the term.
+3. View a lightweight bubble.
+4. Read concise assistance.
+5. Close it and continue.
+
+**Boundary:** This is not arbitrary dictionary search.
+
+### Journey C — Preview chapter vocabulary
+
+1. Open Vocabulary Preview.
+2. View a limited prioritized list.
+3. Mark terms as Known, Save, or Hide.
+4. Return to the chapter.
+
+**Outcome:** Preview reduces future interruption without becoming mandatory study.
+
+### Journey D — Save a reading-context term
+
+1. Select Save from Reader or Preview.
+2. Add the term to Vocabulary Library.
+3. Continue reading.
+
+### Journey E — Capture an external term
+
+1. Encounter a word outside Interleaf.
+2. Open Vocabulary Library.
+3. Enter the word or short phrase.
+4. Normalize and store it in Learning.
+5. Export later.
+
+**Boundary:** Manual Add does not promise definition, translation, pronunciation, morphology, examples, synonyms, collocations, difficulty classification, or automatic enrichment.
+
+### Journey F — Export vocabulary
+
+1. Open Vocabulary Library.
+2. Review accumulated terms.
+3. Choose a supported copy or download action.
+4. Transfer the terms into another study system.
+
+**Outcome:** Interleaf connects discovery and reading with an existing learning workflow.
+
+### Journey G — Resume reading
+
+1. Leave the application.
+2. Return later.
+3. Open Continue Reading or Local Library.
+4. Restore the relevant chapter and approximate position.
 
 ---
 
-## 18. Glossary
+## 9. Vocabulary Model
+
+### 9.1 Two inputs
+
+#### Reading-context vocabulary
+
+Comes from the current chapter, Vocabulary Preview, or an interactive Reader term.
+
+These entries may include contextual metadata when available.
+
+#### External manual vocabulary
+
+Is typed into Vocabulary Library and may initially contain only the normalized term, status, timestamps, and required internal identifiers.
+
+A missing definition does not make capture unsuccessful.
+
+### 9.2 Vocabulary Library responsibility
+
+Vocabulary Library is responsible for:
+
+* collecting terms;
+* preserving user decisions;
+* displaying local lists;
+* manual capture;
+* removing or changing status;
+* preventing obvious duplicates;
+* export;
+* local backup and restore when supported.
+
+It is not responsible for:
+
+* teaching every word;
+* testing recall;
+* scheduling reviews;
+* scoring memory strength;
+* enforcing a learning sequence;
+* generating streaks;
+* guaranteeing dictionary completeness.
+
+### 9.3 Actions
+
+| Action | Product meaning | Expected effect |
+| --- | --- | --- |
+| **Known** | User already knows the term | Exclude it from future recommendations where applicable and preserve the choice |
+| **Save** | User wants to keep or study it later | Add it to Learning |
+| **Hide** | Not a useful learning target | Exclude it while preserving the choice |
+| **Manual Add** | Capture a term encountered elsewhere | Add the normalized term without promising enrichment |
+| **Remove** | User no longer wants the entry | Remove or update the local entry |
+| **Export** | Transfer collected vocabulary elsewhere | Produce a supported term list or backup representation |
+
+### 9.4 Known and Mastered
+
+The current product may display a **Mastered** tab for words recorded as Known.
+
+This does not mean Interleaf taught, tested, measured, or confirmed mastery.
+
+A true mastery lifecycle requires a separate product decision.
+
+### 9.5 Vocabulary level
+
+A vocabulary-level preference may help filter Preview terms.
+
+It is not:
+
+* a formal diagnosis;
+* an IELTS score prediction;
+* a mandatory placement test;
+* a restriction on what the user may read.
+
+---
+
+## 10. Core Requirements
+
+### 10.1 Personal EPUB import
+
+The product should:
+
+* accept EPUB through clear file selection;
+* provide understandable failure feedback;
+* extract available metadata;
+* discover readable chapters;
+* use fallback chapter labels;
+* avoid uploading books to a remote Interleaf service in the local-first baseline.
+
+### 10.2 Home and Local Library
+
+Home should provide entry to:
+
+* import;
+* Continue Reading;
+* Local Library;
+* Vocabulary Library;
+* Help or Settings when included.
+
+Local Library contains user-imported books stored in the current browser or device and remains distinct from Vocabulary Library.
+
+### 10.3 Reader
+
+The Reader should provide:
+
+* readable long-form text;
+* vertical scrolling by default;
+* chapter navigation;
+* Contents;
+* progress information;
+* return to Home during a chapter;
+* mobile-accessible controls;
+* hideable controls;
+* restoration of stored reading position.
+
+Pagination is not required for the core baseline.
+
+### 10.4 Reading progress
+
+The product should restore:
+
+* selected book;
+* current chapter;
+* approximate position;
+* compatible reader state.
+
+Approximate scroll restoration is acceptable.
+
+Exact EPUB CFI restoration is a possible future improvement.
+
+### 10.5 Vocabulary Preview
+
+Preview should:
+
+* show a limited prioritized chapter list;
+* avoid every unknown token;
+* support Known, Save, and Hide;
+* reflect saved and filtered state;
+* fail safely when data is unavailable;
+* never block chapter rendering.
+
+### 10.6 In-text vocabulary bubble
+
+The bubble should:
+
+* open from an interactive term;
+* remain compact;
+* provide concise help;
+* close quickly;
+* avoid covering excessive text;
+* support mobile positioning;
+* return attention to reading.
+
+It may include the term, a short Chinese meaning, brief English definition, and limited usage label.
+
+It must not become a full dictionary page.
+
+### 10.7 Vocabulary Library
+
+Vocabulary Library should support:
+
+* Learning;
+* Known or Mastered archive;
+* Hidden;
+* manual capture;
+* removal or status change;
+* copy or download export;
+* local persistence;
+* local backup and restore when included.
+
+It must not pressure the user to finish vocabulary work before reading.
+
+### 10.8 Export and backup
+
+Supported outputs may include:
+
+* copied term lists;
+* plain-text word lists;
+* CSV;
+* versioned local backup formats.
+
+Documentation must distinguish an external-study export from a restorable Interleaf backup.
+
+Compatibility with every external application is not guaranteed.
+
+### 10.9 Built-in Guide
+
+The Guide may teach import, navigation, Preview, vocabulary actions, Local Library, Vocabulary Library, export, Settings, and placeholder boundaries.
+
+It behaves as a special virtual book, not a user-imported EPUB.
+
+Human-authored multilingual Guide content does not enable imported-book translation.
+
+### 10.10 Settings and Help
+
+Settings may include interface language, vocabulary level, Guide access, local-data actions, and backup or restore.
+
+Help must describe actual behavior and must not advertise planned features as complete.
+
+---
+
+## 11. Interface Language and Reading Modes
+
+### 11.1 Interface Language
+
+Controls application labels, buttons, messages, dialogs, Help, Settings, and accessibility text.
+
+Changing Interface Language must not automatically alter imported book text, chapter, vocabulary decisions, or Reading Mode.
+
+### 11.2 Reading Mode
+
+Controls book-content presentation and is independent from Interface Language.
+
+### 11.3 English Study Mode
+
+Is the core reading experience and presents original English content with optional Preview, interactive terms, bubbles, and vocabulary actions.
+
+It must remain usable when future translation services are unavailable.
+
+### 11.4 Chinese Reading Mode
+
+For imported books, remains a placeholder until:
+
+* a real Translation Version exists;
+* output can be stored and retrieved safely;
+* provider and privacy boundaries are approved;
+* original and generated content remain distinguishable;
+* chapter and position relationships are preserved.
+
+### 11.5 Mixed Mode
+
+For imported books, remains a placeholder until:
+
+* a real Chinese or aligned Translation Version exists;
+* English-retention rules are defined;
+* output is traceable to source;
+* users can understand what was generated and how.
+
+### 11.6 Guide exception
+
+The built-in Guide may use manually authored Chinese or Mixed variants.
+
+This is not machine translation or evidence of imported-book multilingual support.
+
+---
+
+## 12. Local-First Data and Privacy
+
+Local data may include:
+
+* imported EPUBs;
+* book metadata;
+* reading progress;
+* vocabulary profile;
+* preferences;
+* Guide state;
+* user-created export or backup data.
+
+No account is required for the core reading workflow.
+
+Users are responsible for importing content they have the right to access.
+
+Interleaf must not host copyrighted books, distribute fanfiction exports, publish imported EPUBs, operate as a public translated-book library, or scrape reading platforms.
+
+Before sending book text or vocabulary data outside the device, the project must define:
+
+* what is sent;
+* destination;
+* purpose;
+* consent;
+* credential handling;
+* storage;
+* failure behavior.
+
+Provider keys and developer-owned secrets must never be embedded in public frontend code.
+
+Analytics are not required and need separate product and privacy approval.
+
+---
+
+## 13. UX Requirements
+
+### Mobile-first
+
+Support readable line length, touch-friendly controls, safe popup placement, no hover dependency, and access to Home during a chapter.
+
+### Low interruption
+
+Avoid unnecessary confirmations. Use clear confirmation for destructive actions such as forgetting a book or replacing profile data.
+
+### Calm hierarchy
+
+The story should dominate the screen. Controls and vocabulary support should appear when needed without competing with the text.
+
+### Optional assistance
+
+Users may ignore Preview, bubbles, vocabulary actions, export, and future translation modes.
+
+### Clear feedback
+
+Report import, save, remove, export, backup, restore, placeholder, and local-storage outcomes concisely.
+
+### Accessibility and localization
+
+Controls should have meaningful labels, keyboard and focus behavior where applicable, localized accessibility text, and preserved user content.
+
+---
+
+## 14. Current MVP Boundary
+
+The current MVP centers on the complete English reading loop:
+
+* personal EPUB import;
+* Home;
+* Reader;
+* Local Library;
+* chapter navigation;
+* local progress;
+* English Study Mode;
+* Vocabulary Preview;
+* interactive in-context assistance;
+* Known, Save, and Hide;
+* Vocabulary Library;
+* external manual capture;
+* vocabulary export;
+* local-first storage;
+* honest Chinese and Mixed placeholders.
+
+The current tracked runtime also includes Guide, Settings, Help, interface-language foundations, TXT export, and vocabulary backup and restore.
+
+Exact implementation and verification status belongs in `docs/PROJECT_STATE.md`.
+
+---
+
+## 15. Explicit Non-goals
+
+The current product commitment excludes:
+
+* general dictionary search;
+* automatic enrichment of every manual term;
+* flashcards, spaced repetition, quizzes, streaks, or mandatory tests;
+* IELTS mock exams, question practice, or score prediction;
+* cloud accounts or cross-device synchronization;
+* social bookshelves or public communities;
+* public book or translation hosting;
+* AO3 scraping;
+* real imported-book Chinese Mode;
+* real imported-book Mixed Mode;
+* browser-exposed provider secrets;
+* automatic whole-book translation without explicit user control;
+* guaranteed full offline operation before implementation and verification.
+
+Changing one of these requires a deliberate product decision.
+
+---
+
+## 16. Future Direction
+
+### Translation Versions
+
+A future Book Project may contain source versions, imported or generated Translation Versions, provenance, chapter relationships, alignment data, and generated Mixed artifacts.
+
+A Translation Version must not overwrite or impersonate the source.
+
+### Provider-assisted translation
+
+Future translation may include provider-agnostic interfaces, user-controlled generation, protected terms, local caching, queues, failure recovery, and cost or limit disclosure.
+
+Credentials, privacy, and consent must be approved first.
+
+### Real Chinese Reading Mode
+
+May become available when a valid Translation Version exists and book identity, provenance, chapter relationships, progress continuity, and user control are preserved.
+
+### Real Mixed Mode
+
+May use a Chinese Translation Version as base, selected English targets, explicit retention rules, alignment, and reproducible settings.
+
+It remains a reading mode, not a cloze test.
+
+### PWA and offline resilience
+
+Future release work may improve installability, app-shell caching, dependency vendoring, updates, offline startup, and deployment verification.
+
+Private EPUB data must not enter inappropriate shared caches.
+
+### Vocabulary enrichment
+
+May improve reading-context entries with richer definitions, pronunciation, morphology, collocations, usage labels, or source metadata.
+
+This does not authorize general dictionary search or automatic enrichment of every manual term.
+
+### Sync-lite
+
+Portable backup and restore may support limited device transfer without accounts or cloud synchronization.
+
+Any cloud service requires separate product, privacy, security, and maintenance decisions.
+
+---
+
+## 17. Success Criteria
+
+Interleaf succeeds when target users can:
+
+* begin a long English text they care about;
+* continue despite unfamiliar vocabulary;
+* avoid leaving Reader for routine assistance;
+* return quickly after opening vocabulary help;
+* preserve progress;
+* save useful words with little effort;
+* capture external vocabulary;
+* export into an existing learning workflow;
+* understand which features are real and which are placeholders.
+
+Guardrails:
+
+* EPUB import and first chapter remain reliable;
+* English Study Mode remains available when optional modules fail;
+* vocabulary features do not block reading;
+* Manual Add does not pretend to be dictionary lookup;
+* Chinese and Mixed placeholders do not pretend to generate translation;
+* local user content is not silently uploaded;
+* the product does not become a drill application.
+
+Early evaluation may use dogfooding, structured smoke tests, issue reports, interviews, reading-session feedback, and restore/export verification.
+
+Analytics are not required.
+
+---
+
+## 18. Product Change Control
+
+Product review is required when a proposal would:
+
+* change the target user;
+* change the core reading loop;
+* introduce arbitrary dictionary search;
+* automatically enrich manual terms;
+* introduce drills, flashcards, streaks, or spaced repetition;
+* add cloud accounts or synchronization;
+* send book content to an external service;
+* add a real translation provider;
+* change Known, Save, Hide, Learning, or Mastered semantics;
+* alter local-storage compatibility;
+* claim real Chinese or Mixed support;
+* host, scrape, or redistribute third-party content.
+
+Approved changes must update:
+
+1. this PRD when product meaning changes;
+2. `docs/DECISION_LOG.md` when the decision is durable;
+3. `docs/PROJECT_STATE.md` when implementation status changes;
+4. `docs/MILESTONES.md` when delivery scope changes;
+5. privacy or architecture documents when data flow changes.
+
+New ideas do not automatically enter the Active milestone.
+
+---
+
+## 19. Product Glossary
 
 | Term | Definition |
-|---|---|
-| **PWA** | Progressive Web App — installable/offline-capable web app; full installability **Planned** |
-| **EPUB** | Standard ebook format; user-imported; parsed via epub.js |
-| **IndexedDB** | Browser database used for EPUB blobs, progress, vocabulary profile |
-| **Local Library** | Saved EPUB books on this device (metadata + blobs) |
-| **Vocabulary Preview** | Chapter-level list of recommended study terms before/during reading |
-| **Vocabulary Library** | User’s persistent word lists (Learning / Mastered / Hidden) — reading-derived, not drills |
-| **English Study Mode** | Original English text with vocabulary overlays — **MVP core** |
-| **Chinese Reading Mode** | Full Chinese chapter for plot comprehension — **Placeholder** |
-| **Mixed Mode** | Mostly Chinese with selected English words kept — **Placeholder** |
-| **Translation Provider** | Pluggable backend for machine translation — **Planned** |
-| **Protected Terms / Glossary** | Terms preserved in translation (names, fandom words, etc.) |
-| **Known** | User already knows word; hide from Preview; stored in `knownWords` |
-| **Save** | Add to learning list / Vocabulary Library (`learningWords`) |
-| **Hide** | Not a learning target (`ignoredWords`) |
-| **Mastered (v1)** | UI tab for `knownWords` archive — not post-learning lifecycle |
-| **Local-first** | Data stays on device; no cloud account in MVP |
-| **API key** | User or deployer credential for translation provider — never in public frontend code |
+| --- | --- |
+| **Interleaf Reader** | Product name |
+| **BookHeart** | Creator or internal brand |
+| **Reading-first** | Reading continuity takes priority over vocabulary management |
+| **Interest-driven reading** | Personally engaging texts used to encourage sustained English exposure |
+| **English Study Mode** | Original English text with optional vocabulary assistance |
+| **Chinese Reading Mode** | Future mode based on a real Chinese Translation Version; placeholder for imported books |
+| **Mixed Mode** | Future Chinese-base mode retaining selected English terms; placeholder for imported books |
+| **Interface Language** | Language of application controls and messages |
+| **Reading Mode** | Presentation mode used for book or Guide content |
+| **Vocabulary Preview** | Limited chapter-level prioritized vocabulary list |
+| **Vocabulary bubble** | Lightweight in-context assistance |
+| **Vocabulary Library** | Local collection, organization, backup, and export layer |
+| **Manual Add** | Capture of a term without promised enrichment |
+| **Known** | User reports already knowing the term |
+| **Save** | Keep the term in Learning |
+| **Hide** | Exclude the term as a learning target |
+| **Mastered** | Current archive label for Known terms; not tested mastery |
+| **Local Library** | User-imported books stored in the current browser or device |
+| **Translation Version** | Distinct imported or generated translation with provenance |
+| **Protected term** | Name, proper noun, fandom term, or expression translation should preserve |
+| **Local-first** | Core user data remains on-device by default |
+| **Vocabulary export** | Transfer of collected terms to another study system |
+| **Profile backup** | Versioned representation intended for Interleaf restoration |
+| **Placeholder** | Visible but explicitly non-functional future capability |
+| **General dictionary search** | Arbitrary word lookup outside current reading context; not a current capability |
 
 ---
 
-## Appendix A — Mode examples
+## Appendix A — Core Flows
 
-**English Study Mode**
+### Reading
 
 ```text
-Dean opened the door.
+Import or open book
+→ Read English text
+→ Tap an interactive word when needed
+→ Receive lightweight assistance
+→ Save / Known / Hide when useful
+→ Continue reading
+→ Restore progress later
 ```
 
-**Chinese Reading Mode (target)**
+### External vocabulary capture
 
 ```text
-Dean打开了门。
+Encounter a word outside Interleaf
+→ Open Vocabulary Library
+→ Manually add the term
+→ Accumulate locally
+→ Export
+→ Study in an existing application
 ```
 
-**Mixed Mode (target)**
+### Future multilingual flow
 
 ```text
-Dean opened 门。
+Original book
+→ Add or generate a Translation Version
+→ Preserve provenance and alignment
+→ Enable Chinese Reading Mode
+→ Generate or display Mixed Mode
 ```
 
 ---
 
-## Appendix B — Implementation status legend
+## Appendix B — Requirement Language
 
-| Label | Meaning |
-|---|---|
-| **Implemented** | Shipped in current codebase per audit |
-| **Partial** | Exists but incomplete vs full requirement |
-| **Placeholder** | UI shell without real behavior |
-| **Planned** | Designed but not built |
-| **Post-MVP** | After first public MVP scope |
-| **TBD** | Requires product/legal/technical decision |
+| Term | Meaning |
+| --- | --- |
+| **Must** | Required product behavior or boundary |
+| **Should** | Strong expectation; exceptions require justification |
+| **May** | Optional or stage-dependent |
+| **Current MVP** | Current committed English reading and vocabulary-collection scope |
+| **Future** | Not part of current implementation commitment |
+| **Placeholder** | UI may exist, but capability is not implemented |
+| **Product decision required** | Implementation must not begin until scope is explicitly resolved |
 
 ---
 
-*End of Interleaf Reader PRD v1.0*
+*End of Interleaf Reader PRD v2.0*

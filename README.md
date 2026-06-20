@@ -1,130 +1,148 @@
 # Interleaf Reader
 
-Former codename: **Slash Reader v2**.
+**Interleaf Reader helps non-native English readers become comfortable with long-form English through stories they genuinely want to read.**
 
-Interleaf Reader is a local-first English fiction and long-form EPUB reading PWA for non-native English readers. Users import their own EPUB files and read in a controlled browser reader where vocabulary help, and future translation features, support immersive reading without turning the product into a memorization app or generic translator.
+**Interleaf Reader 帮助你用真正喜欢的故事，逐渐习惯阅读长篇英文。**
 
-## Core Idea
+Interleaf Reader is a mobile-first, local-first, reading-first browser application for English novels, web fiction, fanfiction, and other long-form EPUB content.
 
-Interleaf Reader is a reading app first. Its modes are designed around staying inside the story:
+It is designed for readers who:
 
-- **English Study Mode**: original English text plus lightweight vocabulary help.
-- **Chinese Reading Mode**: future plot-comprehension mode for reading a Chinese translation.
-- **Mixed Mode**: future contextual-memory mode with mostly Chinese text and selected English kept in context.
+* already have some English foundation;
+* want to improve over time;
+* lack sustained English-language exposure;
+* feel resistance or anxiety when facing long English texts;
+* are more willing to read when the story itself is personally meaningful.
 
-Example:
+Vocabulary support exists to protect reading continuity, not replace reading with exercises.
+
+---
+
+## Current Capabilities
+
+The current tracked runtime includes:
+
+* local EPUB import;
+* vertical long-form reading;
+* chapter navigation and progress controls;
+* browser-local books and reading progress;
+* Vocabulary Preview;
+* lightweight in-text vocabulary bubbles;
+* Known, Save, and Hide;
+* external manual vocabulary capture;
+* Vocabulary Library;
+* copy, CSV, and TXT vocabulary export;
+* vocabulary-profile JSON backup and restore;
+* a built-in virtual Guide;
+* Settings and Help;
+* interface-language foundations;
+* browser-local preferences.
+
+The reproducible runtime baseline was established in commit:
 
 ```text
-English: Dean opened the door.
-Chinese target: Dean打开了门。
-Mixed target: Dean opened 门。
+91d6914 — feat: establish reproducible M2 runtime baseline
 ```
 
-## Current Status
+Current implementation and verification truth is maintained in:
 
-| Area | Status | Notes |
-|---|---|---|
-| English Study Mode | **Implemented** | Original chapter rendering with Vocabulary Preview, underlines, and bubbles. |
-| EPUB import | **Implemented** | File picker, drag-and-drop, diagnostics, metadata/spine loading through epub.js and JSZip. |
-| Reader navigation | **Implemented** | Chapter list, Previous/Next, progress text, vertical scroll, mobile tap overlay. |
-| Home / Reader / Vocabulary Library views | **Implemented** | Three app views with view-isolation guards. |
-| Local Library | **Implemented** | Browser-local saved EPUBs and reading progress through IndexedDB. |
-| Vocabulary Library v1 | **Implemented** | Learning / Mastered / Hidden tabs, manual add, remove, Copy Learning, Copy All, CSV export. |
-| Vocabulary personalization | **Partial** | Local profile and level-baseline filtering exist; comfort-level onboarding and full scoring are not built. |
-| Book Glossary | **Partial** | Rule-based skeleton and mock classifier exist; not wired into translation. |
-| Chinese Reading Mode | **Placeholder** | No real translation output yet. |
-| Mixed Mode | **Placeholder** | Code may still call this Cloze Mixed Mode; no real mixed output yet. |
-| Translation Provider system | **Planned** | Provider-agnostic architecture is planned; DeepL is not integrated. |
-| PWA installability | **Partial** | Static PWA-oriented app has a minimal manifest and basic self-authored icons; service worker/offline support is still missing. |
-| GitHub Pages deployment | **Live** | Static deployment is live; service worker/offline support remains planned. |
+[`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md)
 
-## Features
+Do not infer completion solely from the presence of source code.
 
-### Reader Features
+---
 
-- EPUB import through file picker and drag/drop.
-- EPUB diagnostics for file metadata, load step, epub.js / JSZip status, spine count, and errors.
-- Chapter navigation with fallback labels, custom chapter list, Previous/Next, and progress display.
-- English Study Mode as the main working reading mode.
-- Vertical scrolling reader with approximate scroll progress restore.
-- Reader overlay with Home, Preview, Mode, Contents, Previous, and Next controls.
-- Home, Reader, and Vocabulary Library views.
-- Local Library for saved EPUBs in this browser.
+## Reading and Vocabulary Boundaries
 
-### Vocabulary Features
+Interleaf Reader supports two distinct vocabulary workflows.
 
-- Chapter-level Vocabulary Preview from curated seed data.
-- Underlined vocabulary terms in English text.
-- Lightweight tap/click bubble with short vocabulary details.
-- Preview actions:
-  - **Known**: mark already known; hide from future Preview.
-  - **Save**: keep in Learning list.
-  - **Hide**: stop prompting this term.
-- Saved-state badge for Learning words.
-- Manual vocabulary add to Learning.
-- Vocabulary Library tabs:
-  - Learning
-  - Mastered
-  - Hidden
-- Term-only local export:
-  - Copy Learning
-  - Copy All
-  - Download CSV
+### Reading-context assistance
 
-### Local-first Storage
+The user taps an interactive term in the current text and receives concise information sufficient to continue reading.
 
-- Saved EPUB blobs, metadata, and reading progress are stored in browser IndexedDB.
-- Reading progress includes chapter state and approximate scroll position.
-- Vocabulary profile is stored locally with `knownWords`, `learningWords`, `ignoredWords`, selected level, and preferences.
-- No account system or cloud sync exists in the MVP.
+This may include:
 
-### Planned Translation Features
+* a short Chinese meaning;
+* a brief English definition;
+* limited usage information.
 
-- Provider-agnostic Translation Provider architecture.
-- Secure key/provider boundary before any real provider integration.
-- Chinese Reading Mode with real translated chapter output.
-- Mixed Mode with Chinese context and selected English preserved.
-- Protected terms / glossary support for names, objects, fandom terms, and user overrides.
-- Local translation cache for generated chapter output.
+This is not general dictionary search.
 
-DeepL is not integrated. API keys must not be placed in frontend code.
+### External manual capture
 
-## What This Project Is Not
+The user may record a word or short phrase encountered in television, films, games, websites, advertisements, classes, conversations, or daily life.
 
-Interleaf Reader is:
+Manual Add is capture, not lookup.
 
-- not a flashcard or vocabulary-drill app
-- not a general translator
-- not a public translation library
-- not an AO3 scraper
-- not a cloud-sync reading platform
-- not a place to host copyrighted books or public translated works
+A manually entered term is not automatically promised:
 
-Vocabulary and future translation features exist to support reading, not replace the reading experience.
+* a definition;
+* translation;
+* example sentence;
+* pronunciation;
+* morphology;
+* synonyms;
+* automatic enrichment.
 
-## Local-first Privacy Note
+### Vocabulary Library
 
-Users import their own EPUB files. In the current MVP, saved books, reading progress, and vocabulary lists live in this browser's IndexedDB on this device.
+Vocabulary Library is a:
 
-There is no account system, cloud sync, or cross-device library in the MVP. Future translation providers may send chapter text to the provider selected by the user or deployer; that architecture is planned but not implemented yet. Do not commit API keys or secrets to frontend code.
+* collection layer;
+* organization layer;
+* local backup layer;
+* export layer.
 
-The current app loads epub.js and JSZip from a CDN, which should be documented before broad public release.
+It is not a flashcard, quiz, drill, spaced-repetition, or complete vocabulary-learning application.
 
-Privacy: see [`PRIVACY.md`](PRIVACY.md).
+---
 
-Contributing: see [`CONTRIBUTING.md`](CONTRIBUTING.md).
+## Reading Modes
 
-License: Interleaf Reader Non-Commercial Community License. The project is source-available for personal, educational, research, hobby, and other non-commercial use. Commercial use requires separate written permission.
+For user-imported EPUBs:
 
-GitHub issue and pull request templates are available under `.github/` for future public collaboration.
+* **English Study Mode** is the supported core path.
+* **Chinese Reading Mode** is a placeholder.
+* **Mixed Mode** is a placeholder.
+* No real translation provider is integrated.
 
-## How To Run Locally
+The built-in Guide may contain human-authored English, Chinese, or Mixed content.
 
-From PowerShell:
+This Guide-specific exception does not mean imported EPUBs can currently be translated or converted into real Chinese or Mixed versions.
+
+Interface Language changes application labels and Help content. It does not translate imported book text or change Reading Mode.
+
+---
+
+## What Interleaf Reader Is Not
+
+Interleaf Reader is not:
+
+* an IELTS practice application;
+* a general dictionary;
+* a generic translation service;
+* a flashcard or spaced-repetition application;
+* a public book or translation library;
+* a social reading platform;
+* an AO3 scraper;
+* a cloud bookshelf.
+
+The application is not a place to publish copyrighted books, fanfiction exports, or public translated works.
+
+---
+
+## Quick Start
+
+From the repository root:
 
 ```powershell
-cd "D:\BookHeart\slash reader\slash-reader-v2"
 python -m http.server 8000
+```
+
+If needed:
+
+```powershell
+py -m http.server 8000
 ```
 
 Open:
@@ -133,99 +151,156 @@ Open:
 http://127.0.0.1:8000/pwa-reader/
 ```
 
-Serve from the project root, not from `pwa-reader/`, because the app fetches JSON from `data/`. Docs use port `8000` as the recommended default; any other free local port can work if the server starts from the repo root.
+Start the server from the repository root, not from `pwa-reader/`, because the application loads shared files from directories such as `data/`.
 
-If the UI looks stale, stop old local servers, use `127.0.0.1` instead of mixing hostnames, hard-refresh with Ctrl+F5 or enable DevTools Disable cache, and try a cache-busting URL such as `http://127.0.0.1:8000/pwa-reader/?v=manual-test`.
+Opening the HTML file directly through `file://` is not supported.
 
-## GitHub Pages Deployment
+For setup, tests, smoke checks, and troubleshooting, see:
 
-Recommended Pages source: **Deploy from a branch**, branch `main`, folder `/ (root)`.
+[`docs/HANDOFF.md`](docs/HANDOFF.md)
 
-Expected app URL:
+---
+
+## Local-First Data and Privacy
+
+Current browser-local data may include:
+
+* imported EPUB files;
+* saved-book metadata;
+* reading progress;
+* preferences;
+* vocabulary profile.
+
+The current product has:
+
+* no required account;
+* no cloud library;
+* no cross-device synchronization;
+* no automatic upload of imported books;
+* no analytics.
+
+Browser storage belongs to the exact origin and browser profile.
+
+Changing hostname, port, browser profile, or private-browsing context may make existing data appear unavailable.
+
+Clearing browser data may permanently remove books, progress, preferences, and vocabulary.
+
+The application currently depends on CDN-hosted JSZip and epub.js, so local-first does not mean fully offline.
+
+See:
+
+[`PRIVACY.md`](PRIVACY.md)
+
+---
+
+## Deployment
+
+Interleaf Reader can be served as a static browser application.
+
+Deployment guidance:
+
+[`docs/GITHUB_PAGES_DEPLOYMENT.md`](docs/GITHUB_PAGES_DEPLOYMENT.md)
+
+Current deployment and verification status:
+
+[`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md)
+
+An HTTP 200 response alone does not prove JavaScript startup, dependency loading, EPUB import, IndexedDB persistence, or Reader behavior.
+
+Do not advertise installability, offline support, or service-worker behavior unless Project State records them as verified.
+
+---
+
+## Project Structure
 
 ```text
-https://<owner>.github.io/<repo-name>/pwa-reader/
+pwa-reader/   Browser application
+data/         App-ready vocabulary and configuration data
+tests/        Pure tests and copyright-safe fixtures
+scripts/      Validation and fixture utilities
+docs/         Product and engineering documentation
 ```
 
-The repository root `index.html` redirects to `./pwa-reader/` for visitors who open the project-site root.
+Current module boundaries:
 
-The app should be served from the repository root so `pwa-reader/` can fetch JSON from `../data/`. GitHub Pages is static hosting only: user EPUBs remain local in browser IndexedDB, and there is no Interleaf Reader backend or cloud sync. The current app loads epub.js and JSZip from a CDN, so the browser may contact that CDN when loading the app.
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 
-`pwa-reader/manifest.webmanifest` provides minimal PWA metadata using relative `start_url` and `scope`, plus basic self-authored icons under `pwa-reader/assets/icons/`. Full installability still needs a service worker/offline strategy.
+---
 
-Service worker/offline caching is planned, not implemented. See [`docs/PWA_OFFLINE_CACHE_PLAN.md`](docs/PWA_OFFLINE_CACHE_PLAN.md).
+## Documentation
 
-Deployment checklist: see [`docs/GITHUB_PAGES_DEPLOYMENT.md`](docs/GITHUB_PAGES_DEPLOYMENT.md).
+| Document | Purpose |
+| --- | --- |
+| [`docs/INTERLEAF_READER_PRD.md`](docs/INTERLEAF_READER_PRD.md) | Canonical product truth |
+| [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md) | Current implementation and verification |
+| [`docs/MILESTONES.md`](docs/MILESTONES.md) | Milestone scope and delivery order |
+| [`docs/DECISION_LOG.md`](docs/DECISION_LOG.md) | Durable decisions |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Current technical structure |
+| [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) | Persisted-data contracts |
+| [`docs/HANDOFF.md`](docs/HANDOFF.md) | Setup, tests, smoke, troubleshooting |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | Contribution workflow |
+| [`AGENTS.md`](AGENTS.md) | AI-assisted repository rules |
+| [`PRIVACY.md`](PRIVACY.md) | Privacy and local-data posture |
+| [`docs/LICENSE_DECISION.md`](docs/LICENSE_DECISION.md) | License rationale and commercial-permission process |
 
-## How To Test
+Historical audits, reports, roadmaps, AI protocols, and milestone execution records are stored under `docs/archive/` and are not ordinary required reading.
 
-Use the bundled Node runtime if plain `node` is not available:
+---
 
-```powershell
-cd "D:\BookHeart\slash reader\slash-reader-v2"
-$node = "C:\Users\Susie\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe"
-Get-ChildItem -Path "pwa-reader" -Filter "*.js" | ForEach-Object { & $node --check $_.FullName }
+## Project Status
+
+Interleaf Reader is under active development.
+
+The active phase is:
+
+```text
+R0 — Project Truth and Structure Reset
 ```
 
-Run the pure-logic tests:
+The runtime baseline is reconciled and pushed.
 
-```powershell
-& $node tests\levelBaselineEngine.test.mjs
-& $node tests\navigationEngine.test.mjs
-& $node tests\vocabEngine.test.mjs
-& $node tests\glossaryEngine.test.mjs
-& $node tests\storage.test.mjs
-& $node tests\homeState.test.mjs
-```
+Canonical documentation and remaining file classification are still being finalized.
 
-Check the vocabulary dataset:
+Use Project State for the current snapshot and Milestones for delivery scope:
 
-```powershell
-python scripts\check_vocabulary_dataset.py
-```
+* [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md)
+* [`docs/MILESTONES.md`](docs/MILESTONES.md)
 
-If plain `python` resolves incorrectly, use the bundled Python runtime:
+---
 
-```powershell
-C:\Users\Susie\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe scripts\check_vocabulary_dataset.py
-```
+## Contributing
 
-Generate the copyright-safe browser smoke EPUB:
+See:
 
-```powershell
-python scripts\generate_smoke_epub.py
-```
+[`CONTRIBUTING.md`](CONTRIBUTING.md)
 
-This writes `tests\fixtures\interleaf_smoke.epub`, a self-authored three-chapter fixture for import, navigation, Vocabulary Preview, bubble, and Local Library smoke tests.
+Contributions should:
 
-## Documentation Map
+* follow the Active milestone;
+* remain focused;
+* avoid secrets and frontend credentials;
+* exclude private and copyrighted books;
+* preserve compatibility-sensitive local data;
+* avoid unapproved product expansion or storage migration.
 
-- `docs/INTERLEAF_READER_PRD.md` - canonical English product requirements.
-- `docs/INTERLEAF_READER_PRD_CN.md` - Chinese mirror of the PRD.
-- `docs/PROJECT_STATE.md` - current milestone, implemented state, risks, and next task.
-- `docs/DECISION_LOG.md` - dated product and engineering decisions.
-- `docs/AI_WORKFLOW_PROTOCOL.md` - workflow rules for Codex, Cursor, and contributors.
-- `docs/HANDOFF.md` - current engineering handoff and run/test details.
+Submitting an idea does not guarantee milestone inclusion.
 
-## Roadmap
+---
 
-- **M0 Governance docs**: PRD, state, decision log, workflow protocol, README refresh.
-- **M1 Reader MVP stabilization**: stable import/read/resume loop, regression pass, remaining legacy-copy audit.
-- **M2 Vocabulary Library v1**: vocabulary profile, library, manual add/remove, export, semantic polish.
-- **M3 PWA / open-source release readiness**: GitHub Pages deployment verification, service worker, vendored scripts, license/privacy/contributing docs.
-- **M4 Translation architecture**: provider abstraction, secure key strategy, translation queue/cache design.
-- **M5 Chinese/Mixed mode**: real translated and mixed chapter output.
-- **M6 Enrichment/export/sync**: dictionary enrichment, richer export, profile import/export, optional sync or integrations.
+## License
 
-## Open-source Status
+The controlling license is:
 
-Public release preparation is in progress.
+[`LICENSE`](LICENSE)
 
-- License: **Interleaf Reader Non-Commercial Community License**. The project is source-available for personal, educational, research, hobby, and other non-commercial use. Commercial use requires separate written permission.
-- `CONTRIBUTING.md`: **Drafted**.
-- `PRIVACY.md`: **Drafted** for the local-first MVP.
-- Issue and pull request templates: **Drafted**.
-- GitHub Pages deployment: **Live**; deployed smoke testing and release readiness checks remain pending.
-- Source-material policy: still needs final review before broad public release.
+Interleaf Reader uses a custom non-commercial, source-available license.
 
-Before public launch, the project should clearly document local storage, CDN dependencies, future translation-provider data flow, copyright expectations, and contribution rules.
+It is not MIT-licensed or OSI-approved open source.
+
+Commercial use requires separate written permission.
+
+See [`docs/LICENSE_DECISION.md`](docs/LICENSE_DECISION.md) for explanatory context.
+
+---
+
+*Interleaf Reader is built around a simple principle: the best English reading practice is often the story you are genuinely willing to keep reading.*
