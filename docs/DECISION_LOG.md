@@ -1,245 +1,619 @@
 # Interleaf Reader — Decision Log
 
-## 2026-06-18 - Book Project data model proposal drafted
+## 1. Purpose and Rules
 
-| Field | Value |
-|---|---|
-| **Status** | Active direction; future architecture |
-| **Decision** | Future Book Project modeling should be treated as a conceptual, local-first architecture layer with `BookProject`, version, alignment, Mixed artifact, and progress concepts before any storage migration is designed. Existing local book records should be wrapped or referenced conservatively, and internal compatibility names should remain unchanged unless a future migration is explicitly scoped. |
-| **Rationale** | A conceptual model clarifies multilingual architecture without committing M2 to IndexedDB changes, translation generation, provider integration, or Mixed Mode rendering. |
-| **Follow-up** | Future milestones must decide the actual storage schema, migration plan, provider boundary, alignment repair UX, and tests. |
-| **References** | `docs/BOOK_PROJECT_DATA_MODEL_PROPOSAL.md`; `docs/MULTILINGUAL_BOOK_PROJECT_STRATEGY.md` |
+This document is the chronological record of durable Interleaf Reader decisions.
 
----
+It records decisions about:
 
-## 2026-06-18 - Multilingual Book Project architecture direction
+* product direction and boundaries;
+* architecture;
+* persisted data and compatibility;
+* privacy and security;
+* licensing and governance;
+* milestone and change-control policy.
 
-| Field | Value |
-|---|---|
-| **Status** | Active direction; future architecture |
-| **Decision** | Future multilingual support should be organized around a **Book Project** that can contain the source book plus one or more translation versions. Translation versions may be user-provided or AI-generated, and future Mixed Mode should distinguish **Generated Mixed** from **paired-version Mixed**. Alignment should start at chapter level before paragraph, sentence, or word alignment. |
-| **Rationale** | Treating translations as versions inside a Book Project keeps multilingual reading, translation provenance, Mixed Mode, and alignment work connected instead of designing isolated features. Chapter alignment is the lowest-risk foundation for paired reading and future deeper alignment. |
-| **Follow-up** | Define the Book Project data model, translation-version metadata, import/generation workflows, provider boundary, privacy implications, and alignment repair UX in future translation milestones. This is not an M2 implementation commitment. |
-| **References** | `docs/MULTILINGUAL_BOOK_PROJECT_STRATEGY.md`; PRD translation milestones |
+This document does not record:
 
----
+* current implementation status;
+* branch, commit, or working-tree state;
+* task lists;
+* test execution results;
+* temporary blockers;
+* milestone execution logs;
+* complete architecture specifications;
+* Codex session summaries.
 
-## 2026-06-17 - Commercial permission process documented
+Those responsibilities belong to:
 
-| Field | Value |
-|---|---|
-| **Status** | Active; maintainer contact TBD |
-| **Decision** | Commercial permission requests should be handled through a separate written permission process. Requests should describe requester identity, intended commercial use, distribution/monetization model, modifications, branding, privacy/data flows, audience, and timeline. |
-| **Rationale** | The custom non-commercial license requires a clear boundary between community/non-commercial use and commercial permission. Public issues, pull requests, forks, discussions, or silence from the maintainer must not imply commercial permission. |
-| **Follow-up** | Publish maintainer contact and decide whether the final `LICENSE` text should mirror the full process note. |
-| **References** | `docs/LICENSE_DECISION.md`; `CONTRIBUTING.md`; `docs/OPEN_SOURCE_RELEASE_CHECKLIST.md` |
+| Document                              | Responsibility                                |
+| ------------------------------------- | --------------------------------------------- |
+| `docs/INTERLEAF_READER_PRD.md`        | Canonical product truth                       |
+| `docs/PROJECT_STATE.md`               | Current implementation and verification truth |
+| `docs/MILESTONES.md`                  | Milestone order, scope, and exit criteria     |
+| `docs/ARCHITECTURE.md`                | Current technical architecture                |
+| `docs/DATA_MODEL.md`                  | Persisted-data contracts                      |
+| `AGENTS.md`                           | AI repository working rules                   |
+| `docs/HANDOFF.md` / `CONTRIBUTING.md` | Setup, testing, and contributor procedures    |
+| `LICENSE`                             | Controlling license terms                     |
+| `docs/LICENSE_DECISION.md`            | Licensing rationale and permission process    |
 
----
+Historical decisions are not silently rewritten.
 
-## 2026-06-16 - Final non-commercial license file created
+When a decision changes:
 
-| Field | Value |
-|---|---|
-| **Status** | Active |
-| **Decision** | The project now includes `LICENSE`: **Interleaf Reader Non-Commercial Community License**. It is a custom source-available, non-commercial license, not an OSI-approved open-source license. |
-| **Rationale** | This implements the documented owner intent: community-readable source for personal, educational, research, hobby, and other non-commercial use, while requiring separate written permission for commercial use. |
-| **Follow-up** | Maintainer contact, commercial permission process, and legal review remain TBD before broad public release. |
-| **References** | `LICENSE`; `docs/LICENSE_DECISION.md`; `docs/OPEN_SOURCE_RELEASE_CHECKLIST.md`; `CONTRIBUTING.md` |
+1. preserve the original decision;
+2. mark it `Superseded`;
+3. create a new decision;
+4. link the old and new decision IDs.
 
----
+Implementation progress does not change a decision’s historical wording.
 
-## 2026-06-16 - License direction: non-commercial community license
-
-| Field | Value |
-|---|---|
-| **Status** | Active direction; final `LICENSE` pending |
-| **Decision** | Interleaf Reader will use a custom source-available, non-commercial community license. It should permit personal, educational, research, hobby, and other non-commercial use, while requiring separate written permission for commercial use. |
-| **Rationale** | The owner wants the code to be publicly visible and community-friendly, but does not want default permission for resale, paid app packaging, commercial SaaS/service use, commercial closed-source reuse, or commercial branding use. MIT is too permissive, while GPL/AGPL do not prohibit commercial use. |
-| **Follow-up** | Create the final `LICENSE` file, confirm maintainer contact and commercial permission process, and update README / CONTRIBUTING / PROJECT_STATE / release checklist after final review. |
-| **References** | `docs/LICENSE_DECISION.md`; `docs/OPEN_SOURCE_RELEASE_CHECKLIST.md`; `CONTRIBUTING.md` |
+Current status details belong in `PROJECT_STATE.md`, not here.
 
 ---
 
-## 2026-06-16 - User-facing Mixed Mode terminology
+## 2. Status Legend
 
-| Field | Value |
-|---|---|
-| **Status** | Active |
-| **Decision** | User-facing product and UI copy should say **Mixed Mode**, not **Cloze Mixed**. Internal compatibility names such as `cloze-mixed`, `clozeHtml`, and related stored progress values remain unchanged. |
-| **Rationale** | The PRD names the product mode Mixed Mode; keeping internal values avoids breaking mode switching, cached chapter fields, or saved progress. |
-| **Follow-up** | Future translation work may revisit internal naming only with an explicit migration plan. |
-| **References** | PRD section 8; `docs/HANDOFF.md`; `docs/PROJECT_STATE.md` |
-
----
-
-## 2026-06-16 - User-facing Interleaf rename cleanup
-
-| Field | Value |
-|---|---|
-| **Status** | Active |
-| **Decision** | User-facing app copy should present the product as **Interleaf Reader**. Legacy internal compatibility names remain unchanged, including repo/folder paths, IndexedDB/localStorage namespaces, debug globals such as `window.__slashReaderDebug`, and script-status globals. |
-| **Rationale** | Public copy should match the product name while avoiding storage resets, broken diagnostics, or unnecessary migration risk. |
-| **Follow-up** | Future rename work should audit user-facing copy only unless an explicit compatibility migration is scoped and tested. |
-| **References** | PRD section 3; `docs/PROJECT_STATE.md`; `docs/HANDOFF.md` |
+| Status         | Meaning                                                                       |
+| -------------- | ----------------------------------------------------------------------------- |
+| **Active**     | The decision currently controls product or engineering behavior               |
+| **Completed**  | The decision was carried out and remains part of project history              |
+| **Superseded** | A later decision replaced or materially revised it                            |
+| **Deferred**   | The direction remains possible, but implementation is intentionally postponed |
+| **Proposed**   | The idea has been recorded but is not yet an approved controlling decision    |
 
 ---
 
-Chronological record of product and engineering decisions. When implementation changes behavior, add an entry here and update `HANDOFF.md` / `PROJECT_STATE.md` as needed.
+## 3. Decision Index
 
-**Canonical product spec:** `docs/INTERLEAF_READER_PRD.md`
-
----
-
-## How to use
-
-- New decisions: append at the **top** (newest first) with date `YYYY-MM-DD`.
-- Status: **Active**, **Superseded**, or **TBD follow-up**.
-- Link PRD sections when helpful.
-- Do not delete old entries; mark superseded instead.
-
----
-
-## 2026-06-16 — One task per AI session
-
-| Field | Value |
-|---|---|
-| **Status** | Active |
-| **Decision** | AI-assisted work runs **one focused task per session** with a clear contract, small diff, and doc updates at the end. |
-| **Rationale** | Reduces regressions, scope creep, and conflicting changes across Home/Reader/Vocabulary Library. |
-| **References** | PRD §17; `docs/AI_WORKFLOW_PROTOCOL.md` |
-
----
-
-## 2026-06-16 — No cloud sync or account in MVP
-
-| Field | Value |
-|---|---|
-| **Status** | Active |
-| **Decision** | MVP has **no user accounts, no cloud library, no cross-device sync**. All books, progress, and vocabulary profile stay in browser IndexedDB on this device. |
-| **Rationale** | Local-first reduces complexity, privacy surface, and infrastructure cost for first release. |
-| **Follow-up** | Profile import/export as sync-lite may be considered post-MVP (M6). |
-| **References** | PRD §6, §9.4, §11 |
+| ID      | Date       | Area                     | Decision                                                     | Status     | Replaced by               |
+| ------- | ---------- | ------------------------ | ------------------------------------------------------------ | ---------- | ------------------------- |
+| DEC-001 | 2026-06-16 | Product identity         | Official product name and internal brand                     | Active     | —                         |
+| DEC-002 | 2026-06-16 | Compatibility            | Public rename while preserving internal identifiers          | Active     | —                         |
+| DEC-003 | 2026-06-16 | Product terminology      | Use Mixed Mode in user-facing copy                           | Active     | —                         |
+| DEC-004 | 2026-06-16 | Product scope            | Original English Study MVP scope                             | Superseded | DEC-019, DEC-020, DEC-022 |
+| DEC-005 | 2026-06-16 | Vocabulary               | Original Known / Save / Hide and reading-derived-only model  | Superseded | DEC-020, DEC-022          |
+| DEC-006 | 2026-06-16 | Vocabulary               | Mastered is the Known archive in the current model           | Active     | —                         |
+| DEC-007 | 2026-06-16 | Reading modes            | Imported-book Chinese and Mixed modes remain placeholders    | Active     | —                         |
+| DEC-008 | 2026-06-16 | Translation architecture | Translation boundary must be provider-agnostic               | Active     | —                         |
+| DEC-009 | 2026-06-16 | Security                 | No provider credentials in public frontend code              | Active     | —                         |
+| DEC-010 | 2026-06-16 | Delivery architecture    | Static web delivery is the baseline                          | Active     | —                         |
+| DEC-011 | 2026-06-16 | Privacy                  | No accounts or cloud sync in the current product baseline    | Active     | —                         |
+| DEC-012 | 2026-06-16 | Development process      | One focused task per AI implementation session               | Active     | —                         |
+| DEC-013 | 2026-06-16 | Licensing                | Select a custom non-commercial license direction             | Superseded | DEC-014                   |
+| DEC-014 | 2026-06-16 | Licensing                | Create the final custom source-available license             | Completed  | —                         |
+| DEC-015 | 2026-06-17 | Licensing                | Commercial use requires separate written permission          | Active     | —                         |
+| DEC-016 | 2026-06-18 | Future architecture      | Organize multilingual work around Book Projects and versions | Active     | —                         |
+| DEC-017 | 2026-06-18 | Future data model        | Keep Book Project modeling conceptual before migration       | Deferred   | —                         |
+| DEC-018 | 2026-06-19 | Guide                    | Model the built-in Guide as a virtual book                   | Active     | —                         |
+| DEC-019 | 2026-06-20 | Product positioning      | Refine the core user and interest-driven reading mission     | Active     | —                         |
+| DEC-020 | 2026-06-20 | Vocabulary               | Separate reading-context assistance from external capture    | Active     | —                         |
+| DEC-021 | 2026-06-20 | Product boundary         | Manual Add is capture, not general dictionary lookup         | Active     | —                         |
+| DEC-022 | 2026-06-20 | Vocabulary               | Vocabulary Library is a collection and export layer          | Active     | —                         |
+| DEC-023 | 2026-06-20 | Documentation governance | Assign one responsibility to each control document           | Active     | —                         |
+| DEC-024 | 2026-06-20 | Milestone governance     | Adopt one Active milestone and formal change control         | Active     | —                         |
 
 ---
 
-## 2026-06-16 — PWA / static hosting target
+## 4. Decisions
 
-| Field | Value |
-|---|---|
-| **Status** | Active |
-| **Decision** | Ship as a **static web app** with **GitHub Pages** (or equivalent static hosting) as the deployment target. Full PWA installability (manifest + service worker) is **planned** but **not complete** today. |
-| **Rationale** | Matches current no-build ES module architecture; low hosting cost; fits open-source distribution. |
-| **Follow-up** | M3 deliverables: manifest, service worker, vendored epub.js/JSZip. |
-| **References** | PRD §9.9, §13 M3 |
+### DEC-001 — Official product name and internal brand
 
----
+* **Date:** 2026-06-16
+* **Status:** Active
+* **Area:** Product identity
+* **Decision:** The official product name is **Interleaf Reader**. **BookHeart** is the creator and internal brand. **Slash Reader v2** is the former codename.
+* **Context:** The project needed a stable public identity aligned with layered multilingual reading.
+* **Consequences:**
 
-## 2026-06-16 — No API keys in frontend
-
-| Field | Value |
-|---|---|
-| **Status** | Active |
-| **Decision** | **No developer-owned or user API keys** in committed frontend JavaScript. Translation credentials require a **TBD** secure boundary (settings UX, companion server, or proxy) before any real provider integration. |
-| **Rationale** | Keys in static client code are exposed to all users; violates basic secret hygiene. |
-| **References** | PRD §9.7, §12; HANDOFF development rules |
+  * Public-facing product copy should use Interleaf Reader.
+  * BookHeart may appear as creator or internal brand.
+  * Slash Reader v2 may remain in historical or compatibility contexts.
+* **Supersedes:** None
+* **Superseded by:** None
+* **Related documents:** `docs/INTERLEAF_READER_PRD.md`, `README.md`
 
 ---
 
-## 2026-06-16 — Translation provider must be provider-agnostic
+### DEC-002 — Public rename while preserving internal identifiers
 
-| Field | Value |
-|---|---|
-| **Status** | Active |
-| **Decision** | Translation architecture uses a **provider-agnostic** `translationEngine` boundary. Supported provider *types* include None, free/basic, DeepL (optional quality tier), Google/other with user key, custom endpoint, and future local/self-hosted. **DeepL is not the only provider.** |
-| **Rationale** | Avoid vendor lock-in; allow free tier and user-chosen providers; match diverse user budgets. |
-| **Follow-up** | First integrated provider TBD (M4). User API key UX TBD. |
-| **References** | PRD §9.7 |
+* **Date:** 2026-06-16
+* **Status:** Active
+* **Area:** Compatibility
+* **Decision:** User-facing naming should be updated to Interleaf Reader without casually renaming internal compatibility identifiers.
+* **Context:** Existing storage, paths, scripts, and debug surfaces used Slash-era identifiers.
+* **Consequences:**
 
----
-
-## 2026-06-16 — Chinese Reading Mode and Mixed Mode are post-MVP placeholders
-
-| Field | Value |
-|---|---|
-| **Status** | Active |
-| **Decision** | **Chinese Reading Mode** and **Mixed Mode** are core **product goals** but **not MVP deliverables**. Current UI shows **placeholder panels only**; switching modes must preserve chapter/scroll but must not imply real translation. |
-| **Rationale** | MVP value is English Study vertical slice; translation requires M4 architecture first. |
-| **Engineering note** | Code uses `cloze-mixed` for Mixed Mode; user-facing copy should prefer **Mixed Mode**. |
-| **References** | PRD §8, §9.7, §13 M5 |
+  * User-facing stale naming may be cleaned.
+  * IndexedDB names, localStorage keys, persisted fields, debug globals, and other compatibility identifiers require an explicit migration task before renaming.
+  * Historical internal names do not mean the public product name remains Slash Reader.
+* **Supersedes:** None
+* **Superseded by:** None
+* **Related documents:** `AGENTS.md`, `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`
 
 ---
 
-## 2026-06-16 — Mastered tab = Known archive for v1
+### DEC-003 — Use Mixed Mode in user-facing copy
 
-| Field | Value |
-|---|---|
-| **Status** | Active |
-| **Decision** | In v1, the Vocabulary Library **Mastered** tab displays words in `knownWords` (from **Known** action in Preview). This is an **“already known” archive**, not the post-learning **mastered-after-save** lifecycle described in `VOCABULARY_INTERACTION_SEMANTICS.md`. |
-| **Rationale** | Matches current implementation; avoids half-built lifecycle in MVP. |
-| **Follow-up** | True learning → mastered lifecycle deferred to post-MVP (M6). May rename tab or split lists later. |
-| **References** | PRD §9.6; `VOCABULARY_INTERACTION_SEMANTICS.md` (partially superseded on Mastered) |
+* **Date:** 2026-06-16
+* **Status:** Active
+* **Area:** Product terminology
+* **Decision:** User-facing product and interface copy should use **Mixed Mode**, not **Cloze Mixed**.
+* **Context:** The older internal term did not match the intended reading experience.
+* **Consequences:**
 
----
-
-## 2026-06-16 — Known / Save / Hide v1 semantics
-
-| Field | Value |
-|---|---|
-| **Status** | Active |
-| **Decision** | Vocabulary Preview actions in v1: **Known** → `knownWords`, hide from Preview; **Save** → `learningWords`, Vocabulary Library Learning tab; **Hide** → `ignoredWords`, hide from Preview. Vocabulary Library is **reading-derived**, not a memorization-drill product. |
-| **Rationale** | Keeps reading flow primary; clear three-action model on mobile. |
-| **References** | PRD §9.6; `VOCABULARY_INTERACTION_SEMANTICS.md` |
+  * Internal values such as `cloze-mixed` and `clozeHtml` remain compatibility identifiers.
+  * Renaming those identifiers requires an explicit migration.
+  * User-facing documentation should not describe the mode as a cloze exercise.
+* **Supersedes:** None
+* **Superseded by:** None
+* **Related documents:** `docs/INTERLEAF_READER_PRD.md`, `AGENTS.md`
 
 ---
 
-## 2026-06-16 — MVP scope definition
+### DEC-004 — Original English Study MVP scope
 
-| Field | Value |
-|---|---|
-| **Status** | Active |
-| **Decision** | **MVP** includes: English Study Mode, EPUB import, chapter navigation, Home / Reader / Vocabulary Library views, Local Library, IndexedDB persistence, scroll progress restore, mobile reader overlay, Vocabulary Preview, vocabulary bubble, level baseline filtering, user vocabulary profile (Known / Save / Hide), manual vocabulary add, export (Copy Learning, Copy All, CSV). **Excludes** real Chinese/Mixed translation, cloud sync, accounts, spaced repetition. |
-| **Rationale** | Shippable local-first reading loop with vocabulary support. |
-| **References** | PRD §2, §6, §13 M1–M2 |
+* **Date:** 2026-06-16
+* **Status:** Superseded
+* **Area:** Product scope
+* **Decision:** The original MVP was defined as English Study Mode, EPUB import, navigation, local persistence, vocabulary assistance, manual add, and basic export, while excluding real translation, accounts, cloud sync, and spaced repetition.
+* **Context:** The project needed a bounded first vertical slice.
+* **Consequences:**
 
----
-
-## 2026-06-16 — Former codename Slash Reader v2
-
-| Field | Value |
-|---|---|
-| **Status** | Active |
-| **Decision** | Public product name is **Interleaf Reader**. **Slash Reader v2** remains the former codename for repo paths, internal compatibility names, and some older docs. |
-| **Rationale** | “Interleaf” reflects layered cross-language reading; codename preserved for engineering continuity during transition. |
-| **Follow-up** | Do not rename storage/debug/internal compatibility names without an explicit migration task. |
-| **References** | PRD §3 |
+  * The decision established English Study Mode as the core path.
+  * Its detailed user definition and vocabulary boundaries were later refined.
+  * Current product scope must be read from PRD v2, not this historical MVP list.
+* **Supersedes:** None
+* **Superseded by:** DEC-019, DEC-020, DEC-022
+* **Related documents:** `docs/INTERLEAF_READER_PRD.md`, `docs/PROJECT_STATE.md`
 
 ---
 
-## 2026-06-16 — Product name Interleaf Reader
+### DEC-005 — Original Known / Save / Hide and reading-derived-only model
 
-| Field | Value |
-|---|---|
-| **Status** | Active |
-| **Decision** | Official product name: **Interleaf Reader**. Creator/internal brand: **BookHeart**. |
-| **Rationale** | Distinct public identity; aligns with mixed English–Chinese reading vision (e.g. `Dean opened 门。`). |
-| **References** | PRD §3 |
+* **Date:** 2026-06-16
+* **Status:** Superseded
+* **Area:** Vocabulary
+* **Decision:** The original vocabulary model defined Known, Save, and Hide and described Vocabulary Library as reading-derived.
+* **Context:** Early vocabulary work focused on terms discovered inside imported chapters.
+* **Consequences:**
 
----
-
-## Template (copy for new entries)
-
-```markdown
-## YYYY-MM-DD — Short title
-
-| Field | Value |
-|---|---|
-| **Status** | Active |
-| **Decision** | |
-| **Rationale** | |
-| **Follow-up** | |
-| **References** | |
-```
+  * The three action semantics influenced the current storage model.
+  * The reading-derived-only limitation is no longer valid.
+  * External manual capture is now a separate approved workflow.
+* **Supersedes:** None
+* **Superseded by:** DEC-020, DEC-022
+* **Related documents:** `docs/INTERLEAF_READER_PRD.md`, vocabulary planning documents
 
 ---
 
-*Newest entries at top. Do not remove history.*
+### DEC-006 — Mastered is the Known archive in the current model
+
+* **Date:** 2026-06-16
+* **Status:** Active
+* **Area:** Vocabulary
+* **Decision:** The current **Mastered** tab may display terms stored in `knownWords`.
+* **Context:** The application had a Mastered label without a true learning-to-mastered assessment lifecycle.
+* **Consequences:**
+
+  * Mastered currently means an archive of terms the user reports already knowing.
+  * It does not prove that Interleaf taught, tested, or verified mastery.
+  * A true learning-to-mastered lifecycle requires a separate product decision.
+* **Supersedes:** None
+* **Superseded by:** None
+* **Related documents:** `docs/INTERLEAF_READER_PRD.md`, `docs/DATA_MODEL.md`
+
+---
+
+### DEC-007 — Imported-book Chinese and Mixed modes remain placeholders
+
+* **Date:** 2026-06-16
+* **Status:** Active
+* **Area:** Reading modes
+* **Decision:** Chinese Reading Mode and Mixed Mode for user-imported books remain explicit placeholders until real multilingual data and architecture exist.
+* **Context:** The English Study vertical slice was usable before translation architecture, providers, provenance, and alignment were decided.
+* **Consequences:**
+
+  * Placeholder panels must not imply real translation.
+  * Switching to a placeholder must not falsely create generated content.
+  * Guide-authored Chinese or Mixed content is a Guide-specific exception.
+* **Supersedes:** None
+* **Superseded by:** None
+* **Related documents:** `docs/INTERLEAF_READER_PRD.md`, `docs/PROJECT_STATE.md`
+
+---
+
+### DEC-008 — Translation boundary must be provider-agnostic
+
+* **Date:** 2026-06-16
+* **Status:** Active
+* **Area:** Translation architecture
+* **Decision:** Future translation architecture must use a provider-agnostic boundary. DeepL must not be treated as the only permitted provider.
+* **Context:** Provider quality, cost, credentials, regional availability, and user preference may differ.
+* **Consequences:**
+
+  * Provider-specific behavior must remain behind a stable boundary.
+  * Provider choice is not an implementation commitment.
+  * A future milestone must define the first supported provider and its data flow.
+* **Supersedes:** None
+* **Superseded by:** None
+* **Related documents:** future multilingual architecture documents, `docs/INTERLEAF_READER_PRD.md`
+
+---
+
+### DEC-009 — No provider credentials in public frontend code
+
+* **Date:** 2026-06-16
+* **Status:** Active
+* **Area:** Security
+* **Decision:** Developer-owned or user provider credentials must not be embedded in committed public frontend JavaScript.
+* **Context:** Static frontend code cannot protect secrets.
+* **Consequences:**
+
+  * Real provider integration requires a separately approved credential boundary.
+  * Privacy and architecture documents must be updated before provider calls are added.
+  * Companion services, proxies, custom endpoints, or local providers remain undecided options.
+* **Supersedes:** None
+* **Superseded by:** None
+* **Related documents:** `PRIVACY.md`, `AGENTS.md`, `docs/ARCHITECTURE.md`
+
+---
+
+### DEC-010 — Static web delivery is the baseline
+
+* **Date:** 2026-06-16
+* **Status:** Active
+* **Area:** Delivery architecture
+* **Decision:** Interleaf Reader should remain deliverable as a static web application, with GitHub Pages or equivalent static hosting as the baseline distribution model.
+* **Context:** The project uses browser ES modules, local storage, and no mandatory backend.
+* **Consequences:**
+
+  * Core reading must not require an Interleaf account server.
+  * Installability and offline capability require separate verification.
+  * Current deployment status belongs in `PROJECT_STATE.md`, not this decision.
+* **Supersedes:** None
+* **Superseded by:** None
+* **Related documents:** `docs/MILESTONES.md`, `docs/GITHUB_PAGES_DEPLOYMENT.md`, `docs/PWA_OFFLINE_CACHE_PLAN.md`
+
+---
+
+### DEC-011 — No accounts or cloud sync in the current baseline
+
+* **Date:** 2026-06-16
+* **Status:** Active
+* **Area:** Privacy
+* **Decision:** The current product baseline has no user accounts, cloud library, or cross-device synchronization.
+* **Context:** Local-first storage reduces privacy, infrastructure, and maintenance complexity.
+* **Consequences:**
+
+  * Books, progress, preferences, and vocabulary remain local by default.
+  * Backup and export may provide limited portability.
+  * Any future cloud feature requires a new product, privacy, security, and architecture decision.
+* **Supersedes:** None
+* **Superseded by:** None
+* **Related documents:** `PRIVACY.md`, `docs/INTERLEAF_READER_PRD.md`
+
+---
+
+### DEC-012 — One focused task per AI implementation session
+
+* **Date:** 2026-06-16
+* **Status:** Active
+* **Area:** Development process
+* **Decision:** AI-assisted implementation sessions should normally execute one focused task with bounded files, acceptance criteria, exclusions, and checks.
+* **Context:** Broad sessions created scope creep, regressions, repeated reading, and unclear completion claims.
+* **Consequences:**
+
+  * A session should not silently implement adjacent work.
+  * One session is normally a task, not an entire milestone.
+  * The detailed operational rules are maintained in `AGENTS.md`.
+* **Supersedes:** None
+* **Superseded by:** None
+* **Related documents:** `AGENTS.md`, `docs/MILESTONES.md`
+
+---
+
+### DEC-013 — Select a custom non-commercial license direction
+
+* **Date:** 2026-06-16
+* **Status:** Superseded
+* **Area:** Licensing
+* **Decision:** The project should use a custom non-commercial community license rather than MIT, GPL, or AGPL.
+* **Context:** The owner wanted source visibility and non-commercial community use without automatically permitting commercial reuse.
+* **Consequences:**
+
+  * This entry recorded the license direction before the final license file existed.
+  * It is superseded by the completed license decision.
+* **Supersedes:** None
+* **Superseded by:** DEC-014
+* **Related documents:** `docs/LICENSE_DECISION.md`, `LICENSE`
+
+---
+
+### DEC-014 — Create the final custom source-available license
+
+* **Date:** 2026-06-16
+* **Status:** Completed
+* **Area:** Licensing
+* **Decision:** The repository uses the **Interleaf Reader Non-Commercial Community License**, a custom non-commercial, source-available license.
+* **Context:** The license direction required a controlling repository artifact.
+* **Consequences:**
+
+  * `LICENSE` controls the legal terms.
+  * `docs/LICENSE_DECISION.md` records rationale and process but does not override `LICENSE`.
+  * The project must not be described as MIT-licensed.
+  * The project must not be described as OSI open source.
+  * Personal, educational, research, hobby, and other permitted non-commercial uses follow the controlling `LICENSE`.
+  * Legal review remains separate from the completed selection.
+* **Supersedes:** DEC-013
+* **Superseded by:** None
+* **Related documents:** `LICENSE`, `CONTRIBUTING.md`, `README.md`
+
+---
+
+### DEC-015 — Commercial use requires separate written permission
+
+* **Date:** 2026-06-17
+* **Status:** Active
+* **Area:** Licensing
+* **Decision:** Commercial use requires separate written permission from the project owner or authorized maintainer.
+* **Context:** The custom license separates permitted non-commercial use from commercial permission.
+* **Consequences:**
+
+  * Issues, pull requests, forks, discussions, or maintainer silence do not grant commercial permission.
+  * Commercial requests should describe the requester, use, distribution, monetization, modifications, branding, privacy flow, audience, and timeline.
+  * Maintainer contact and legal review remain pending questions.
+* **Supersedes:** None
+* **Superseded by:** None
+* **Related documents:** `LICENSE`, `docs/LICENSE_DECISION.md`, `CONTRIBUTING.md`
+
+---
+
+### DEC-016 — Organize multilingual work around Book Projects and versions
+
+* **Date:** 2026-06-18
+* **Status:** Active
+* **Area:** Future architecture
+* **Decision:** Future multilingual support should be organized around a Book Project containing a source version and one or more Translation Versions.
+* **Context:** Translation, provenance, Chinese Mode, Mixed Mode, and alignment should not be designed as unrelated features.
+* **Consequences:**
+
+  * Translation Versions may eventually be user-provided or generated.
+  * Generated Mixed and paired-version Mixed should remain conceptually distinct.
+  * Alignment should begin at chapter level before deeper alignment.
+  * This direction is not current implementation scope.
+* **Supersedes:** None
+* **Superseded by:** None
+* **Related documents:** `docs/MULTILINGUAL_BOOK_PROJECT_STRATEGY.md`, `docs/BOOK_PROJECT_DATA_MODEL_PROPOSAL.md`
+
+---
+
+### DEC-017 — Keep Book Project modeling conceptual before migration
+
+* **Date:** 2026-06-18
+* **Status:** Deferred
+* **Area:** Future data model
+* **Decision:** Book Project, Book Version, Translation Version, alignment, Mixed artifact, and progress concepts should remain conceptual until an explicit migration milestone is approved.
+* **Context:** The project needed architectural clarity without destabilizing current IndexedDB records.
+* **Consequences:**
+
+  * Current persisted data must not be migrated merely because a proposal exists.
+  * Existing records should be wrapped, referenced, or migrated conservatively in future work.
+  * Storage schema, migration, repair UX, and tests remain undecided.
+* **Supersedes:** None
+* **Superseded by:** None
+* **Related documents:** `docs/BOOK_PROJECT_DATA_MODEL_PROPOSAL.md`, `docs/DATA_MODEL.md`
+
+---
+
+### DEC-018 — Model the built-in Guide as a virtual book
+
+* **Date:** 2026-06-19
+* **Status:** Active
+* **Area:** Guide
+* **Decision:** The built-in user Guide should behave as a virtual book opened through Local Library and Reader rather than as a separate expandable Home help panel.
+* **Context:** The Guide should teach the product through the same Reader surfaces the user must learn.
+* **Consequences:**
+
+  * The Guide may use Contents, Progress, Preview, vocabulary interactions, and authored language variants.
+  * It must not be stored as a user-imported EPUB blob.
+  * Guide-authored Chinese or Mixed content does not enable those modes for imported books.
+* **Supersedes:** The earlier standalone expandable Home-guide model, which did not have a decision ID
+* **Superseded by:** None
+* **Related documents:** `docs/INTERLEAF_READER_PRD.md`, Guide implementation files
+
+---
+
+### DEC-019 — Refine the core user and interest-driven reading mission
+
+* **Date:** 2026-06-20
+* **Status:** Active
+* **Area:** Product positioning
+* **Decision:** Interleaf Reader primarily serves non-native English readers who have some English ability and an ongoing learning goal but experience resistance to long English texts because they lack sustained English-language exposure.
+* **Context:** The earlier description was too broad and did not explain the psychological barrier or the role of interest-driven reading.
+* **Consequences:**
+
+  * Novels, web fiction, fanfiction, and other personally engaging texts are valid entry points for sustained English exposure.
+  * IELTS or other exam goals may motivate users, but Interleaf is not an IELTS training application.
+  * Product decisions should prioritize long-form reading tolerance and immersion.
+* **Supersedes:** The target-user portion of DEC-004
+* **Superseded by:** None
+* **Related documents:** `docs/INTERLEAF_READER_PRD.md`
+
+---
+
+### DEC-020 — Separate reading-context assistance from external capture
+
+* **Date:** 2026-06-20
+* **Status:** Active
+* **Area:** Vocabulary
+* **Decision:** Interleaf Reader has two distinct vocabulary workflows.
+* **Context:** The older reading-derived-only model did not reflect Manual Add or vocabulary encountered outside the Reader.
+* **Consequences:**
+
+  1. **Reading-context assistance**
+
+     * Applies to interactive terms in the current reading text.
+     * Provides lightweight information so the user can continue reading.
+  2. **External manual capture**
+
+     * Records terms encountered in media, websites, advertisements, classes, or daily life.
+     * Supports accumulation and later export to another study application.
+
+  * The workflows may share Vocabulary Library storage without having identical metadata.
+* **Supersedes:** The reading-derived-only boundary in DEC-005
+* **Superseded by:** None
+* **Related documents:** `docs/INTERLEAF_READER_PRD.md`, `docs/DATA_MODEL.md`
+
+---
+
+### DEC-021 — Manual Add is capture, not general dictionary lookup
+
+* **Date:** 2026-06-20
+* **Status:** Active
+* **Area:** Product boundary
+* **Decision:** Interleaf Reader does not currently provide arbitrary or general dictionary search. Manual Add records a term; it is not a lookup operation.
+* **Context:** Manual capture could otherwise be mistaken for a promise to build a generic dictionary.
+* **Consequences:**
+
+  * Manual Add does not promise a definition, translation, example sentence, pronunciation, morphology, synonym, collocation, or automatic enrichment.
+  * A manually entered term is successful when it is reliably normalized, stored, and exportable.
+  * Changing this boundary requires a PRD update and a new durable decision before implementation.
+* **Supersedes:** None
+* **Superseded by:** None
+* **Related documents:** `docs/INTERLEAF_READER_PRD.md`, `AGENTS.md`
+
+---
+
+### DEC-022 — Vocabulary Library is a collection and export layer
+
+* **Date:** 2026-06-20
+* **Status:** Active
+* **Area:** Vocabulary
+* **Decision:** Vocabulary Library is a collection, organization, backup, and export layer rather than a complete vocabulary-learning engine.
+* **Context:** Expanding vocabulary management could displace reading as the product center.
+* **Consequences:**
+
+  * Known, Save, Hide, Manual Add, Remove, backup, and export may be supported.
+  * Flashcards, quizzes, drills, spaced repetition, streaks, and mandatory review are outside the current product boundary.
+  * `Mastered` may remain a Known archive label and must not imply tested mastery.
+  * Vocabulary work must remain subordinate to reading continuity.
+* **Supersedes:** The product-boundary portion of DEC-005
+* **Superseded by:** None
+* **Related documents:** `docs/INTERLEAF_READER_PRD.md`, `AGENTS.md`
+
+---
+
+### DEC-023 — Assign one responsibility to each control document
+
+* **Date:** 2026-06-20
+* **Status:** Active
+* **Area:** Documentation governance
+* **Decision:** Each control document has one primary responsibility.
+* **Context:** Product truth, current state, implementation notes, roadmap, and agent instructions had become duplicated and contradictory.
+* **Consequences:**
+
+  * PRD controls product truth.
+  * PROJECT_STATE controls current implementation and verification truth.
+  * MILESTONES controls milestone order, scope, and exit criteria.
+  * DECISION_LOG controls durable decisions.
+  * ARCHITECTURE and the `docs/DATA_MODEL.md` control technical contracts.
+  * AGENTS controls AI working rules.
+  * HANDOFF and CONTRIBUTING control operational procedures.
+  * `PRD_SOURCE_AUDIT.md` is historical evidence, not required authority.
+  * HANDOFF is not canonical implementation truth.
+* **Supersedes:** The legacy documentation hierarchy in PRD v1 and earlier workflow documents
+* **Superseded by:** None
+* **Related documents:** `docs/INTERLEAF_READER_PRD.md`, `docs/PROJECT_STATE.md`, `docs/MILESTONES.md`, `AGENTS.md`
+
+---
+
+### DEC-024 — Adopt one Active milestone and formal change control
+
+* **Date:** 2026-06-20
+* **Status:** Active
+* **Area:** Milestone governance
+* **Decision:** Interleaf Reader may have only one Active milestone. New ideas default to Later / uncommitted.
+* **Context:** Feature-category roadmaps and repeated scope additions made completion and priority difficult to determine.
+* **Consequences:**
+
+  * Scope additions require a scope exchange or formal rebaseline.
+  * `Implemented but not fully verified` does not count as milestone completion.
+  * R0 — Project Truth and Structure Reset is adopted as the current Active control milestone.
+  * R0 does not add product features.
+  * M2 is not declared Closed by this decision; its final disposition remains unresolved until the repository baseline is reconciled.
+* **Supersedes:** The old phase-only Roadmap as the controlling delivery model
+* **Superseded by:** None
+* **Related documents:** `docs/MILESTONES.md`, `docs/PROJECT_STATE.md`, `AGENTS.md`
+
+---
+
+## 5. Pending Decision Questions
+
+Pending questions are not approved features or delivery commitments.
+
+### PDQ-001 — Translation credential boundary
+
+Decide how future provider credentials are supplied, stored, transmitted, revoked, and protected.
+
+Possible approaches require architecture and privacy review.
+
+### PDQ-002 — Translation Version import format
+
+Decide the supported import format, metadata requirements, provenance fields, validation, and failure behavior for user-provided Translation Versions.
+
+### PDQ-003 — Book Project migration
+
+Decide whether current book records are wrapped, referenced, copied, or migrated into a future Book Project model.
+
+The decision must include rollback and compatibility behavior.
+
+### PDQ-004 — Alignment and repair UX
+
+Decide the initial alignment granularity and how users inspect or repair mismatched source and translation chapters.
+
+### PDQ-005 — Translation-provider selection
+
+Decide whether the first real provider is remote, local, self-hosted, user-configured, or accessed through a secure companion service.
+
+### PDQ-006 — Storage quota and eviction
+
+Decide how the product detects storage pressure, warns users, and evicts generated translation or cache data without losing original books or user vocabulary.
+
+### PDQ-007 — Source-material retention
+
+Decide how local reference PDFs and other source materials are retained, backed up, excluded from publication, and documented without creating copyright risk.
+
+### PDQ-008 — Maintainer contact and legal review
+
+Decide the public contact channel for commercial permission and complete appropriate review of the custom license and release language.
+
+### PDQ-009 — M2 disposition
+
+After R0 repository reconciliation, decide whether M2 should be:
+
+* closed with verified evidence;
+* superseded by the new milestone system;
+* split into completed and deferred scope;
+* retained as historical milestone evidence.
+
+### PDQ-010 — Mastered terminology
+
+Decide whether the current Known archive should continue to be labeled Mastered or be renamed to reduce learning-lifecycle ambiguity.
+
+### PDQ-011 — General dictionary or manual enrichment boundary
+
+General dictionary search and automatic enrichment remain outside the current product direction.
+
+Any future proposal must define:
+
+* the user problem;
+* data source and licensing;
+* offline and privacy behavior;
+* relationship to reading-first scope;
+* whether the capability applies to manually captured terms.
+
+---
+
+*Add a new decision only when a durable product, architecture, compatibility, privacy, licensing, or milestone rule is approved. Do not use this file as a task or status log.*

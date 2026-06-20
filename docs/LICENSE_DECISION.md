@@ -1,133 +1,240 @@
-# Interleaf Reader License Decision
+# Interleaf Reader — License Decision
 
-**Date:** 2026-06-16  
-**Status:** License direction decided; final `LICENSE` file pending  
-**Product:** Interleaf Reader  
+**Original decision date:** 2026-06-16
+**Current status:** Implemented; final `LICENSE` exists
+**Product:** Interleaf Reader
 **Former codename:** Slash Reader v2
 
-This document records the intended license direction before the final license text is created. It is a project planning document, not legal advice.
+This document records the reasoning behind the project’s license direction and the intended commercial-permission process.
+
+It is not legal advice.
+
+The controlling legal terms are in:
+
+```text
+LICENSE
+```
+
+If this document and `LICENSE` differ, `LICENSE` controls.
+
+---
 
 ## 1. Decision Summary
 
-Interleaf Reader will use a custom non-commercial community license.
+Interleaf Reader uses the **Interleaf Reader Non-Commercial Community License**, a custom non-commercial, source-available license.
 
-The intended model is **source-available** and community-friendly, but it is **not an OSI-standard open-source license**. The code should be public for personal, educational, research, hobby, and other non-commercial use.
+The project is intended to allow source inspection and permitted personal, educational, research, hobby, and other non-commercial use under the terms of `LICENSE`.
 
-Commercial use requires separate written permission from the maintainer.
+Commercial use is not granted by default.
 
-## 2. Why Not MIT
+Commercial use requires separate explicit written permission from the project owner or an authorized maintainer.
 
-MIT is simple and widely understood, but it would allow uses that conflict with the owner's intent.
+Because the license is custom and non-commercial, Interleaf Reader must not be described as:
+
+* MIT-licensed;
+* GPL-licensed;
+* AGPL-licensed;
+* OSI-approved open source.
+
+The accurate public description is:
+
+> Interleaf Reader is source-available for permitted non-commercial use. Commercial use requires separate written permission.
+
+---
+
+## 2. Why MIT Was Not Selected
+
+MIT is simple and widely understood, but it permits commercial use.
 
 Under MIT, third parties could generally:
 
-- reuse the code commercially
-- resell or package Interleaf Reader as a paid app
-- offer it as part of a paid service
-- integrate it into commercial closed-source products
-- monetize modified versions with minimal restrictions
+* reuse the code commercially;
+* resell or repackage it;
+* offer it as part of a paid service;
+* integrate it into a commercial closed-source product;
+* monetize modified versions with few restrictions.
 
-That is too permissive for this project because the owner wants public community access without allowing commercial exploitation by default.
+That conflicts with the owner’s decision to allow community access without granting commercial exploitation by default.
 
-## 3. Why Not GPL / AGPL As The Main Answer
+---
 
-GPL and AGPL can require source sharing under certain conditions, and AGPL is especially relevant for network services.
+## 3. Why GPL or AGPL Was Not Selected
 
-However, GPL and AGPL do **not** prohibit commercial use. A company could still sell, host, or commercially deploy the software if it follows the relevant license terms.
+GPL and AGPL can require source sharing in particular circumstances.
 
-That does not satisfy the owner's requirement: no commercial use without separate written permission.
+However, they do not prohibit commercial use.
 
-## 4. Why Not Creative Commons For Code
+A company may still sell, host, or commercially deploy GPL- or AGPL-licensed software when it complies with the relevant terms.
 
-Creative Commons licenses are usually better suited to documents, assets, and creative content than software source code.
+That does not satisfy the project requirement that commercial use needs separate permission.
 
-Do not use CC BY-NC as the main software license unless a later legal review explicitly chooses that path. A custom software-focused non-commercial license is the preferred direction for Interleaf Reader.
+---
 
-## 5. Custom License Goals
+## 4. Why Creative Commons Is Not the Main Software License
 
-The final license should aim to:
+Creative Commons licenses are generally designed for creative works rather than software source code.
 
-- allow personal, educational, research, hobby, and other non-commercial use
-- allow people to read, study, and learn from the code
-- allow non-commercial forks and modifications
-- allow non-commercial redistribution with attribution
-- allow community suggestions, issues, and pull requests
-- require attribution to Interleaf Reader / BookHeart
-- require preservation of the license notice
-- require modified versions to clearly state that changes were made
-- protect against commercial resale, paid packaging, commercial SaaS, and commercial closed-source reuse
-- prohibit use of the Interleaf Reader or BookHeart name, logo, or branding for commercial promotion without permission
-- require separate written permission for any commercial use
+Interleaf Reader therefore does not use CC BY-NC as its primary software license.
 
-## 6. Contributor Policy
+Documentation and assets may require a separate scope decision later, but they must not be assigned a different license casually or in a way that conflicts with repository-wide wording.
 
-Contributions are accepted under the same project license unless otherwise stated.
+---
 
-Contributors should submit only code, documentation, data, and assets they have the right to license to the project.
+## 5. License Goals
+
+The selected license direction is intended to:
+
+* permit uses allowed by `LICENSE`;
+* allow people to inspect and learn from the source;
+* allow permitted non-commercial modification and redistribution;
+* require attribution and preservation of notices where `LICENSE` requires them;
+* require modified versions to identify changes where `LICENSE` requires it;
+* prevent unauthorized commercial resale, paid packaging, commercial SaaS, and commercial closed-source reuse;
+* protect Interleaf Reader and BookHeart names, logos, and branding from unauthorized commercial promotion;
+* require separate written permission for commercial use.
+
+This summary is explanatory only.
+
+It must not be used as a substitute for reading `LICENSE`.
+
+---
+
+## 6. Public Wording Rules
+
+Use:
+
+> Interleaf Reader is source-available for permitted personal, educational, research, hobby, and other non-commercial use. Commercial use requires separate written permission.
+
+Avoid:
+
+* “open source” without qualification;
+* “OSI open source”;
+* “free for any use”;
+* “MIT-style”;
+* “commercial use allowed”;
+* wording that suggests a public discussion or pull request grants permission.
+
+The historical filename `docs/OPEN_SOURCE_RELEASE_CHECKLIST.md` may remain temporarily for compatibility, but the document title and content must use source-available terminology.
+
+---
+
+## 7. Contributor Policy
+
+Contributions are accepted under the repository’s contribution and license terms.
+
+Contributors must submit only code, documentation, data, and assets they have the right to provide.
 
 Contributors must not submit:
 
-- copyrighted EPUBs
-- fanfiction exports
-- paid book text
-- copied dictionary entries
-- song lyrics
-- bulk extracted PDF or book text
-- private API keys
-- secrets or tokens
+* copyrighted EPUBs;
+* fanfiction exports without permission;
+* paid book text;
+* copied dictionary entries;
+* song lyrics;
+* bulk extracted PDF or book text;
+* private API keys;
+* secrets or tokens;
+* private user data;
+* material whose license is incompatible with the project.
 
-## 7. Repository Wording Guidance
+Contributors should review:
 
-Recommended README wording after the final license is created:
+```text
+CONTRIBUTING.md
+LICENSE
+```
 
-> Interleaf Reader is source-available for personal, educational, research, hobby, and other non-commercial use. Commercial use requires separate written permission from the maintainer.
+---
 
-The README should avoid calling the project OSI-approved open source unless the license direction changes to an OSI-approved license.
+## 8. Commercial Permission Process
 
-## 8. Remaining TBDs
+Commercial use is not granted by default.
 
-- Maintainer contact
-- Whether docs and assets use the same custom license or a separate non-commercial content license
-- Whether legal review is needed before public launch
-- Whether to include a short plain-English license summary in `README.md`
-- Whether to create the final `LICENSE` file now or after final review
+A requester must obtain explicit written permission from the project owner or an authorized maintainer before beginning commercial use.
 
-## 9. Commercial Permission Process
+A request should include:
 
-Commercial use is not granted by default. Anyone who wants commercial permission should request separate written permission from the maintainer or copyright holder.
+* requester name and organization;
+* contact information;
+* intended commercial use;
+* whether the software will be sold, hosted, bundled, deployed internally, used in a paid course, or integrated into another product;
+* whether modified versions are involved;
+* whether Interleaf Reader or BookHeart names, logos, screenshots, or branding will be used;
+* whether user EPUBs, vocabulary data, analytics, cloud sync, translation providers, or API keys are involved;
+* expected audience;
+* distribution channel;
+* intended launch timeline;
+* whether source modifications will be shared back.
 
-Until maintainer contact is published, commercial permission cannot be requested through an official project channel and is not granted.
+Permission must be explicit and written.
 
-A commercial permission request should include:
+The following do not grant commercial permission:
 
-- requester name and organization
-- contact information
-- intended commercial use
-- whether the software will be sold, hosted, bundled, deployed internally, used in a paid course, or integrated into another product
-- whether the use involves modified versions
-- whether Interleaf Reader or BookHeart names, logos, screenshots, or branding would be used
-- whether user EPUBs, vocabulary data, analytics, cloud sync, translation providers, or API keys are involved
-- expected audience, distribution channel, and launch timeline
-- whether source modifications will be shared back
+* opening an issue;
+* opening a pull request;
+* forking the repository;
+* receiving a reply in a public discussion;
+* private use that later becomes commercial;
+* maintainer silence;
+* absence of objection.
 
-Permission must be explicit and written. The following do not grant commercial permission:
+Approved commercial use may require a separate agreement containing terms such as:
 
-- opening an issue
-- opening a pull request
-- forking the repository
-- receiving a reply in a public discussion
-- using Interleaf Reader privately in a way that later becomes commercial
-- absence of objection from the maintainer
+* attribution;
+* branding limits;
+* privacy and security requirements;
+* support boundaries;
+* source-sharing obligations;
+* payment;
+* duration;
+* territory;
+* revocation or termination conditions.
 
-Approved commercial use may require a separate agreement with extra terms, such as attribution, branding limits, support boundaries, privacy requirements, or payment terms.
+Until a public maintainer contact is published, no official commercial-permission request channel exists.
 
-## 10. Next Step
+That absence does not grant permission.
 
-Publish maintainer contact information for commercial permission requests, then review whether the final `LICENSE` text needs to mirror this process note.
+---
 
-When the commercial contact/process is finalized, update:
+## 9. Current Completed Items
 
-- `CONTRIBUTING.md`
-- `docs/PROJECT_STATE.md`
-- `docs/OPEN_SOURCE_RELEASE_CHECKLIST.md`
-- `docs/DECISION_LOG.md`
+- [x] License direction selected
+- [x] Custom source-available, non-commercial license created
+- [x] Final `LICENSE` added
+- [x] Commercial permission required
+- [x] Commercial request contents documented
+- [x] README wording direction defined
+- [x] Decision Log records the license selection
+- [x] Contribution guidance exists
+
+---
+
+## 10. Remaining Decisions
+
+The following remain unresolved:
+
+- [ ] publish maintainer contact;
+- [ ] decide whether legal review is required before public release;
+- [ ] complete legal review if required;
+- [ ] confirm whether documentation and assets use the same license scope;
+- [ ] review dependency licenses;
+- [ ] review vocabulary dataset provenance and permissions;
+- [ ] review source-material handling;
+- [ ] verify public README and release wording against `LICENSE`;
+- [ ] decide whether a shorter plain-English summary should appear in `README.md`.
+
+---
+
+## 11. Required Follow-up Documents
+
+When maintainer contact, legal review, or license scope changes, review and update:
+
+* `LICENSE`
+* `README.md`
+* `CONTRIBUTING.md`
+* `PRIVACY.md`
+* `docs/PROJECT_STATE.md`
+* `docs/OPEN_SOURCE_RELEASE_CHECKLIST.md`
+* `docs/DECISION_LOG.md`
+
+A change to explanatory wording must not silently change the legal meaning of `LICENSE`.

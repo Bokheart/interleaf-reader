@@ -1,169 +1,397 @@
-# Interleaf Reader 閳?Project State
+# Interleaf Reader — Project State
 
-**Last updated:** 2026-06-18  
-**Active phase:** M2 — Reader UX + Vocabulary workflow + Storage trust  
-**Canonical product spec:** `docs/INTERLEAF_READER_PRD.md`
-
-**Current note:** M2 has started. GitHub Pages deployment is live, lightweight Reader chrome with Contents access has been added, and Home now includes a non-storage in-app Reader guide entry. Chinese Reading Mode, Mixed Mode, and translation providers remain placeholder/planned.
+**Last updated:** 2026-06-20
+**Canonical product specification:** `docs/INTERLEAF_READER_PRD.md`
+**Active control phase:** `R0 — Project Truth and Structure Reset`
 
 ---
 
-## Product identity
+## 1. Snapshot
 
-| Field | Value |
-|---|---|
-| **Product name** | Interleaf Reader |
-| **Former codename** | Slash Reader v2 (still used by some internal paths, storage/debug namespaces, and older docs) |
-| **Creator / internal brand** | BookHeart |
-| **Mission** | Help users enjoy English fiction while naturally understanding the story and gradually absorbing vocabulary during reading. |
-| **Positioning** | Local-first English fiction / long-form reading PWA for non-native readers. Vocabulary and translation support immersive reading閳ユ攺ot memorization drills, generic translation, or social reading. |
+| Field | Current state |
+| --- | --- |
+| **Repository branch** | `feature/m2-reader-toc` |
+| **HEAD** | `91d6914` — `feat: establish reproducible M2 runtime baseline` |
+| **Remote status** | Pushed to `origin/feature/m2-reader-toc` |
+| **Runtime baseline** | Reconciled, verified, committed, and pushed |
+| **Working tree** | Dirty; remaining changes are documentation, archive moves, and unresolved design material |
+| **Documentation baseline** | Rebuilt in the working tree but not yet fully reconciled and committed |
+| **Current delivery status** | M2 remains unresolved and is not formally closed |
+| **Localization status** | Foundation implemented; complete coverage remains unfinished |
+| **Feature-development status** | Paused during R0 |
+| **Current priority** | Finalize the canonical documentation and historical archive baseline |
 
----
+The earlier runtime reproducibility risk is resolved. The current application no longer depends on untracked Guide or localization modules.
 
-## Current stable state
-
-The codebase delivers a **working English Study Mode vertical slice**. EPUB import, chapter navigation, IndexedDB persistence, scroll progress restore, Vocabulary Preview, bubble, profile actions, and Vocabulary Library are implemented and usable in a local static-server workflow.
-
-M1 stabilization smoke testing was completed on 2026-06-16; automated checks passed and the browser smoke passed. A repeatable copyright-safe smoke EPUB generator now creates `tests/fixtures/interleaf_smoke.epub` for future browser checks. No blocking MVP app bugs were found. See `docs/M1_STABILIZATION_REPORT.md`.
-
-M1 (Reader MVP) and M2 (Vocabulary Library v1) are **largely implemented** but not fully closed: user-facing app copy now says Interleaf Reader and Mixed Mode, some docs are stale, and full PWA / open-source release artifacts are missing.
-
-M2 has started with Reader UX, vocabulary workflow, and storage-trust polish. GitHub Pages deployment is live, lightweight Reader chrome with Contents access has been added, and Home now includes a non-storage in-app Reader guide entry. Chinese Reading Mode, Mixed Mode, and translation providers remain placeholder/planned. Remaining release-readiness work includes legal review, PWA/offline planning, and any remaining PRD/HANDOFF drift cleanup.
+R0 is not closed. The remaining work concerns documentation truth, historical archive pairing, unresolved design references, and local-only artifacts.
 
 ---
 
-## Active phase: M2 — Reader UX + Vocabulary workflow + Storage trust
+## 2. Current Product Baseline
 
-| | |
-|---|---|
-| **Goal** | Polish Reader UX, vocabulary workflow clarity, and local-storage trust without changing translation placeholder scope. |
-| **In progress** | Reader chrome / Contents smoke follow-up; vocabulary workflow clarity; Local Library / storage trust review. |
-| **Completed (M0)** | Root `AGENTS.md`; `PROJECT_STATE.md`, `DECISION_LOG.md`, `AI_WORKFLOW_PROTOCOL.md`; PRD + CN PRD; `PRD_SOURCE_AUDIT.md`; Interleaf Reader `README.md` refresh; `OPEN_SOURCE_RELEASE_CHECKLIST.md`; `PRIVACY.md` local-first MVP draft; `CONTRIBUTING.md` open-source workflow draft; `LICENSE_DECISION.md` custom non-commercial license direction and commercial permission process; final `LICENSE` file; GitHub issue templates and PR template; GitHub Pages deployment prep doc + `.nojekyll` + root redirect `index.html`; minimal PWA manifest and self-authored app icons; PWA offline/cache plan; user-facing app rename cleanup; user-facing Mixed Mode copy cleanup; M1 stabilization smoke report; repeatable smoke EPUB fixture generator. |
-| **Definition of done** | Reader chrome / Contents, vocabulary workflow, and local storage trust paths pass targeted smoke checks on mobile-sized and desktop screens. |
+Interleaf Reader is a mobile-first, local-first, reading-first application for non-native English readers who want to build tolerance for long English texts through personally engaging material.
 
----
+The current supported baseline includes:
 
-## Implemented features
+* personal EPUB import;
+* English Study Mode;
+* chapter rendering and navigation;
+* Home and Reader flows;
+* Local Library;
+* local book and progress persistence;
+* Vocabulary Preview;
+* in-text vocabulary assistance;
+* Known, Save, and Hide actions;
+* Vocabulary Library;
+* external manual vocabulary capture;
+* vocabulary copy and export;
+* vocabulary profile backup and restore;
+* a built-in virtual Guide;
+* Settings and Help surfaces;
+* interface-language foundations.
 
-*Per `docs/PRD_SOURCE_AUDIT.md` and `docs/HANDOFF.md` 閳?conservative list.*
+The canonical user, product, and vocabulary boundaries are defined in:
 
-### Reading & library
+```text
+docs/INTERLEAF_READER_PRD.md
+```
 
-- EPUB import (file picker + drag-and-drop) with diagnostics panel
-- User-facing browser title and Home branding use Interleaf Reader; legacy internal storage/debug/path names are preserved for compatibility
-- epub.js + JSZip load path; chapter list from spine; fallback chapter labels
-- Chapter navigation (TOC, Previous/Next, Back to Top, progress text, mobile tap controls)
-- English Study Mode with vertical scroll
-- Home / Reader / Vocabulary Library views (mutually exclusive)
-- Home Reader guide entry (non-storage help item; not an imported EPUB)
-- Local Library (saved EPUB metadata; Open / Forget with in-app modal)
-- IndexedDB: EPUB blob, metadata, reading progress (`scrollRatio`, `currentMode`, etc.)
-- Scroll progress restore (approximate); Resume / Continue Reading / Forget saved book
-- Reader chrome with Contents access; Contents drawer/sheet plus chapter-slider Progress, Preview, and Mode sheets
+The product remains separate from:
 
-### Vocabulary
-
-- Vocabulary Preview from curated seed datasets (`vocabulary.json`, `slang_idioms.json`)
-- Underlined terms; click/tap bubble (term, 娑擃厽鏋? English definition, IELTS usage when available)
-- Level baseline filtering (`levelBaselineEngine.js`, `data/levels/level*.json`) 閳?lazy-loaded, fail-open
-- Profile: `knownWords`, `learningWords`, `ignoredWords`; default `selectedLevel` level3
-- Preview actions: **Known**, **Save**, **Hide**
-- Vocabulary Library: Learning / Mastered / Hidden tabs; manual Add to Learning; Remove
-- Export: Copy Learning, Copy All, Download CSV
-
-### Developer / quality
-
-- Pure-logic tests: `vocabEngine`, `glossaryEngine`, `navigationEngine`, `storage`, `levelBaselineEngine`, `homeState`
-- Dev diagnostics: `window.__slashReaderDebug.getDiagnostics()`
-- Book Glossary skeleton (rule extraction + mock classifier) 閳?dev/support, not core user MVP
+* general dictionary search;
+* flashcards, quizzes, drills, and spaced repetition;
+* accounts and cloud synchronization;
+* real imported-book translation;
+* real imported-book Chinese Reading Mode;
+* real imported-book Mixed Mode.
 
 ---
 
-## Placeholder / planned features
+## 3. Reconciled Runtime Baseline
 
-| Area | Status |
-|---|---|
-| Chinese Reading Mode | **Placeholder** 閳?post-MVP |
-| Mixed Mode (`cloze-mixed` internally) | **Placeholder** 閳?post-MVP; user-facing copy says Mixed Mode |
-| Translation providers | **Planned** 閳?not implemented |
-| Whole-book translation workflow | **Planned** |
-| Comfort-level onboarding UI | **Planned** 閳?API exists; default level3 only |
-| Full candidate scoring / enrichment | **Post-MVP** |
-| True learning 閳?mastered lifecycle | **Post-MVP** |
-| PWA manifest + service worker | **Partial** (M3); minimal manifest, self-authored app icons, and offline/cache plan exist; service worker remains planned |
-| GitHub Pages deployment | **Live**; deployed smoke testing remains part of release readiness |
-| Legal/contact follow-ups | **TBD** (M3); commercial permission process is documented, but maintainer contact and legal review remain pending |
-| Internal legacy names / namespaces | **Intentional compatibility** - some paths, storage keys, and debug globals still use Slash naming |
-| Cloud sync / accounts | **Out of MVP scope** |
-| AO3 extension, enhanced EPUB export | **Post-MVP optional** |
+**Status: Verified and committed**
 
----
+Commit `91d6914` establishes the reproducible runtime baseline for the current M2 working-copy implementation.
 
-## Known risks
+The baseline includes:
 
-| Risk | Notes |
-|---|---|
-| **Doc drift** | `README.md` refreshed on 2026-06-16; `PRODUCT_SPEC.md` and parts of `VOCABULARY_PERSONALIZATION_PLAN.md` may still lag PRD/HANDOFF |
-| **Naming confusion** | Public copy uses Interleaf Reader and Mixed Mode; legacy internal names such as `cloze-mixed` still need care |
-| **Known vs Mastered UX** | Mastered tab shows `knownWords`; users may expect flashcards or post-learning archive |
-| **CDN dependency** | epub.js / JSZip from jsDelivr 閳?offline/PWA weakness |
-| **IndexedDB quotas** | Large EPUBs + future translation cache 閳?no eviction policy yet |
-| **Translation (future)** | Cost, API key handling, free provider quality 閳?all TBD |
-| **Privacy follow-ups** | Translation provider data flow, user API key UX, analytics policy, CDN vs vendored scripts, and children-friendly edition remain TBD |
-| **License follow-ups** | Commercial permission process is documented; maintainer contact and legal review remain TBD |
-| **Copyright / OSS** | `source_materials/` PDFs; public repo policy TBD |
-| **Scope creep** | Translation, enrichment, AO3, teen mode easy to over-build |
+### Runtime
 
----
+* `pwa-reader/app.js`
+* `pwa-reader/index.html`
+* `pwa-reader/readingModes.js`
+* `pwa-reader/storage.js`
+* `pwa-reader/styles.css`
+* `pwa-reader/guideBook.js`
+* `pwa-reader/i18n.js`
+* `pwa-reader/locales/en.js`
+* `pwa-reader/locales/zh-CN.js`
 
-## Do-not-touch areas
+### Supporting tests
 
-Unless a task explicitly targets them **and** follows `docs/AI_WORKFLOW_PROTOCOL.md`:
+* `tests/homeState.test.mjs`
+* `tests/storage.test.mjs`
 
-1. **Do not regress MVP paths:** EPUB import, chapter render, English Study Mode, navigation, view isolation (Home / Reader / Vocabulary Library).
-2. **Do not put API keys** in `pwa-reader/` or any committed frontend code.
-3. **Do not block import/render** on optional modules (personalization, translation, glossary).
-4. **Do not implement real translation providers** in the browser bundle without secure key boundary (per PRD M4).
-5. **Do not replace placeholder Chinese/Mixed modes** with fake 閳ユ涪ranslations閳?without provider architecture.
-6. **Do not mutate global vocabulary datasets** from user actions 閳?personalization lives in IndexedDB profile only.
-7. **Do not host copyrighted books or bulk dictionary text** in `data/` or the app bundle.
+The four modules that were previously untracked runtime dependencies are now tracked:
+
+* `pwa-reader/guideBook.js`
+* `pwa-reader/i18n.js`
+* `pwa-reader/locales/en.js`
+* `pwa-reader/locales/zh-CN.js`
+
+The baseline was pushed to:
+
+```text
+origin/feature/m2-reader-toc
+```
 
 ---
 
-## Backlog
+## 4. Verification Evidence
 
-Ordered by current M2/M3 priorities:
+**Status: Verified within the recorded environment**
 
-| Priority | Milestone | Summary |
-|---|---|---|
-| 1 | **M0 close-out** | Decide maintainer contact for license/commercial permission requests; keep legal review and privacy follow-ups tracked |
-| 2 | **M1 stabilization** | Smoke test and repeatable copyright-safe EPUB fixture workflow complete |
-| 3 | **M2 polish** | Reader UX, vocabulary workflow clarity, and storage-trust follow-up |
-| 4 | **M3** | Deployed Pages smoke test, service worker, vendored scripts, release smoke assets |
-| 5 | **M4** | Translation provider abstraction + secure key strategy |
-| 6 | **M5** | Chinese + Mixed mode implementation |
-| 7 | **M6** | Enrichment, true mastered lifecycle, profile import/export, optional AO3/export |
+| Check | Result |
+| --- | --- |
+| Local runtime imports and references | Passed |
+| JavaScript syntax | 13 of 13 files passed |
+| Existing Node test suites | 6 of 6 passed |
+| Vocabulary dataset validation | 112 items; 0 errors, warnings, or duplicates |
+| `git diff --check` | Passed; line-ending warnings only |
+| Desktop browser smoke | Passed at 1280 × 900 |
+| Mobile browser smoke | Passed at 393 × 852 |
+| Mobile horizontal overflow | None detected |
+| First-run language selection and persistence | Passed |
+| Settings language switch | Passed |
+| Settings and Help Center | Passed |
+| Guide open, hide, restore, and Reader Help routing | Passed |
+| Vocabulary-level selection and persistence | Passed |
+| Learning-only TXT export | Passed |
+| Vocabulary-profile JSON backup | Passed |
+| Valid profile restore | Passed |
+| Malformed restore rejection without mutation | Passed |
+
+Browser verification used bundled Playwright with isolated ephemeral storage because the in-app browser bridge was unavailable.
+
+Two apparent failures were traced to test timing rather than product defects:
+
+* restore was triggered before an earlier manual-add write completed;
+* vocabulary level was read before asynchronous library rendering completed.
+
+The sequential user flows passed when synchronized against persisted IndexedDB state. No application fix was required.
 
 ---
 
-## Next recommended task
+## 5. Remaining Verification Limits
 
-**M2 follow-up: run the Reader chrome / Contents smoke checklist on the live local path and record any vocabulary workflow or storage-trust UX gaps.**
+The runtime-baseline checks do not establish complete M2 acceptance.
+
+The following remain unverified or incomplete:
+
+* EPUB import in the validation environment, because network policy blocked CDN-hosted JSZip and epub.js;
+* non-Chromium browser behavior;
+* complete interface-localization coverage;
+* complete accessibility coverage;
+* deliberate overlapping vocabulary writes and restore operations;
+* deployed behavior matching the current branch;
+* installability and offline application-shell behavior;
+* real imported-book Chinese Reading Mode;
+* real imported-book Mixed Mode;
+* translation-provider behavior.
+
+These limits must not be represented as completed functionality.
 
 ---
 
-## Document map
+## 6. Placeholders
 
-| Read first | Purpose |
-|---|---|
-| `AGENTS.md` | Concise instructions for AI agents before repository work |
-| `docs/INTERLEAF_READER_PRD.md` | Product requirements (canonical) |
-| `docs/PRD_SOURCE_AUDIT.md` | Implementation inventory |
-| `docs/HANDOFF.md` | Engineering handoff / run instructions |
-| `docs/PROJECT_STATE.md` | This file 閳?where we are now |
-| `docs/DECISION_LOG.md` | Dated decisions |
-| `docs/AI_WORKFLOW_PROTOCOL.md` | Agent/contributor workflow |
+### Chinese Reading Mode
+
+**Status: Placeholder**
+
+Chinese Reading Mode does not currently translate or display a real Translation Version for user-imported books.
+
+Guide-specific authored Chinese content is a Guide exception and does not change imported-book capability.
+
+### Mixed Mode
+
+**Status: Placeholder**
+
+Imported-book Mixed Mode does not currently generate real Chinese-base mixed content.
+
+The compatibility value `cloze-mixed` may remain in source code and persisted state.
+
+Guide-specific authored Mixed content does not prove imported-book Mixed Mode support.
+
+### Translation-provider behavior
+
+**Status: Placeholder**
+
+No production translation provider is integrated.
+
+No user-imported book should be described as translated by Interleaf Reader in the current baseline.
 
 ---
 
-*Update this file at the end of any milestone shift or major implementation change.*
+## 7. Planned / Not Started
+
+### Translation providers
+
+No production provider, credential boundary, cost model, consent flow, or secure execution path has been approved or implemented.
+
+### Translation Version workflow
+
+The application does not currently provide a complete workflow for:
+
+* importing a Translation Version;
+* generating a Translation Version;
+* preserving translation provenance;
+* aligning source and translated chapters;
+* repairing alignment;
+* switching imported books to a real translated version.
+
+### Book Project migration
+
+The current persisted book model has not been migrated to the proposed Book Project, Book Version, Translation Version, or Alignment Map model.
+
+### Service worker and offline application shell
+
+A manifest and planning documents exist, but no service worker is implemented or registered.
+
+### Complete localization
+
+Interface-language infrastructure exists, but complete English and Chinese coverage remains unfinished.
+
+Known remaining areas include:
+
+* hard-coded user-facing strings;
+* dynamic feedback and error messages;
+* accessibility labels;
+* complete Chinese interface coverage;
+* final Guide Mixed-content compliance.
+
+---
+
+## 8. Documentation and Archive Baseline
+
+**Status: In progress**
+
+The R0 documentation rebuild currently includes:
+
+* canonical product truth in `docs/INTERLEAF_READER_PRD.md`;
+* milestone control in `docs/MILESTONES.md`;
+* current-state truth in `docs/PROJECT_STATE.md`;
+* durable decisions in `docs/DECISION_LOG.md`;
+* active AI instructions in root `AGENTS.md`;
+* operational procedures in `docs/HANDOFF.md`;
+* technical structure in `docs/ARCHITECTURE.md`;
+* persisted-data contracts in `docs/DATA_MODEL.md`;
+* contributor workflow in `CONTRIBUTING.md`;
+* public project entry information in `README.md`.
+
+The former AI workflow has been replaced by:
+
+* a superseded stub at `docs/AI_WORKFLOW_PROTOCOL.md`;
+* a dated historical copy at `docs/archive/AI_WORKFLOW_PROTOCOL_2026-06-20.md`.
+
+Historical PRD, roadmap, audit, report, and M2 execution records are being moved under `docs/archive/`.
+
+The documentation/history baseline remains incomplete because the working tree still contains:
+
+* modified canonical documents;
+* tracked documents moved to archive;
+* restored documents whose final location must be decided;
+* unresolved M2 design references;
+* an unresolved design-lab prototype;
+* local-only backup and source material.
+
+---
+
+## 9. Remaining Repository Decisions
+
+### Historical archive moves
+
+A tracked deletion must be committed together with its corresponding archive addition.
+
+Verified historical moves include the former:
+
+* Chinese PRD;
+* product specification;
+* roadmap;
+* PRD source audit;
+* M1 stabilization report.
+
+### Restored documents
+
+The following documents were restored to prevent accidental data loss:
+
+* `docs/LICENSE_DECISION.md`
+* `docs/USER_GUIDE_BILINGUAL.md`
+* `docs/VOCABULARY_INTERACTION_SEMANTICS.md`
+
+`docs/LICENSE_DECISION.md` remains an active licensing-rationale document.
+
+The bilingual guide and vocabulary-semantics document require a deliberate keep/archive decision.
+
+### M2 design references
+
+The following documents require product-owner disposition:
+
+* `docs/M2_HELP_AND_LANGUAGE_SPEC.md`
+* `docs/M2_LOCALIZATION_AND_CONTENT_SPEC.md`
+* `docs/M2_LOCALIZATION_COVERAGE_MATRIX.md`
+
+They may become governed R1 input or historical archive material. They are not current milestone authority.
+
+### Design-lab material
+
+`design-lab/` and `docs/VOCABULARY_PREVIEW_RESPONSIVE_SPEC.md` must be handled as one unit.
+
+They are not part of the production runtime baseline.
+
+### Local-only material
+
+The following must not enter the public baseline without separate review:
+
+* `source_materials/` PDFs;
+* generated reports and candidates;
+* Python cache files;
+* external project backups;
+* `docs.current.zip`.
+
+`docs.current.zip` is a stale recovery snapshot rather than a verified duplicate. Keep it local until document recovery and archive reconciliation are complete.
+
+---
+
+## 10. Active R0 Scope
+
+### Included
+
+* align the canonical control documents;
+* remove active encoding corruption;
+* separate product truth from implementation truth;
+* maintain one milestone authority;
+* reduce overlapping AI instructions;
+* classify stale, historical, future, and experimental documents;
+* reconcile documentation and archive changes;
+* preserve historical records without allowing them to control current work;
+* confirm tracked runtime reproducibility;
+* record verification evidence and limits honestly;
+* lock a trusted documentation/history baseline;
+* record remaining non-blocking debt.
+
+### Excluded
+
+* new product features;
+* real Chinese Reading Mode;
+* real Mixed Mode;
+* translation-provider integration;
+* Book Project storage migration;
+* alignment implementation;
+* service-worker implementation;
+* new vocabulary-learning behavior;
+* general dictionary search;
+* broad UI redesign;
+* broad JavaScript refactoring;
+* IndexedDB compatibility migrations.
+
+New findings may be recorded during R0.
+
+They do not automatically become implementation work.
+
+---
+
+## 11. Immediate Next Action
+
+> Reconcile and commit the canonical documentation and historical archive baseline without mixing in unresolved M2 design references, design-lab experiments, or local-only artifacts.
+
+The next R0 change set should:
+
+1. finalize the core state, milestone, decision, release, and licensing documents;
+2. commit canonical control-document changes;
+3. commit verified historical archive moves with their paired deletions;
+4. decide the location of the restored bilingual-guide and vocabulary-semantics records;
+5. leave unresolved M2 design references and design-lab material outside the commit until separately classified.
+
+No new product-feature implementation should begin during this step.
+
+---
+
+## 12. Remaining Unknowns
+
+* whether the three M2 design-reference documents become R1 inputs or archive records;
+* whether `design-lab/` remains versioned experimentation or local-only material;
+* whether the restored bilingual guide and vocabulary-semantics document should remain active or move to archive;
+* whether the deployed Pages build matches commit `91d6914`;
+* whether EPUB import passes when CDN dependencies are available;
+* whether non-Chromium browsers pass supported flows;
+* whether complete localization satisfies the future R1 contract;
+* whether manifest and icons produce a verified installable experience;
+* whether service-worker work belongs in R2;
+* whether maintainer contact and legal review are complete;
+* how local source PDFs are retained without publication risk;
+* when `docs.current.zip` may be safely removed.
+
+---
+
+*Update this file only when repository state, verification state, the active control phase, or the immediate next action materially changes.*
