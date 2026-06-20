@@ -1,164 +1,756 @@
-# Data Model
+# Interleaf Reader — Current Data Model
 
-This document defines the intended stable data model for Slash Reader v2. The current skeleton uses only part of this model, but future work should keep these shapes in mind.
+## 1. Purpose
 
-## Book
+This document defines the current persisted and runtime data contract for Interleaf Reader.
 
-Represents one imported EPUB.
+It covers:
+
+* IndexedDB and localStorage schemas;
+* imported-book records;
+* reading progress;
+* vocabulary profile data;
+* preferences;
+* backup, restore, export, and deletion behavior;
+* runtime-only and derived values;
+* compatibility-sensitive identifiers;
+* remaining browser-level unknowns.
+
+It does not define:
+
+* future Book Project storage;
+* Source Version or Translation Version schemas;
+* alignment models;
+* provider provenance;
+* generated or paired Mixed artifacts;
+* product requirements;
+* milestone scope;
+* UI layout.
+
+Current architecture is documented in:
+
+```text
+docs/ARCHITECTURE.md
+```
+
+Future multilingual proposals are documented separately and do not modify the current persisted contract.
+
+---
+
+## 2. Storage Context
+
+Interleaf Reader uses browser-local storage.
+
+Current storage mechanisms:
+
+* IndexedDB for structured and binary persisted records;
+* localStorage for small preferences and compatibility state;
+* in-memory runtime records;
+* downloadable vocabulary export and backup files.
+
+There is currently no:
+
+* account system;
+* cloud book library;
+* cross-device synchronization;
+* server-owned reading profile;
+* automatic remote backup.
+
+Browser storage is scoped to the exact origin.
+
+For example:
+
+```text
+http://localhost:8000
+```
+
+and:
+
+```text
+http://127.0.0.1:8000
+```
+
+use different IndexedDB and localStorage data.
+
+Changing hostname, port, protocol, browser profile, or private-browsing context may make existing data appear unavailable.
+
+Persisted names and identifiers are compatibility-sensitive.
+
+---
+
+## 3. IndexedDB Schema
+
+The current IndexedDB database is:
+
+| Property | Value |
+| --- | --- |
+| Database name | `slash-reader-v2-books` |
+| Database version | `2` |
+
+Object stores:
+
+| Store | Key path | Indexes | Purpose |
+| --- | --- | --- | --- |
+| `books` | `bookKey` | None | Imported EPUB records |
+| `progress` | `bookKey` | None | Per-book reading progress |
+| `vocabularyProfile` | `profileKey` | None | Singleton vocabulary profile |
+
+Upgrade behavior:
+
+* missing stores are created in `onupgradeneeded`;
+* version 2 adds `vocabularyProfile`;
+* existing version-1 `books` and `progress` records are retained;
+* existing records are not transformed or revalidated;
+* the vocabulary singleton uses `profileKey: "local"`.
+
+Each storage operation opens the database and closes the connection after request handling.
+
+---
+
+## 4. localStorage Contract
+
+localStorage values use the prefix:
+
+```text
+slash-reader-v2
+```
+
+Current keys:
+
+| Full key | Persisted value | Notes |
+| --- | --- | --- |
+| `slash-reader-v2:app-preferences` | JSON preference object | Primary UI and onboarding preferences |
+| `slash-reader-v2:last-mode` | Reading Mode string | Missing value defaults to `english-study`; read value is not validated |
+| `slash-reader-v2:last-book-summary` | `{id,title,author,chapterCount}` | Written after EPUB load; currently not authoritative restore data |
+| `slash-reader-v2:storage-test` | Temporary `"ok"` | Availability probe; removed immediately after a successful test |
+
+### App-preference fields
+
+| Field | Default | Normalization |
+| --- | --- | --- |
+| `uiLanguage` | `en`, or caller-provided browser preference | Values beginning with `zh` become `zh-CN`; values beginning with `en` become `en`; otherwise `en` |
+| `hasChosenUiLanguage` | `false` | Only literal `true` becomes true |
+| `guideVisibleInLibrary` | `true` | Only literal `false` hides the Guide |
+| `guideVersion` | `english` | Allowed values: `english`, `chinese`, `bilingual`; retained legacy field |
+| `hasChosenGuideVersion` | `false` | Only literal `true` becomes true |
+| `updatedAt` | `null` before first save | Save helpers assign `Date.now()` |
+
+`guideVersion` does not currently control Guide content. Reading Mode controls the Guide content variant.
+
+Invalid JSON or unavailable localStorage returns the caller-provided fallback.
+
+---
+
+## 5. Entity Overview
+
+```text
+IndexedDB
+├── books
+│   └── ImportedBook
+├── progress
+│   └── ReadingProgress
+└── vocabularyProfile
+    └── VocabularyProfile singleton
+
+localStorage
+├── AppPreferences
+├── last-mode
+└── last-book-summary
+
+Runtime only
+├── BuiltInGuide
+├── RuntimeBook
+├── RuntimeChapter
+├── VocabularyPreview
+├── VocabularyBubble
+└── GlossaryCandidate
+```
+
+Local Library cards are derived from `books` and `progress`.
+
+There is no separate Local Library metadata store.
+
+---
+
+## 6. Imported Book Record
+
+Imported-book metadata is created by `createStoredBookMetadata()` and persisted through `saveStoredBook()`.
+
+Stored fields:
+
+| Field | Stored value or fallback |
+| --- | --- |
+| `bookKey` | Deterministic metadata-derived string |
+| `fileName` | File name, otherwise `book.epub` |
+| `fileSize` | File size, otherwise `0` |
+| `fileType` | MIME type, otherwise `application/epub+zip` |
+| `lastModified` | File timestamp, otherwise `0` |
+| `title` | EPUB title → filename without `.epub` → `Untitled book` |
+| `author` | EPUB author → `Unknown author` |
+| `chapterCount` | `book.chapters.length` → `0` |
+| `createdAt` | Current timestamp when saved |
+| `updatedAt` | Same current timestamp |
+| `fileBlob` | `file.slice(...)` Blob in browsers, otherwise supplied file value |
+
+### Book-key generation
+
+`bookKey` is derived from:
+
+```text
+normalized filename
+:
+file size
+:
+lastModified
+:
+normalized title
+:
+normalized author
+```
+
+Normalization:
+
+* lowercases text;
+* replaces non-alphanumeric runs with `-`;
+* removes leading and trailing hyphens;
+* falls back to `unknown`.
+
+Re-importing the same key uses `put`, replaces the complete book record, and resets both timestamps.
+
+### Restore boundary
+
+The saved EPUB Blob is the source for rebuilding runtime metadata and chapters.
+
+Normalized chapters and rendered HTML are not persistently stored as part of the book record.
+
+A legacy book may still appear in Local Library with fallback metadata, but restoring the book requires `fileBlob`.
+
+---
+
+## 7. Local Library Derivation
+
+Local Library metadata is derived by joining book and progress records.
+
+Possible displayed values include:
+
+* `bookKey`;
+* title;
+* author;
+* chapter count;
+* progress text;
+* current chapter;
+* last-updated time;
+* availability of the saved EPUB Blob.
+
+Local Library ordering is derived from the most recent relevant book or progress `updatedAt`.
+
+The built-in Guide may appear beside imported books, but it is not a record in `books`.
+
+---
+
+## 8. Reading Progress Record
+
+Application-created progress records contain:
+
+| Field | Behavior |
+| --- | --- |
+| `bookKey` | Required; a missing key returns `null` without writing |
+| `currentChapterId` | Current chapter identity |
+| `currentChapterIndex` | Zero-based chapter index |
+| `currentMode` | Reading Mode at save time |
+| `progressText` | Persisted display text |
+| `scrollTop` | Non-negative finite number; invalid input becomes `0` |
+| `scrollRatio` | Clamped to `0..1`; invalid input becomes `0` |
+| `updatedAt` | Existing truthy value or current timestamp |
+
+`normalizeReadingProgress()` preserves additional supplied fields.
+
+`getReadingProgress()` returns the stored record directly without normalizing it.
+
+### Chapter restore precedence
+
+1. Matching `currentChapterId`.
+2. `currentChapterIndex` interpreted as zero-based.
+3. The same index interpreted as one-based.
+4. First available chapter.
+5. `null` when no chapters exist.
+
+The stored index is not clamped before these array lookups.
+
+### Scroll restoration
+
+Initial scroll restoration:
+
+* uses `scrollRatio`;
+* requires stored `currentChapterId` to equal the resolved current chapter;
+* derives a new pixel `scrollTop` from the current layout;
+* does not restore using persisted `scrollTop`.
+
+Legacy records that restore only through an index can restore the chapter but do not receive initial scroll restoration.
+
+### Reading Mode persistence
+
+Reading Mode is persisted in two places:
+
+* global localStorage key `last-mode`;
+* per-book progress field `currentMode`.
+
+The current restore caller uses global `last-mode`.
+
+It does not currently restore from `progress.currentMode`.
+
+Allowed written mode values include:
+
+```text
+english-study
+chinese
+cloze-mixed
+```
+
+The stored `last-mode` value is read without validation.
+
+---
+
+## 9. Vocabulary Profile
+
+The IndexedDB singleton record is:
 
 ```json
 {
-  "id": "book-unique-id",
-  "title": "Example Book",
-  "author": "Example Author",
-  "chapters": []
+  "profileKey": "local",
+  "selectedLevel": "level3",
+  "knownWords": [],
+  "learningWords": [],
+  "ignoredWords": [],
+  "preferredCategories": ["ielts", "fiction", "slang"],
+  "updatedAt": 0
 }
 ```
 
-Fields:
+`profileKey` is stored but omitted from the profile returned to ordinary callers.
 
-- `id`: stable local identifier for this imported book
-- `title`: book title from EPUB metadata when available
-- `author`: author/creator from EPUB metadata when available
-- `chapters`: ordered list of `Chapter` records
+### Defaults
 
-## Chapter
+| Field | Default |
+| --- | --- |
+| `selectedLevel` | `level3` |
+| `knownWords` | `[]` |
+| `learningWords` | `[]` |
+| `ignoredWords` | `[]` |
+| `preferredCategories` | `["ielts", "fiction", "slang"]` |
+| `updatedAt` | overwritten with current time on save |
 
-Represents one readable chapter or spine item.
+Valid levels:
 
-```json
-{
-  "id": "chapter-1",
-  "title": "Chapter 1",
-  "order": 1,
-  "originalHtml": "<p>Original English...</p>",
-  "plainText": "Original English...",
-  "translatedHtml": null,
-  "clozeHtml": null,
-  "vocabularyPreview": []
-}
+```text
+level1
+level2
+level3
+level4
+level5
 ```
 
-Fields:
+Invalid levels fall back to `level3`.
 
-- `id`: stable chapter identifier inside the book
-- `title`: chapter title from EPUB navigation when available
-- `order`: numeric reading order
-- `originalHtml`: original English HTML from the EPUB
-- `plainText`: text-only version used for vocabulary matching and future translation requests
-- `translatedHtml`: Chinese Reading Mode HTML, initially `null`
-- `clozeHtml`: Cloze Mixed Mode HTML, initially `null`
-- `vocabularyPreview`: chapter-level list of `VocabularyItem` records or matched vocabulary references
+### Term normalization
 
-## VocabularyItem
+Vocabulary terms are:
 
-Represents one word, phrase, idiom, slang item, or fandom term that can appear in a chapter.
+* string-coerced;
+* trimmed;
+* lowercased;
+* stripped of unsupported leading and trailing characters;
+* deduplicated within each collection.
 
-```json
-{
-  "term": "relentless",
-  "type": "ielts",
-  "chineseMeaning": "坚持不懈的；无情的",
-  "contextMeaning": "在当前语境中表示持续不断、不给人喘息的",
-  "usageNote": "Often describes pressure, weather, pursuit, or effort.",
-  "ieltsUsage": "Useful for Task 2 writing when describing persistent problems or effort.",
-  "exampleSentence": "The relentless rain made the road dangerous.",
-  "sourceSentence": "The relentless rain kept falling over the highway."
-}
+Original display casing is not preserved.
+
+Internal spaces, apostrophes, and hyphens may remain.
+
+Preferred categories are trimmed, lowercased, and deduplicated.
+
+Unknown profile fields are discarded during normalization and save.
+
+### Collection meanings
+
+| Collection | Meaning |
+| --- | --- |
+| `knownWords` | User reports already knowing the term |
+| `learningWords` | User wants to retain or export the term |
+| `ignoredWords` | User hides the term from ordinary assistance |
+
+`Mastered` is a UI label derived from `knownWords`.
+
+There is no `masteredWords` field.
+
+### Action transitions
+
+| Action | Known | Learning | Hidden |
+| --- | --- | --- | --- |
+| Known | Add | Remove | Remove |
+| Save / Manual Add | Remove | Add | Remove |
+| Hide | Remove | Remove | Add |
+| Remove / restore term | Remove | Remove | Remove |
+
+An empty normalized term returns the current profile without writing.
+
+### Cross-list conflicts
+
+Action helpers enforce exclusive transitions.
+
+Generic normalization and `saveVocabularyProfile()` do not resolve cross-list conflicts.
+
+A supplied profile may contain the same normalized term in multiple collections.
+
+---
+
+## 10. Vocabulary Backup and Restore
+
+### Backup filename
+
+```text
+interleaf-reader-vocabulary-profile.json
 ```
 
-Fields:
+### Backup shape
 
-- `term`: surface form to match in text
-- `type`: category such as `ielts`, `slang`, `idiom`, `fandom`, or `protected`
-- `chineseMeaning`: general Chinese meaning
-- `contextMeaning`: meaning in this chapter or sentence
-- `usageNote`: short explanation for readers
-- `ieltsUsage`: IELTS relevance when applicable, otherwise empty string
-- `exampleSentence`: general example sentence
-- `sourceSentence`: sentence from the imported chapter when available
+There is no explicit schema-name field.
 
-## ProtectedTerm
+The version field is:
 
-Represents a term that should usually stay unchanged during translation.
-
-```json
-{
-  "term": "Impala",
-  "category": "object",
-  "preserveInTranslation": true
-}
+```text
+schemaVersion
 ```
 
-Fields:
+Current version:
 
-- `term`: exact term or phrase to preserve
-- `category`: category such as `character`, `object`, `fandom`, or `phrase`
-- `preserveInTranslation`: whether translation providers should keep the term as written
-
-## BookGlossaryTerm
-
-Represents one automatically detected term for the current imported EPUB.
-
-```json
-{
-  "term": "Impala",
-  "category": "object",
-  "source": "global-glossary+rule:capitalized-word",
-  "confidence": 0.95,
-  "recommendedAction": "preserve",
-  "reason": "Matches the Global Glossary protected terms list.",
-  "badTranslationWarnings": [
-    "May be mistranslated as an animal instead of a vehicle or protected story term."
-  ]
-}
+```text
+1
 ```
 
-Fields:
+Backup fields:
 
-- `term`: surface form detected in the book
-- `category`: classifier category such as `character`, `object`, `organization`, `named_entity`, or `fandom_phrase`
-- `source`: extraction source such as `global-glossary`, `rule:capitalized-word`, `rule:capitalized-phrase`, `rule:all-caps`, or `rule:fandom-phrase`
-- `confidence`: score from 0 to 1 for the classifier recommendation
-- `recommendedAction`: `preserve`, `review`, `translate`, or `ignore`
-- `reason`: short explanation for the recommendation
-- `badTranslationWarnings`: warnings that future translation systems should consider
-
-## UserGlossaryOverride
-
-Represents a future user decision that overrides Global or Book Glossary recommendations.
-
-```json
-{
-  "term": "Muggle",
-  "action": "preserve",
-  "category": "fandom",
-  "note": "Keep the fandom term in English.",
-  "scope": "book"
-}
+```text
+schemaVersion
+exportedAt
+selectedLevel
+knownWords
+learningWords
+ignoredWords
+preferredCategories
 ```
 
-Fields:
+### Validation
 
-- `term`: term the user is overriding
-- `action`: `preserve`, `translate`, or `ignore`
-- `category`: optional user-selected category
-- `note`: optional user note explaining the choice
-- `scope`: `book` for current EPUB only, or `global` for future reusable user settings
+Restore rejects:
 
-## Glossary Layer Order
+* invalid JSON;
+* `null`;
+* arrays;
+* non-object top levels;
+* unsupported `schemaVersion`;
+* unsupported top-level fields.
 
-Future translation preparation should merge glossary layers in this order:
+`exportedAt` is allowed but is not required or validated.
 
-1. Global Glossary from `data/protected_terms.json`
-2. Book Glossary generated from the imported EPUB
-3. User Glossary Overrides, which take priority over automatic recommendations
+Other fields are not individually required.
 
-## Notes
+Missing or invalid profile fields normalize to defaults.
 
-- `translatedHtml` and `clozeHtml` should be cached per chapter after generation.
-- `sourceSentence` can be generated during vocabulary matching and does not have to exist in seed data.
-- Protected terms may also appear in vocabulary previews if they need reader explanation.
-- Book Glossary terms are stored in memory for now and can be rebuilt from loaded chapter text.
-- User Glossary Overrides are a future feature and do not have an editing UI yet.
-- IDs should be stable enough for local persistence, but they do not need to be globally unique across all users.
+Non-array word fields become empty arrays.
+
+Array entries are string-coerced rather than strictly type-rejected.
+
+Parsed output excludes:
+
+* `schemaVersion`;
+* `exportedAt`;
+* `profileKey`;
+* `updatedAt`.
+
+### Replacement behavior
+
+Restore performs:
+
+```text
+read complete file
+→ parse
+→ validate
+→ normalize
+→ save complete singleton profile
+```
+
+Malformed input throws before persistence and therefore performs no profile mutation.
+
+A successful restore performs one `put` of the complete singleton record.
+
+It is not an incremental field-by-field mutation.
+
+### Atomicity and concurrency
+
+A successful restore is a single-record replacement in one `vocabularyProfile` read/write transaction.
+
+The wrapper awaits the `put` request success but does not explicitly await `IDBTransaction.oncomplete`.
+
+Restore is not serialized against concurrent vocabulary writes.
+
+Overlapping operations remain last-writer-wins.
+
+---
+
+## 11. Vocabulary Export
+
+Term exports are derived outputs, not complete profile backups.
+
+Current surfaces may include:
+
+* Copy Learning;
+* Copy All;
+* CSV download;
+* Learning-only TXT export.
+
+Exports may contain only normalized terms or limited tabular fields.
+
+They do not preserve complete profile state unless the format explicitly includes it.
+
+Vocabulary profile backup and vocabulary term export are different contracts.
+
+---
+
+## 12. Built-in Guide
+
+The Guide is a virtual runtime entity.
+
+It has:
+
+* stable built-in identity;
+* Guide metadata;
+* ordered chapters;
+* authored English, Chinese, and Mixed variants;
+* Reader-compatible records;
+* a persisted visibility preference.
+
+It does not have:
+
+* a user EPUB Blob;
+* an ordinary `books` record;
+* normal Forget Book deletion;
+* a Translation Version;
+* provider output;
+* a generated Mixed artifact.
+
+Guide visibility is persisted through `app-preferences`.
+
+Guide content variant is derived from current Reading Mode.
+
+The retained legacy `guideVersion` preference does not currently control the Guide content variant.
+
+---
+
+## 13. Runtime-Only and Derived Data
+
+| Value | Persistence status |
+| --- | --- |
+| EPUB Blob and book metadata | IndexedDB |
+| Reading progress | IndexedDB |
+| Vocabulary profile | IndexedDB |
+| App preferences | localStorage |
+| Global last Reading Mode | localStorage |
+| `last-book-summary` | localStorage, currently unused |
+| Local Library cards | Derived from books and progress |
+| Local Library ordering | Derived |
+| Vocabulary counts | Derived |
+| Runtime Book and chapters | Runtime only |
+| Original loaded chapter HTML | Runtime only |
+| Annotated chapter HTML | Runtime only |
+| Vocabulary Preview | Runtime only |
+| Vocabulary bubble state | Runtime only |
+| Glossary candidates | Runtime only |
+| Built-in Guide chapters | Runtime only |
+| Guide visibility | localStorage preference |
+| Guide content variant | Derived from Reading Mode |
+| Restored pixel scroll position | Derived from `scrollRatio` and current layout |
+
+### `clozeHtml`
+
+`clozeHtml` is a compatibility-sensitive runtime or legacy field.
+
+Its presence does not prove that real Mixed content is generated or persisted.
+
+It must not be removed or renamed without an explicit migration task.
+
+---
+
+## 14. Deletion and Lifecycle
+
+### Forget imported book
+
+`deleteStoredBook()` performs:
+
+1. delete the key from `books` in one read/write transaction;
+2. delete the same key from `progress` in a second read/write transaction.
+
+Book and progress deletion are not atomic together.
+
+If the second operation fails, the book may be deleted while orphaned progress remains.
+
+A missing or falsy key performs no operation.
+
+Forgetting a currently open book clears persisted and saved-library state, but the in-memory runtime book remains open.
+
+### Guide hide and restore
+
+Guide hide and restore update preferences only.
+
+They do not perform IndexedDB deletion.
+
+### Vocabulary removal
+
+Removing a term rewrites the singleton vocabulary profile after removing the term from all three collections.
+
+It does not delete seed vocabulary data, EPUB text, chapter matches, or unrelated profile data.
+
+### Profile restore
+
+A successful profile restore replaces supported vocabulary-profile fields only.
+
+It does not replace saved books, reading progress, Guide content, app-wide preferences, or translation data.
+
+---
+
+## 15. Legacy and Compatibility Behavior
+
+Current legacy behavior includes:
+
+* version-1 databases upgrade to version 2 by adding `vocabularyProfile`;
+* existing `books` and `progress` records remain unchanged;
+* progress records without scroll fields remain readable;
+* stale or missing chapter IDs fall back through index rules;
+* missing preference fields merge with defaults;
+* invalid preference values normalize safely, except unvalidated `last-mode`;
+* partial vocabulary profiles normalize missing fields;
+* unknown vocabulary-profile fields are discarded;
+* unknown progress fields are preserved when progress is resaved;
+* legacy book records may appear in library listings with fallback values;
+* book restore requires `fileBlob`.
+
+Compatibility-sensitive identifiers:
+
+| Category | Value |
+| --- | --- |
+| IndexedDB database | `slash-reader-v2-books` |
+| Database version | `2` |
+| Stores | `books`, `progress`, `vocabularyProfile` |
+| Store key paths | `bookKey`, `bookKey`, `profileKey` |
+| Vocabulary singleton key | `local` |
+| localStorage prefix | `slash-reader-v2` |
+| localStorage logical keys | `app-preferences`, `last-mode`, `last-book-summary` |
+| Reading Modes | `english-study`, `chinese`, `cloze-mixed` |
+| Backup version field | `schemaVersion` |
+| Backup version | `1` |
+| Runtime compatibility field | `clozeHtml` |
+| Debug global | `window.__slashReaderDebug` |
+| Script-status global | `window.slashReaderScriptStatus` |
+
+The book-key generation format and all persisted field names are also compatibility-sensitive.
+
+`clozeHtml` and runtime globals are not persisted by `storage.js`, but remain compatibility-sensitive.
+
+---
+
+## 16. Validation and Failure Boundaries
+
+### Invalid EPUB
+
+An invalid EPUB should not create a valid saved-book record.
+
+### Malformed vocabulary backup
+
+Malformed or unsupported backup input is rejected before profile persistence.
+
+### Optional vocabulary data
+
+Optional Preview personalization may fail open to a simpler vocabulary result.
+
+### Invalid preferences
+
+Invalid preference values fall back through normalization where implemented.
+
+### Unknown migrations
+
+The application must not guess incompatible migration behavior.
+
+### Storage failure
+
+Storage, blocked-origin, quota, or transaction failure should be reported without silently claiming success.
+
+---
+
+## 17. Remaining Browser-Level Unknowns
+
+Source inspection and tests establish the current code contract.
+
+The following still require browser or existing-origin verification:
+
+* whether every historical user origin has the expected key paths;
+* Blob round-trip behavior in each supported browser;
+* storage quota limits and quota-exhaustion behavior;
+* exact durability timing because request success is awaited rather than explicit transaction completion;
+* failure behavior between separate book and progress deletion transactions;
+* overlapping vocabulary mutations and restore;
+* private-browsing and blocked-storage behavior;
+* non-Chromium behavior.
+
+These are browser implementation or existing-origin questions, not unresolved source-schema questions.
+
+---
+
+## 18. Future Model Boundary
+
+The following are not part of the current persisted contract:
+
+* `BookProject`;
+* `BookVersion`;
+* `SourceVersion`;
+* `TranslationVersion`;
+* `AlignmentMap`;
+* generated or paired Mixed artifacts;
+* provider provenance;
+* translation state;
+* alignment repair data;
+* Book Project migration metadata.
+
+Future design documents do not authorize changing IndexedDB or migrating current records.
+
+A future migration requires:
+
+* an approved milestone;
+* a durable decision;
+* an exact schema;
+* migration and rollback behavior;
+* compatibility tests;
+* real-browser verification.
+
+---
+
+## 19. Update Rule
+
+Update this document when there is a material change to:
+
+* IndexedDB database or stores;
+* localStorage keys;
+* persisted fields;
+* book-key generation;
+* progress restore semantics;
+* Vocabulary Profile shape;
+* preference normalization;
+* backup schema;
+* restore mutation behavior;
+* deletion behavior;
+* migration behavior;
+* compatibility identifiers.
+
+Do not update it merely because UI wording, verification status, milestone status, or future design proposals change.
+
+---
+
+*This document describes the current persisted and runtime data contract. Browser-specific durability and historical-origin behavior must be verified separately rather than inferred.*
