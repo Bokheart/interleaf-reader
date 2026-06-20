@@ -304,8 +304,8 @@ assert.equal(
 
 for (const [mode, contentKey, label] of [
   [MODES.ENGLISH_STUDY, "english", "English Guide"],
-  [MODES.CHINESE, "chinese", "Chinese Guide"],
-  [MODES.CLOZE_MIXED, "bilingual", "Mixed Guide"]
+  [MODES.CHINESE, "chinese", "中文指南"],
+  [MODES.CLOZE_MIXED, "bilingual", "混合指南"]
 ]) {
   const modeBook = createGuideBook(mode);
   assert.equal(getGuideContentKeyForMode(mode), contentKey, `${mode} maps to ${contentKey} Guide content`);
@@ -321,8 +321,8 @@ for (const [mode, contentKey, label] of [
 
 for (const [mode, contentKey, label] of [
   [MODES.ENGLISH_STUDY, "english", "English Guide"],
-  [MODES.CHINESE, "chinese", "Chinese Guide"],
-  [MODES.CLOZE_MIXED, "bilingual", "Mixed Guide"]
+  [MODES.CHINESE, "chinese", "中文指南"],
+  [MODES.CLOZE_MIXED, "bilingual", "混合指南"]
 ]) {
   const modeBook = syncGuideBookForReadingMode(createGuideBook(), mode);
   assert.equal(getGuideContentKeyForMode(mode), contentKey, `${mode} maps to ${contentKey} Guide content`);
@@ -347,7 +347,7 @@ assert.equal(
 for (const [mode, englishPattern, chinesePattern] of [
   [MODES.ENGLISH_STUDY, /Welcome to Interleaf Reader/, null],
   [MODES.CHINESE, null, /欢迎使用 Interleaf Reader/],
-  [MODES.CLOZE_MIXED, /Welcome to Interleaf Reader \/ 欢迎使用/, /Welcome to Interleaf Reader \/ 欢迎使用/]
+  [MODES.CLOZE_MIXED, null, /欢迎使用 Interleaf Reader/]
 ]) {
   const rendered = renderChapterForMode(welcomeChapter, mode, { isBuiltInGuide: true }).html;
   if (englishPattern) {

@@ -58,19 +58,12 @@ export function renderChapterForMode(chapter, mode, options = {}) {
       limit: options.previewLimit || 20
     });
 
-    if (mode === MODES.ENGLISH_STUDY) {
-      return {
-        html: annotateVocabularyHtml(guideContent.html || emptyChapterHtml(), vocabularyPreview, {
-          maxHighlights: options.maxHighlights || 80,
-          maxHighlightsPerTerm: options.maxHighlightsPerTerm || 3
-        }),
-        vocabularyPreview: chapter.vocabularyPreview || vocabularyPreview
-      };
-    }
-
     return {
-      html: guideContent.html || emptyChapterHtml(),
-      vocabularyPreview: chapter.vocabularyPreview || vocabularyPreview
+      html: annotateVocabularyHtml(guideContent.html || emptyChapterHtml(), vocabularyPreview, {
+        maxHighlights: options.maxHighlights || 80,
+        maxHighlightsPerTerm: options.maxHighlightsPerTerm || 3
+      }),
+      vocabularyPreview
     };
   }
 
