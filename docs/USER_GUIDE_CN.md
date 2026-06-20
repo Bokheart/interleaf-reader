@@ -1,116 +1,474 @@
 # Interleaf Reader 用户指南
 
-Interleaf Reader 是一个本地优先的 EPUB 阅读器，面向阅读英文小说和长篇文本的非英语母语读者。它的目标是在不打断阅读体验的前提下，帮助你理解上下文中的常用词汇。
+Interleaf Reader 是一个移动端优先、本地优先、阅读优先的长篇英文阅读器。
 
-本指南说明当前 MVP 已实现的功能。中文阅读模式和混合模式目前只是占位功能，还不会翻译书籍正文。
+它面向有一定英语基础、但在阅读英文小说或长篇文本时容易感到疲惫、抗拒或频繁被查词打断的读者。
 
-## 1. 导入 EPUB
+本指南说明当前已经存在的用户功能。
 
-1. 在浏览器中打开 Interleaf Reader。
-2. 在首页选择一个 EPUB 文件，或把 EPUB 文件拖放到导入区域。
-3. 等待书籍加载。Interleaf Reader 会在你的浏览器中读取 EPUB，并把导入的书籍保存在本地。
-4. 如果导入失败，请查看诊断信息。有些 EPUB 文件结构特殊，或包含当前不支持的内容。
+当前实现与验证状态以 `docs/PROJECT_STATE.md` 为准。
 
-请只导入你有权使用的书籍。不要把受版权保护的 EPUB 文件上传或提交到项目仓库。
+---
 
-## 2. 阅读与导航
+## 1. 当前功能边界
 
-导入完成后，阅读器会以 English Study Mode 打开书籍。
+对于用户导入的 EPUB：
 
-- 使用 Previous 和 Next 在章节之间切换。
-- 使用 Back to Top 回到当前章节顶部。
-- 使用章节列表或 Contents 面板跳转到其他章节。
-- 阅读进度会近似保存在本地，重新打开书籍时可以恢复到之前的位置。
-- 在手机尺寸屏幕上，阅读控制可能以浮层形式出现。
+* **English Study Mode** 是当前支持的核心阅读模式。
+* **Chinese Reading Mode** 是占位功能。
+* **Mixed Mode** 是占位功能。
+* 当前没有接入真实翻译服务。
 
-Interleaf Reader 的核心是阅读。词汇功能用于辅助阅读，而不是把应用变成背单词或刷题工具。
+内置的 Interleaf Reader Guide 可以包含人工编写的英文、中文和中英混合内容。
 
-## 3. 阅读器面板：Contents / Progress / Preview / Mode
+这只是 Guide 的特殊内容，并不代表导入的 EPUB 已经能够自动翻译。
 
-阅读器工具栏提供四个主要入口：
+Interleaf Reader 不是通用词典、闪卡应用、间隔复习系统、公共电子书库或云书架。
 
-- Contents：查看书籍章节列表，并跳转到指定章节。
-- Progress：通过章节滑块查看或调整当前章节进度。
-- Preview：查看当前阅读内容中识别出的词汇候选。
-- Mode：查看阅读模式选项。
+---
 
-当前模式状态：
+## 2. 首次使用、界面语言与帮助
 
-- English Study Mode 已实现。
-- Chinese Reading Mode 是占位功能。
-- Mixed Mode 是占位功能。
+首次使用时，可以选择界面语言：
 
-界面中可能会显示占位模式，但它们目前不能视为已实现的翻译功能。
+* English
+* 中文
 
-## 4. Vocabulary Preview 与词汇气泡
+Interface Language 会改变：
 
-Vocabulary Preview 会使用应用内置的词汇数据，从当前书籍文本中识别可能有帮助的单词或短语。
+* 应用按钮和标签；
+* 对话框；
+* Settings；
+* Help；
+* 相关无障碍文本。
 
-在阅读器中：
+它不会翻译或改变：
 
-- 词汇可能以下划线形式显示。
-- 点击或轻触带下划线的词汇可以打开词汇气泡。
-- 词汇气泡可能显示词条、英文释义，以及可用的 IELTS 相关用法。
-- 如果可选的词汇引擎加载失败，阅读本身仍应继续可用。
+* 导入书籍的标题和作者；
+* 章节正文；
+* Reading Mode；
+* 已保存的词汇状态。
 
-词汇建议是本地阅读辅助，不是完整词典，也不会覆盖你期望看到的所有词。
+Settings 中可以包含 Help、本地存储说明、Vocabulary Level、词汇资料备份与恢复，以及 Guide 显示控制。
 
-## 5. Known / Save / Hide
+Reader 中也提供上下文帮助入口。
 
-词汇操作会影响 Interleaf Reader 为你展示的内容。
+---
 
-- Known：标记为已经熟悉。该词会进入 Mastered/Known 区域，并在后续预览中降低优先级。
-- Save：保存到 Vocabulary Library 的 Learning 列表。
-- Hide：从后续词汇预览中隐藏该词。
+## 3. 内置 Guide
 
-这些操作只会更新你的本地个人资料，不会修改应用内置的全局词汇数据集。
+内置的 **Interleaf Reader Guide** 会作为一本特殊的虚拟书出现在 Local Library 中。
 
-## 6. Vocabulary Library
+你可以：
 
-你可以从应用导航进入 Vocabulary Library，查看和管理自己的词汇。
+* 通过 Reader 打开它；
+* 浏览 Guide 章节；
+* 使用 Reading Mode 查看人工编写的英文、中文或中英混合 Guide 内容；
+* 把 Guide 从 Local Library 中隐藏；
+* 之后通过 Settings 恢复显示。
 
-当前词汇库包含：
+Guide 不是用户导入的 EPUB。
 
-- Learning：你在阅读时保存或手动添加的词。
-- Mastered：你标记为 Known 的词。
-- Hidden：你选择 Hide 的词。
+隐藏 Guide 不会删除普通书籍。
 
-你可以手动添加词汇到 Learning，也可以从个人列表中移除词汇。
+Guide 的多语言内容是本地人工内容，不是机器翻译结果。
 
-当前的 Mastered/Known 行为较简单，只记录熟悉程度；它还不是完整的间隔复习或学习周期系统。
+---
 
-## 7. 本地存储提醒
+## 4. 导入 EPUB
 
-Interleaf Reader 会使用浏览器本地存储（例如 IndexedDB）保存导入的书籍、阅读进度和词汇资料。
+1. 通过支持的 HTTP 地址打开 Interleaf Reader。
+2. 在 Home 选择 EPUB 文件，或把文件拖入导入区域。
+3. 等待书籍加载。
+4. 加载成功后，Reader 会打开这本书。
 
-重要限制：
+Interleaf 会把 EPUB 保存在当前浏览器 origin 的本地存储中。
 
-- 数据不会同步到账户或云端服务。
-- 清除浏览器数据可能会删除导入书籍、阅读进度和词汇列表。
-- 换用其他浏览器、设备，或使用隐私/无痕窗口时，书库可能是空的。
-- 浏览器存储配额可能影响很大的 EPUB 文件。
+导入失败时：
 
-请把 Interleaf Reader 的本地存储视为方便的浏览器存储，而不是永久备份。
+* 查看界面显示的错误或诊断；
+* 确认 HTTP server 从仓库根目录启动；
+* 确认 JSZip 和 epub.js 已经加载；
+* 项目测试时使用版权安全的 smoke fixture。
 
-## 8. 导出基础
+请只导入你有权访问的书籍。
 
-Vocabulary Library 提供基础导出工具：
+不要把私人 EPUB 或受版权保护的 EPUB 提交到项目仓库。
 
-- Copy Learning：复制 Learning 列表。
-- Copy All：复制所有个人词汇列表。
-- Download CSV：把词汇数据导出为 CSV 文件。
+---
 
-导出内容主要用于个人备份或复习。分享之前请先检查导出内容，尤其是其中包含书籍上下文时。
+## 5. Home 与 Local Library
 
-## 9. 尚未实现的功能
+Home 提供：
 
-以下功能仍处于计划中或仅为占位：
+* 导入书籍；
+* Continue Reading；
+* Local Library；
+* 内置 Guide；
+* Vocabulary Library；
+* Settings。
 
-- Chinese Reading Mode 翻译。
-- Mixed Mode 翻译或混合语言阅读。
-- DeepL 等翻译服务提供商。
-- 云同步、账户或跨设备资料同步。
-- 完整的闪卡或间隔复习系统。
+Local Library 只显示当前浏览器 origin 中保存的书籍。
 
-当前 MVP 不应要求你输入翻译 API key。
+不同 hostname 或 port 会使用不同的浏览器存储。
 
+例如：
+
+```text
+http://localhost:8000
+```
+
+和：
+
+```text
+http://127.0.0.1:8000
+```
+
+不会共享 IndexedDB 与 localStorage。
+
+### Continue Reading
+
+Continue Reading 会在可用时打开最近的本地阅读状态。
+
+### Forget Book
+
+Forget 会删除浏览器中保存的 EPUB 和对应阅读进度。
+
+必须完成确认后才会删除。
+
+如果删除的是当前已经打开的书，持久化副本可能已经被删除，但当前内存中的 Reader 仍可能暂时保持打开，直到之后发生导航变化。
+
+---
+
+## 6. Reader 与导航
+
+导入后，Reader 会使用 English Study Mode 打开书籍。
+
+Reader 支持：
+
+* 纵向长篇阅读；
+* Contents；
+* Previous 和 Next 章节导航；
+* Progress；
+* Vocabulary Preview；
+* Reading Mode；
+* 返回 Home；
+* 近似阅读进度恢复；
+* 适合手机触控的阅读控制。
+
+阅读位置恢复是近似的，不保证精确到同一个段落。
+
+屏幕尺寸、字体、布局、章节 HTML 或词汇标注变化都可能让恢复位置产生少量偏差。
+
+---
+
+## 7. Reader 面板
+
+### Contents
+
+显示规范化后的可阅读章节，并支持章节跳转。
+
+### Progress
+
+显示章节或阅读进度，并在可用时提供章节导航控制。
+
+### Preview
+
+显示当前章节中匹配到的有限词汇列表。
+
+Preview 是阅读辅助，不是完整词典，也不是必须完成的学习任务。
+
+### Mode
+
+显示：
+
+* English Study Mode；
+* Chinese Reading Mode；
+* Mixed Mode。
+
+对于导入的 EPUB，Chinese 和 Mixed 目前只显示明确的占位内容，不会生成翻译。
+
+---
+
+## 8. Vocabulary Preview 与词汇气泡
+
+Vocabulary Preview 使用应用内置的 app-ready 词汇数据，在当前章节中匹配部分单词和短语。
+
+匹配词可能在 Reader 中显示为可交互文字。
+
+点击或轻触词汇，可以打开紧凑的词汇气泡。
+
+根据已有数据，气泡可能显示：
+
+* 词条；
+* 简短中文含义；
+* 简短英文定义；
+* 有限的用法信息。
+
+词汇气泡的目的是提供足够的信息，让你继续阅读。
+
+它不是完整词典，也不会覆盖所有英文单词。
+
+如果可选词汇数据加载失败，优先行为应是保持原始章节仍然可读。
+
+---
+
+## 9. Known、Save 与 Hide
+
+这些操作会更新当前浏览器中的本地 vocabulary profile。
+
+### Known
+
+当你的意思是：
+
+> 我已经认识这个词。
+
+使用 Known。
+
+当前效果：
+
+* 把规范化后的词加入 Known collection；
+* 从 Learning 和 Hidden 中移除；
+* 降低或取消之后普通 Preview 中的推荐。
+
+Vocabulary Library 可能会在 **Mastered** 标签中显示 Known words。
+
+这只是当前 UI 标签。Interleaf 没有测试或证明你已经真正掌握这个词。
+
+### Save
+
+当你的意思是：
+
+> 我想保存这个词，以后学习或导出。
+
+使用 Save。
+
+当前效果：
+
+* 加入 Learning；
+* 从 Known 和 Hidden 中移除；
+* 可以在 Vocabulary Library 与相关导出中使用。
+
+### Hide
+
+当你的意思是：
+
+> 这个词不适合作为我的学习目标。
+
+使用 Hide。
+
+当前效果：
+
+* 加入 Hidden；
+* 从 Known 和 Learning 中移除；
+* 在普通词汇推荐中隐藏。
+
+词汇在存储前会被规范化，原始大小写可能不会保留。
+
+---
+
+## 10. Vocabulary Level
+
+Vocabulary Level 用于帮助决定：在生成 Preview 时，哪些常见词可以被视为已经熟悉。
+
+它是：
+
+* 一项过滤偏好；
+* 可以随时调整；
+* 保存在当前浏览器 profile 中。
+
+它不是：
+
+* IELTS 分数；
+* 英语能力诊断；
+* 强制分级测试；
+* 完整词典等级；
+* 对可阅读书籍的限制。
+
+---
+
+## 11. Vocabulary Library
+
+Vocabulary Library 当前包含三个 collection：
+
+### Learning
+
+阅读时 Save 的词，以及手动添加的词。
+
+### Mastered
+
+UI 对 Known words 的显示方式。
+
+它不代表经过测试、复习计划或记忆验证后的真正掌握。
+
+### Hidden
+
+从普通推荐中隐藏的词。
+
+Vocabulary Library 支持：
+
+* 查看本地 collection；
+* 手动添加单词或短语到 Learning；
+* 移除词汇；
+* 复制或下载导出；
+* vocabulary profile 备份与恢复。
+
+Manual Add 是快速收集，不是词典查询。
+
+手动添加一个词时，当前不会自动承诺：
+
+* 释义；
+* 翻译；
+* 例句；
+* 发音；
+* 词形变化；
+* 近义词；
+* 自动 enrichment。
+
+---
+
+## 12. Remove 与 Restore 行为
+
+移除或恢复一个词，会把它从相关状态 collection 中删除，使它之后可以重新选择状态。
+
+当前系统没有独立的历史 Mastered record。
+
+通过 Known、Save 或 Hide 改变状态时，对应 action helper 会让选择的状态保持互斥。
+
+但是，如果导入的 vocabulary backup 本身在多个 collection 中包含同一个词，恢复后仍可能保留 cross-list duplicate。
+
+---
+
+## 13. 词汇导出
+
+当前导出入口可能包括：
+
+* Copy Learning；
+* Copy All；
+* Download CSV；
+* 不背单词 TXT。
+
+不背单词 TXT 只包含 Learning terms，使用 UTF-8 纯文本，每行一个单词或短语。
+
+词条导出用于转移或复习。
+
+它不是完整的 Interleaf backup，除非某个格式明确包含，否则不会保留全部 profile 设置和 collection 关系。
+
+Interleaf 不会登录、上传或同步到不背单词。
+
+---
+
+## 14. Vocabulary Profile Backup / Restore
+
+Vocabulary profile backup 会下载：
+
+```text
+interleaf-reader-vocabulary-profile.json
+```
+
+当前格式使用：
+
+```text
+schemaVersion: 1
+```
+
+文件可能包含：
+
+* `exportedAt`；
+* `selectedLevel`；
+* `knownWords`；
+* `learningWords`；
+* `ignoredWords`；
+* `preferredCategories`。
+
+Backup / Restore 只处理 vocabulary profile。
+
+它不包含：
+
+* EPUB 文件；
+* Local Library 书籍；
+* 阅读进度；
+* 与 vocabulary profile 无关的 preferences；
+* Guide 内容；
+* 书籍正文；
+* 释义或原文句子；
+* 翻译数据。
+
+成功恢复时，会替换受支持的 vocabulary profile 字段。
+
+格式错误或不支持的 backup 应在不替换当前资料的情况下被拒绝。
+
+恢复重要资料前，先下载一份当前 backup。
+
+---
+
+## 15. 本地存储与隐私
+
+当前本地数据可能包括：
+
+* 导入的 EPUB Blob；
+* 书籍 metadata；
+* 阅读进度；
+* preferences；
+* vocabulary profile。
+
+当前产品：
+
+* 不要求账户；
+* 没有云书库；
+* 没有跨设备同步；
+* 不会自动上传导入书籍；
+* 没有 analytics。
+
+清除浏览器数据可能永久删除本地书籍、进度、设置和词汇。
+
+隐私 / 无痕模式可能使用临时存储，或无法使用持久化存储。
+
+浏览器配额可能影响很大的 EPUB。
+
+请把浏览器本地存储视为方便的本地持久化，而不是保证永久存在的档案。
+
+---
+
+## 16. 网络与离线边界
+
+Interleaf Reader 是 local-first，但目前并不是完整离线应用。
+
+应用仍依赖 CDN 上的 JSZip 和 epub.js。
+
+如果这些依赖无法加载，EPUB 导入可能失败。
+
+当前 runtime 没有已验证的 service worker 或完整离线启动能力。
+
+---
+
+## 17. 当前未实现
+
+以下不是当前导入书籍功能：
+
+* 真实 Chinese Reading Mode；
+* 真实 Mixed Mode；
+* DeepL、Google、GPT 或其他翻译 provider；
+* 翻译 API key 输入；
+* 自动整本书翻译；
+* 账户或云同步；
+* 公共书籍或翻译托管；
+* 通用词典搜索；
+* 为每个手动添加词自动补全内容；
+* 闪卡、测验、刷题、streak 或 spaced repetition；
+* 经过测试的 Mastered 学习生命周期。
+
+占位功能不能被理解为已经完成。
+
+---
+
+## 18. 数据安全清单
+
+为了减少意外丢失：
+
+1. 始终使用同一个浏览器、profile、hostname 和 port。
+2. 除非确定要删除本地数据，否则不要清除 site data。
+3. 替换 vocabulary profile 前先导出当前 backup。
+4. 在浏览器之外保存原始 EPUB 文件。
+5. 区分词条 export 与 vocabulary backup。
+6. 不要把 Interleaf 当作重要数据的唯一永久副本。
