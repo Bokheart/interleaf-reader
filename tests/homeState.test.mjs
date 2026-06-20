@@ -11,10 +11,12 @@ import {
   getAppRuntimeDiagnostics,
   getAppViewVisibility,
   getHomeEntryState,
+  getLocalLibraryViewState,
   getManualVocabularyAddState,
   getPersonalizedVocabularyPreviewItems,
   getVocabularyExportRows,
   getVocabularyExportState,
+  getVocabularyLevelSelectorState,
   getVocabularyRemoveState,
   getVocabularyLibraryDetailState,
   getVocabularyLibrarySummaryState,
@@ -25,6 +27,24 @@ import {
   shouldShowLibraryEmptyState,
   shouldShowReturnToReader
 } from "../pwa-reader/app.js";
+import {
+  GUIDE_BOOK_KEY,
+  createGuideBook,
+  createGuideLibraryItem,
+  getGuideContentKeyForMode,
+  getGuideModeLabel,
+  resolveGuideChapterContent,
+  syncGuideBookForReadingMode
+} from "../pwa-reader/guideBook.js";
+import { MODES, renderChapterForMode } from "../pwa-reader/readingModes.js";
+import {
+  createTranslator,
+  detectPreferredUiLanguage,
+  getFirstRunLanguageChoiceState,
+  getLanguageChoices,
+  getTranslation,
+  normalizeUiLanguage
+} from "../pwa-reader/i18n.js";
 
 const loadedBookState = {
   book: {
@@ -46,6 +66,83 @@ const savedBook = {
   chapterCount: 9
 };
 
+function withMinimalDocument(callback) {
+  const previousDocument = globalThis.document;
+  globalThis.document = {
+    createElement() {
+      const template = { innerHTML: "" };
+      Object.defineProperty(template, "textContent", {
+        set(value) {
+          template.innerHTML = String(value ?? "")
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#39;");
+        }
+      });
+      return template;
+    }
+  };
+
+  try {
+    return callback();
+  } finally {
+    if (previousDocument === undefined) {
+      delete globalThis.document;
+    } else {
+      globalThis.document = previousDocument;
+    }
+  }
+}
+
+assert.equal(normalizeUiLanguage("zh-cn"), "zh-CN", "UI language normalizes Chinese locale casing");
+assert.equal(normalizeUiLanguage("en-US"), "en", "UI language normalizes English browser locales");
+assert.equal(normalizeUiLanguage("fr-FR"), "en", "unsupported UI language falls back to English");
+assert.equal(
+  detectPreferredUiLanguage({ languages: ["zh-Hans-CN", "en-US"] }),
+  "zh-CN",
+  "browser language can preselect Chinese without silently locking it"
+);
+
+assert.deepEqual(
+  getLanguageChoices("zh-CN"),
+  [
+    { value: "zh-CN", label: "\u4e2d\u6587", selected: true },
+    { value: "en", label: "English", selected: false }
+  ],
+  "first-run choices expose Chinese and English with a selectable preference"
+);
+
+assert.deepEqual(
+  getFirstRunLanguageChoiceState({ hasChosenUiLanguage: false, uiLanguage: "zh-CN" }),
+  {
+    shouldShow: true,
+    selectedLanguage: "zh-CN",
+    title: "Choose interface language",
+    subtitle: "\u9009\u62e9\u754c\u9762\u8bed\u8a00",
+    choices: [
+      { value: "zh-CN", label: "\u4e2d\u6587", selected: true },
+      { value: "en", label: "English", selected: false }
+    ]
+  },
+  "first-run language state is bilingual and blocks normal Home interaction until chosen"
+);
+
+assert.equal(
+  getFirstRunLanguageChoiceState({ hasChosenUiLanguage: true, uiLanguage: "en" }).shouldShow,
+  false,
+  "first-run language state hides after explicit choice"
+);
+
+assert.equal(getTranslation("zh-CN", "home.import.title"), "\u5bfc\u5165 EPUB", "Chinese UI strings are available by key");
+assert.equal(getTranslation("en", "reader.controls.contents"), "Contents", "English UI strings are available by key");
+assert.equal(
+  createTranslator("zh-CN")("settings.title"),
+  "\u8bbe\u7f6e",
+  "translator helper reads localized Settings copy"
+);
+
 assert.deepEqual(
   getHomeEntryState(noLoadedBookState, []),
   {
@@ -53,11 +150,11 @@ assert.deepEqual(
     showReturnToReader: false,
     showResumeCurrentSession: false,
     showContinueReading: false,
-    showLibraryEmptyState: true,
-    showLibraryItems: false,
+    showLibraryEmptyState: false,
+    showLibraryItems: true,
     savedBookCount: 0
   },
-  "Case A: fresh app shows only the empty library state"
+  "Case A: fresh app shows the built-in guide entry instead of an empty library"
 );
 
 assert.deepEqual(
@@ -67,11 +164,11 @@ assert.deepEqual(
     showReturnToReader: true,
     showResumeCurrentSession: true,
     showContinueReading: false,
-    showLibraryEmptyState: true,
-    showLibraryItems: false,
+    showLibraryEmptyState: false,
+    showLibraryItems: true,
     savedBookCount: 0
   },
-  "Case B: in-memory book shows Return to Reader without Continue Reading"
+  "Case B: in-memory book shows Return to Reader and keeps the built-in guide entry visible"
 );
 
 assert.deepEqual(
@@ -123,11 +220,11 @@ assert.deepEqual(
     showReturnToReader: true,
     showResumeCurrentSession: true,
     showContinueReading: false,
-    showLibraryEmptyState: true,
-    showLibraryItems: false,
+    showLibraryEmptyState: false,
+    showLibraryItems: true,
     savedBookCount: 0
   },
-  "Case F: deleting the saved book removes Library and Continue Reading while Return follows memory state"
+  "Case F: deleting the saved book removes Continue Reading while the built-in guide remains in Library"
 );
 
 assert.equal(shouldShowReturnToReader(loadedBookState), true, "Return to Reader follows in-memory book state");
@@ -143,8 +240,163 @@ assert.equal(
   false,
   "Continue Reading honors session dismissal"
 );
-assert.equal(shouldShowLibraryEmptyState([]), true, "Library empty state shows with no saved books");
+assert.equal(shouldShowLibraryEmptyState([]), false, "Library empty state hides because the built-in guide is visible");
 assert.equal(shouldShowLibraryEmptyState([savedBook]), false, "Library empty state hides when saved books exist");
+assert.equal(
+  shouldShowLibraryEmptyState([], { includeBuiltInGuide: false }),
+  true,
+  "Library empty state shows when the built-in guide is hidden and no user books exist"
+);
+
+assert.deepEqual(
+  getLocalLibraryViewState([]),
+  {
+    items: [createGuideLibraryItem()],
+    hasUserBooks: false,
+    hasVisibleItems: true,
+    showEmptyState: false,
+    emptyText: HOME_ENTRY_COPY.libraryEmptyState
+  },
+  "Local Library includes the built-in guide on first open"
+);
+
+const libraryWithSavedBook = getLocalLibraryViewState([savedBook]);
+assert.equal(libraryWithSavedBook.items[0].bookKey, GUIDE_BOOK_KEY, "Built-in guide appears before saved EPUBs");
+assert.equal(libraryWithSavedBook.items[0].isBuiltInGuide, true, "Built-in guide is marked distinctly");
+assert.equal(libraryWithSavedBook.items[0].canOpen, true, "Built-in guide can be opened");
+assert.equal(libraryWithSavedBook.items[0].canForget, false, "Built-in guide does not expose normal Forget");
+assert.equal(libraryWithSavedBook.items[1], savedBook, "Saved user books remain in the Local Library list");
+
+assert.deepEqual(
+  getLocalLibraryViewState([], { includeBuiltInGuide: false }),
+  {
+    items: [],
+    hasUserBooks: false,
+    hasVisibleItems: false,
+    showEmptyState: true,
+    emptyText: HOME_ENTRY_COPY.libraryEmptyState
+  },
+  "Local Library can hide the built-in guide without deleting it"
+);
+
+const guideBook = createGuideBook(MODES.ENGLISH_STUDY);
+assert.equal(guideBook.id, GUIDE_BOOK_KEY, "Guide book uses the stable built-in guide key");
+assert.equal(guideBook.title, "Interleaf Reader Guide", "Guide book title is stable");
+assert.equal(guideBook.author, "BookHeart", "Guide book author is stable");
+assert.equal(guideBook.isBuiltInGuide, true, "Guide book is explicitly marked as built-in");
+assert.equal("fileBlob" in guideBook, false, "Guide book is not modeled as an imported EPUB blob");
+assert.equal(guideBook.chapters.length >= 6, true, "Guide book has at least six instructional reader chapters");
+assert.equal(
+  guideBook.chapters.every((chapter) => chapter.contentVariants?.english && chapter.contentVariants?.chinese && chapter.contentVariants?.bilingual),
+  true,
+  "Guide chapters expose English, Chinese, and mixed content variants on one virtual book"
+);
+assert.equal(
+  guideBook.chapters.every((chapter) => chapter.originalHtml && chapter.plainText),
+  true,
+  "Guide chapters include active Reader HTML and plain text for Preview"
+);
+assert.equal(
+  guideBook.chapters.map((chapter) => chapter.id).join(","),
+  syncGuideBookForReadingMode(createGuideBook(), MODES.CHINESE).chapters.map((chapter) => chapter.id).join(","),
+  "Guide keeps the same chapter index across Reading Mode content variants"
+);
+
+for (const [mode, contentKey, label] of [
+  [MODES.ENGLISH_STUDY, "english", "English Guide"],
+  [MODES.CHINESE, "chinese", "Chinese Guide"],
+  [MODES.CLOZE_MIXED, "bilingual", "Mixed Guide"]
+]) {
+  const modeBook = createGuideBook(mode);
+  assert.equal(getGuideContentKeyForMode(mode), contentKey, `${mode} maps to ${contentKey} Guide content`);
+  assert.equal(getGuideModeLabel(mode), label, `${mode} exposes the ${label} label`);
+  assert.equal(modeBook.guideContentKey, contentKey, `${mode} Guide book uses ${contentKey} content`);
+  assert.equal(modeBook.chapters.length >= 6, true, `${mode} Guide has at least six chapters`);
+  assert.match(
+    modeBook.plainText || modeBook.chapters.map((chapter) => chapter.plainText).join(" "),
+    /Vocabulary|词汇|Local-first|本地|Preview|Reading Mode|阅读模式/,
+    `${mode} Guide explains reader, vocabulary, local-first, or mode-driven content`
+  );
+}
+
+for (const [mode, contentKey, label] of [
+  [MODES.ENGLISH_STUDY, "english", "English Guide"],
+  [MODES.CHINESE, "chinese", "Chinese Guide"],
+  [MODES.CLOZE_MIXED, "bilingual", "Mixed Guide"]
+]) {
+  const modeBook = syncGuideBookForReadingMode(createGuideBook(), mode);
+  assert.equal(getGuideContentKeyForMode(mode), contentKey, `${mode} maps to ${contentKey} Guide content`);
+  assert.equal(getGuideModeLabel(mode), label, `${mode} exposes the ${label} label`);
+  assert.equal(modeBook.guideContentKey, contentKey, `${mode} Guide book uses ${contentKey} content`);
+  assert.equal(modeBook.chapters.length >= 6, true, `${mode} Guide has at least six chapters`);
+  assert.match(
+    modeBook.plainText || modeBook.chapters.map((chapter) => chapter.plainText).join(" "),
+    /Vocabulary|词汇|Local-first|本地|Preview|Reading Mode|阅读模式/,
+    `${mode} Guide explains reader, vocabulary, local-first, or mode-driven content`
+  );
+}
+
+const virtualGuideBook = createGuideBook();
+const welcomeChapter = virtualGuideBook.chapters[0];
+assert.equal(
+  resolveGuideChapterContent(welcomeChapter, MODES.ENGLISH_STUDY).html,
+  resolveGuideChapterContent(welcomeChapter, MODES.ENGLISH_STUDY).html,
+  "Guide welcome variant resolves deterministically for English Study mode"
+);
+
+for (const [mode, englishPattern, chinesePattern] of [
+  [MODES.ENGLISH_STUDY, /Welcome to Interleaf Reader/, null],
+  [MODES.CHINESE, null, /欢迎使用 Interleaf Reader/],
+  [MODES.CLOZE_MIXED, /Welcome to Interleaf Reader \/ 欢迎使用/, /Welcome to Interleaf Reader \/ 欢迎使用/]
+]) {
+  const rendered = renderChapterForMode(welcomeChapter, mode, { isBuiltInGuide: true }).html;
+  if (englishPattern) {
+    assert.match(rendered, englishPattern, `${mode} truth table renders English Guide content`);
+  }
+  if (chinesePattern) {
+    assert.match(rendered, chinesePattern, `${mode} truth table renders Chinese or mixed Guide content`);
+  }
+}
+
+for (const [uiLanguage, mode, expectedContentKey] of [
+  ["en", MODES.ENGLISH_STUDY, "english"],
+  ["zh-CN", MODES.ENGLISH_STUDY, "english"],
+  ["en", MODES.CHINESE, "chinese"],
+  ["zh-CN", MODES.CHINESE, "chinese"],
+  ["en", MODES.CLOZE_MIXED, "bilingual"],
+  ["zh-CN", MODES.CLOZE_MIXED, "bilingual"]
+]) {
+  const normalizedUiLanguage = normalizeUiLanguage(uiLanguage);
+  const modeBook = createGuideBook(mode);
+  assert.equal(
+    modeBook.guideContentKey,
+    expectedContentKey,
+    `${normalizedUiLanguage} UI + ${mode} renders ${expectedContentKey} Guide content`
+  );
+}
+
+assert.match(
+  renderChapterForMode(welcomeChapter, MODES.CHINESE, { isBuiltInGuide: true }).html,
+  /欢迎使用|Reading Mode/,
+  "Built-in Guide Chinese mode renders pre-authored Chinese content"
+);
+assert.match(
+  renderChapterForMode(welcomeChapter, MODES.CLOZE_MIXED, { isBuiltInGuide: true }).html,
+  /\/|Reading Mode/,
+  "Built-in Guide Mixed mode renders pre-authored mixed content"
+);
+withMinimalDocument(() => {
+  assert.match(
+    renderChapterForMode(welcomeChapter, MODES.CHINESE, {}).html,
+    /Chinese Reading Mode placeholder|placeholder-panel/i,
+    "Imported EPUB Chinese mode still uses the placeholder renderer"
+  );
+  assert.match(
+    renderChapterForMode(welcomeChapter, MODES.CLOZE_MIXED, {}).html,
+    /Mixed Mode placeholder|placeholder-panel/i,
+    "Imported EPUB Mixed mode still uses the placeholder renderer"
+  );
+});
 
 assert.equal(
   formatReturnToReaderSubtext({ title: "Well Jung" }, "Bonus Chapter: Processing - 7 / 9"),
@@ -220,7 +472,8 @@ assert.deepEqual(
     currentView: "home",
     homeHidden: false,
     readerHidden: true,
-    vocabularyLibraryHidden: true
+    vocabularyLibraryHidden: true,
+    settingsHidden: true
   },
   "Home view hides Reader and Vocabulary Library"
 );
@@ -231,7 +484,8 @@ assert.deepEqual(
     currentView: "reader",
     homeHidden: true,
     readerHidden: false,
-    vocabularyLibraryHidden: true
+    vocabularyLibraryHidden: true,
+    settingsHidden: true
   },
   "Reader view hides Home and Vocabulary Library"
 );
@@ -242,9 +496,22 @@ assert.deepEqual(
     currentView: "vocabulary-library",
     homeHidden: true,
     readerHidden: true,
-    vocabularyLibraryHidden: false
+    vocabularyLibraryHidden: false,
+    settingsHidden: true
   },
   "Vocabulary Library view hides Home and Reader"
+);
+
+assert.deepEqual(
+  getAppViewVisibility("settings"),
+  {
+    currentView: "settings",
+    homeHidden: true,
+    readerHidden: true,
+    vocabularyLibraryHidden: true,
+    settingsHidden: false
+  },
+  "Settings view hides Home, Reader, and Vocabulary Library"
 );
 
 assert.deepEqual(
@@ -253,7 +520,8 @@ assert.deepEqual(
     currentView: "home",
     homeHidden: false,
     readerHidden: true,
-    vocabularyLibraryHidden: true
+    vocabularyLibraryHidden: true,
+    settingsHidden: true
   },
   "Unknown views fall back to Home instead of leaving multiple views active"
 );
@@ -288,7 +556,8 @@ assert.deepEqual(
     views: {
       home: { exists: true, hidden: true },
       reader: { exists: true, hidden: false },
-      vocabularyLibrary: { exists: true, hidden: true }
+      vocabularyLibrary: { exists: true, hidden: true },
+      settings: { exists: false, hidden: true }
     },
     readerNavigation: {
       previousButtonsFound: 3,
@@ -319,7 +588,8 @@ assert.deepEqual(
     views: {
       home: { exists: false, hidden: true },
       reader: { exists: false, hidden: true },
-      vocabularyLibrary: { exists: false, hidden: true }
+      vocabularyLibrary: { exists: false, hidden: true },
+      settings: { exists: false, hidden: true }
     },
     readerNavigation: {
       previousButtonsFound: 0,
@@ -386,6 +656,39 @@ assert.deepEqual(
     note: "Vocabulary counts are unavailable right now."
   },
   "Vocabulary Library summary has a quiet failure fallback"
+);
+
+const vocabularyLevelState = getVocabularyLevelSelectorState({ selectedLevel: "level4" });
+assert.deepEqual(
+  vocabularyLevelState.options.map((option) => option.value),
+  ["level1", "level2", "level3", "level4", "level5"],
+  "Vocabulary Level selector exposes level1 through level5"
+);
+assert.equal(vocabularyLevelState.selectedLevel, "level4", "Vocabulary Level selector reflects saved level");
+assert.equal(
+  vocabularyLevelState.options.find((option) => option.value === "level4").selected,
+  true,
+  "Vocabulary Level selector marks the saved level as selected"
+);
+assert.equal(
+  getVocabularyLevelSelectorState({ selectedLevel: "level9" }).selectedLevel,
+  "level3",
+  "Vocabulary Level selector falls back to level3 for invalid saved level"
+);
+assert.match(
+  vocabularyLevelState.helpText,
+  /controls which basic words are treated as already known/,
+  "Vocabulary Level help explains the known-word baseline"
+);
+assert.match(
+  vocabularyLevelState.helpText,
+  /not a test score/,
+  "Vocabulary Level help says the level is not a test score"
+);
+assert.match(
+  vocabularyLevelState.helpText,
+  /not a full dictionary completeness level/,
+  "Vocabulary Level help says the level is not dictionary completeness"
 );
 
 const detailProfile = {
@@ -606,6 +909,12 @@ assert.equal(
   "Learning export text is one sorted term per line"
 );
 
+assert.doesNotMatch(
+  formatVocabularyLearningExportText(exportProfile),
+  /comma, word|quote"word|dean|Learning|Mastered|Hidden|status|definition|example/i,
+  "Learning TXT export excludes non-Learning words, status labels, definitions, and examples"
+);
+
 assert.equal(
   formatVocabularyAllExportText(exportProfile),
   "Learning\nalpha\nzeta\n\nMastered\ncomma, word\nquote\"word\n\nHidden\ndean",
@@ -642,6 +951,7 @@ assert.deepEqual(
     learningCount: 0,
     totalCount: 0,
     copyLearningDisabled: true,
+    downloadLearningTxtDisabled: true,
     copyAllDisabled: true,
     downloadCsvDisabled: true,
     message: "No words to export yet."
@@ -657,6 +967,7 @@ assert.deepEqual(
     learningCount: 2,
     totalCount: 5,
     copyLearningDisabled: false,
+    downloadLearningTxtDisabled: false,
     copyAllDisabled: false,
     downloadCsvDisabled: false,
     message: ""
@@ -945,6 +1256,72 @@ const homeHtml = await readFile(new URL("../pwa-reader/index.html", import.meta.
 
 assert.match(
   homeHtml,
+  /id="languageGate"/,
+  "Home markup includes a first-run interface-language chooser"
+);
+
+assert.match(
+  homeHtml,
+  /Choose interface language[\s\S]*\u9009\u62e9\u754c\u9762\u8bed\u8a00/,
+  "Language chooser uses bilingual first-run copy"
+);
+
+assert.match(
+  homeHtml,
+  /data-ui-language-choice="zh-CN"[\s\S]*data-ui-language-choice="en"/,
+  "Language chooser exposes Chinese and English choices"
+);
+
+assert.match(
+  homeHtml,
+  /id="openSettingsButton"/,
+  "Home markup includes a Settings entry"
+);
+
+assert.match(
+  homeHtml,
+  /id="settingsView" class="app-view" hidden/,
+  "Settings renders as an independent app view"
+);
+
+assert.match(
+  homeHtml,
+  /id="settingsUiLanguageSelect"[\s\S]*value="zh-CN"[\s\S]*value="en"/,
+  "Settings view includes Chinese and English interface-language choices"
+);
+
+assert.match(
+  homeHtml,
+  /id="openHelpCenterButton"/,
+  "Settings view includes a Help Center entry point"
+);
+
+assert.match(
+  homeHtml,
+  /id="readerHelpButton"[\s\S]*aria-label="Reader help"[\s\S]*>\?/,
+  "Reader bar includes a circular question-mark contextual help button"
+);
+
+assert.match(
+  homeHtml,
+  /id="readerHelpPanel"[\s\S]*id="readerHelpOpenHelpCenterButton"[\s\S]*id="readerHelpOpenGuideButton"/,
+  "Reader contextual help panel includes Help Center and Guide actions"
+);
+
+assert.match(
+  homeHtml,
+  /id="settingsShowGuideButton"/,
+  "Settings view includes a Show Guide in Library action"
+);
+
+assert.match(
+  homeHtml,
+  /id="helpCenterPanel"[\s\S]*Getting Started[\s\S]*Reading[\s\S]*Vocabulary[\s\S]*Storage[\s\S]*Feature Status/,
+  "Help Center includes required M2 categories"
+);
+
+assert.match(
+  homeHtml,
   /Resume current session/,
   "Home markup includes Resume title"
 );
@@ -981,6 +1358,24 @@ assert.match(
 
 assert.match(
   homeHtml,
+  /id="downloadLearningTxtButton"/,
+  "Vocabulary Library view includes dedicated Learning TXT download action"
+);
+
+assert.match(
+  homeHtml,
+  /不背单词 TXT/,
+  "Vocabulary Library view labels the Learning TXT export for 不背单词"
+);
+
+assert.match(
+  homeHtml,
+  /one word or phrase per line[\s\S]*No definitions, examples, source sentences, book text, or copyrighted context/,
+  "Vocabulary Library view explains safe Learning TXT export scope"
+);
+
+assert.match(
+  homeHtml,
   /Copy All/,
   "Vocabulary Library view includes Copy All export action"
 );
@@ -989,6 +1384,54 @@ assert.match(
   homeHtml,
   /Download CSV/,
   "Vocabulary Library view includes CSV export action"
+);
+
+assert.match(
+  homeHtml,
+  /id="backupVocabularyProfileButton"/,
+  "Vocabulary Library view includes vocabulary profile JSON backup action"
+);
+
+assert.match(
+  homeHtml,
+  /id="restoreVocabularyProfileButton"/,
+  "Vocabulary Library view includes vocabulary profile JSON restore action"
+);
+
+assert.match(
+  homeHtml,
+  /vocabulary profile only[\s\S]*does not include EPUB files, book text, Local Library files, or reading progress/,
+  "Vocabulary Library view explains Backup / Restore scope"
+);
+
+assert.match(
+  homeHtml,
+  /id="vocabularyLevelSelect"/,
+  "Vocabulary Library view includes a Vocabulary Level selector"
+);
+
+assert.doesNotMatch(
+  homeHtml,
+  /id="guideVersionSelect"/,
+  "Reader view no longer exposes a separate Guide version selector"
+);
+
+assert.match(
+  homeHtml,
+  /value="level1"[\s\S]*value="level2"[\s\S]*value="level3"[\s\S]*value="level4"[\s\S]*value="level5"/,
+  "Vocabulary Library Level selector includes level1 through level5"
+);
+
+assert.match(
+  homeHtml,
+  /Vocabulary Level help/,
+  "Vocabulary Library view includes Vocabulary Level help affordance"
+);
+
+assert.match(
+  homeHtml,
+  /not a test score/,
+  "Vocabulary Library Level help explains the level is not a test score"
 );
 
 assert.match(
@@ -1035,8 +1478,8 @@ assert.match(
 
 assert.match(
   homeHtml,
-  /They are not synced or exported yet\./,
-  "Vocabulary Library view clarifies there is no sync or export yet"
+  /They are not synced or uploaded\./,
+  "Vocabulary Library view clarifies there is no sync or upload"
 );
 
 assert.doesNotMatch(
@@ -1085,6 +1528,48 @@ assert.match(
   homeHtml,
   /No saved books yet\. Import an EPUB to start your local library\./,
   "Home markup includes empty library state"
+);
+
+assert.doesNotMatch(
+  homeHtml,
+  /home-guide-entry/,
+  "Home markup no longer includes the expandable guide panel"
+);
+
+assert.doesNotMatch(
+  homeHtml,
+  /Open reader guide/,
+  "Home markup no longer exposes the guide as a standalone details panel"
+);
+
+assert.match(
+  appSource,
+  /from\s+["']\.\/i18n\.js["']/,
+  "app.js uses the key-based i18n module"
+);
+
+assert.match(
+  appSource,
+  /data-hide-guide/,
+  "app.js renders a Hide from Library action for the built-in guide card"
+);
+
+assert.match(
+  appSource,
+  /setGuideVisibilityPreference/,
+  "app.js persists Guide visibility through app preferences"
+);
+
+assert.match(
+  appSource,
+  /syncGuideBookForReadingMode\(state\.book, nextMode\)/,
+  "app.js re-renders the built-in Guide from Reading Mode without a separate Guide version selector"
+);
+
+assert.doesNotMatch(
+  appSource,
+  /renderGuideVersionPanel/,
+  "app.js no longer renders a separate Guide version selector panel"
 );
 
 console.log("homeState tests passed");

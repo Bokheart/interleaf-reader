@@ -15,10 +15,25 @@ import {
 import { MODES, renderChapterForMode } from "./readingModes.js";
 import { loadProtectedTerms } from "./translationEngine.js";
 import {
+  DEFAULT_UI_LANGUAGE,
+  detectPreferredUiLanguage,
+  getFirstRunLanguageChoiceState,
+  getTranslation,
+  normalizeUiLanguage
+} from "./i18n.js";
+import {
+  GUIDE_BOOK_KEY,
+  createGuideBook,
+  createGuideLibraryItem,
+  isGuideBookKey,
+  syncGuideBookForReadingMode
+} from "./guideBook.js";
+import {
   calculateScrollRatio,
   calculateScrollTopFromRatio,
   deleteStoredBook,
   formatSavedBookProgressLabel,
+  getAppPreferences,
   getMostRecentStoredBook,
   getReadingProgress,
   getStoredBook,
@@ -27,6 +42,8 @@ import {
   saveReadingProgress,
   shouldRestoreScrollForProgress,
   saveStoredBook,
+  setGuideVisibilityPreference,
+  setUiLanguagePreference,
   storage
 } from "./storage.js";
 
@@ -40,6 +57,28 @@ export const HOME_ENTRY_COPY = Object.freeze({
   libraryOpenAction: "Open"
 });
 
+export const VOCABULARY_LEVEL_OPTIONS = Object.freeze([
+  { value: "level1", label: "Level 1" },
+  { value: "level2", label: "Level 2" },
+  { value: "level3", label: "Level 3" },
+  { value: "level4", label: "Level 4" },
+  { value: "level5", label: "Level 5" }
+]);
+
+export const VOCABULARY_LEVEL_HELP_TEXT =
+  "Vocabulary Level controls which basic words are treated as already known. Changing the level changes which words may be filtered from Vocabulary Preview. It is not a test score, not a full dictionary completeness level, and can be changed anytime.";
+
+const DEFAULT_VOCABULARY_LEVEL = "level3";
+const VOCABULARY_LEVEL_VALUES = new Set(VOCABULARY_LEVEL_OPTIONS.map((option) => option.value));
+
+export function formatVocabularyLevelDisplay(selectedLevel) {
+  const normalizedLevel = VOCABULARY_LEVEL_VALUES.has(selectedLevel)
+    ? selectedLevel
+    : DEFAULT_VOCABULARY_LEVEL;
+  const option = VOCABULARY_LEVEL_OPTIONS.find((levelOption) => levelOption.value === normalizedLevel);
+  return option?.label || "-";
+}
+
 export function shouldShowReturnToReader(appState = {}) {
   return Boolean(appState.book);
 }
@@ -51,8 +90,25 @@ export function shouldShowContinueReading(savedBooks = [], options = {}) {
     !options.isContinueReadingDismissed;
 }
 
-export function shouldShowLibraryEmptyState(savedBooks = []) {
-  return !Array.isArray(savedBooks) || savedBooks.length === 0;
+export function shouldShowLibraryEmptyState(savedBooks = [], options = {}) {
+  const includeBuiltInGuide = options.includeBuiltInGuide !== false;
+  return !includeBuiltInGuide && (!Array.isArray(savedBooks) || savedBooks.length === 0);
+}
+
+export function getLocalLibraryViewState(savedBooks = [], options = {}) {
+  const normalizedSavedBooks = Array.isArray(savedBooks) ? savedBooks.filter(Boolean) : [];
+  const includeBuiltInGuide = options.includeBuiltInGuide !== false;
+  const items = includeBuiltInGuide
+    ? [createGuideLibraryItem(), ...normalizedSavedBooks]
+    : normalizedSavedBooks;
+
+  return {
+    items,
+    hasUserBooks: normalizedSavedBooks.length > 0,
+    hasVisibleItems: items.length > 0,
+    showEmptyState: shouldShowLibraryEmptyState(normalizedSavedBooks, { includeBuiltInGuide }),
+    emptyText: HOME_ENTRY_COPY.libraryEmptyState
+  };
 }
 
 export function getHomeEntryState(appState = {}, savedBooks = [], options = {}) {
@@ -63,6 +119,8 @@ export function getHomeEntryState(appState = {}, savedBooks = [], options = {}) 
     hasInMemoryBook: showResumeCurrentSession
   });
 
+  const libraryState = getLocalLibraryViewState(normalizedSavedBooks);
+
   return {
     primaryAction: showResumeCurrentSession
       ? "resume-current-session"
@@ -72,8 +130,8 @@ export function getHomeEntryState(appState = {}, savedBooks = [], options = {}) 
     showReturnToReader: showResumeCurrentSession,
     showResumeCurrentSession,
     showContinueReading,
-    showLibraryEmptyState: shouldShowLibraryEmptyState(normalizedSavedBooks),
-    showLibraryItems: normalizedSavedBooks.length > 0,
+    showLibraryEmptyState: libraryState.showEmptyState,
+    showLibraryItems: libraryState.hasVisibleItems,
     savedBookCount: normalizedSavedBooks.length
   };
 }
@@ -109,6 +167,23 @@ export function getVocabularyLibrarySummaryState(profile = {}, options = {}) {
       : learningCount + masteredCount + hiddenCount === 0
         ? "Save words from Vocabulary Preview to build your library."
         : "Word lists are saved locally in this browser."
+  };
+}
+
+export function getVocabularyLevelSelectorState(profile = {}, options = {}) {
+  const safeProfile = profile && typeof profile === "object" ? profile : {};
+  const selectedLevel = VOCABULARY_LEVEL_VALUES.has(safeProfile.selectedLevel)
+    ? safeProfile.selectedLevel
+    : DEFAULT_VOCABULARY_LEVEL;
+
+  return {
+    selectedLevel,
+    disabled: options.hasError === true,
+    helpText: VOCABULARY_LEVEL_HELP_TEXT,
+    options: VOCABULARY_LEVEL_OPTIONS.map((levelOption) => ({
+      ...levelOption,
+      selected: levelOption.value === selectedLevel
+    }))
   };
 }
 
@@ -435,6 +510,7 @@ export function getVocabularyExportState(profile = {}, options = {}) {
     learningCount,
     totalCount,
     copyLearningDisabled: hasError || learningCount === 0,
+    downloadLearningTxtDisabled: hasError || learningCount === 0,
     copyAllDisabled: hasError || totalCount === 0,
     downloadCsvDisabled: hasError || totalCount === 0,
     message: hasError
@@ -446,13 +522,14 @@ export function getVocabularyExportState(profile = {}, options = {}) {
 }
 
 export function getAppViewVisibility(view = "home") {
-  const currentView = ["home", "reader", "vocabulary-library"].includes(view) ? view : "home";
+  const currentView = ["home", "reader", "vocabulary-library", "settings"].includes(view) ? view : "home";
 
   return {
     currentView,
     homeHidden: currentView !== "home",
     readerHidden: currentView !== "reader",
-    vocabularyLibraryHidden: currentView !== "vocabulary-library"
+    vocabularyLibraryHidden: currentView !== "vocabulary-library",
+    settingsHidden: currentView !== "settings"
   };
 }
 
@@ -478,7 +555,7 @@ export function getAppRuntimeDiagnostics(options = {}) {
       hidden: element ? Boolean(element.hidden) : true
     };
   };
-  const activeView = ["home", "reader", "vocabulary-library"].includes(appState.currentView)
+  const activeView = ["home", "reader", "vocabulary-library", "settings"].includes(appState.currentView)
     ? appState.currentView
     : "unknown";
 
@@ -487,7 +564,8 @@ export function getAppRuntimeDiagnostics(options = {}) {
     views: {
       home: viewState("homeView", "#homeView"),
       reader: viewState("readerView", "#readerView"),
-      vocabularyLibrary: viewState("vocabularyLibraryView", "#vocabularyLibraryView")
+      vocabularyLibrary: viewState("vocabularyLibraryView", "#vocabularyLibraryView"),
+      settings: viewState("settingsView", "#settingsView")
     },
     readerNavigation: {
       previousButtonsFound: countElements("#prevChapterButton, #bottomPrevChapterButton, #tapPrevChapterButton", [
@@ -536,6 +614,9 @@ const state = {
   vocabularyPersonalizationWarningShown: false,
   vocabularyPreviewRenderVersion: 0,
   vocabularyLibraryActiveTab: "learning",
+  isBuiltInGuideOpen: false,
+  appPreferences: null,
+  uiLanguage: DEFAULT_UI_LANGUAGE,
   eventsBound: false,
   importDiagnostics: createEmptyImportDiagnostics(),
   currentView: "home"
@@ -546,7 +627,9 @@ let scrollProgressSaveTimer = null;
 let suppressScrollProgressSaveUntil = 0;
 let vocabularyPersonalizationModulesPromise = null;
 let vocabularyProfileActionHelpersPromise = null;
+let vocabularyProfileBackupHelpersPromise = null;
 let vocabularyProfileReaderPromise = null;
+let vocabularyLevelSetterPromise = null;
 
 function installSlashReaderDebugApi() {
   if (typeof window === "undefined") {
@@ -604,6 +687,52 @@ async function loadVocabularyProfileActionHelpers() {
   }
 
   return vocabularyProfileActionHelpersPromise;
+}
+
+async function loadVocabularyLevelSetter() {
+  if (!vocabularyLevelSetterPromise) {
+    vocabularyLevelSetterPromise = import("./storage.js")
+      .then((storageModule) => {
+        if (typeof storageModule.setVocabularyComfortLevel !== "function") {
+          throw new Error("Vocabulary level storage helper is unavailable.");
+        }
+
+        return storageModule.setVocabularyComfortLevel;
+      })
+      .catch((error) => {
+        vocabularyLevelSetterPromise = null;
+        throw error;
+      });
+  }
+
+  return vocabularyLevelSetterPromise;
+}
+
+async function loadVocabularyProfileBackupHelpers() {
+  if (!vocabularyProfileBackupHelpersPromise) {
+    vocabularyProfileBackupHelpersPromise = import("./storage.js")
+      .then((storageModule) => {
+        const helpers = {
+          createVocabularyProfileBackup: storageModule.createVocabularyProfileBackup,
+          parseVocabularyProfileBackupJson: storageModule.parseVocabularyProfileBackupJson,
+          saveVocabularyProfile: storageModule.saveVocabularyProfile
+        };
+
+        for (const [name, helper] of Object.entries(helpers)) {
+          if (typeof helper !== "function") {
+            throw new Error(`Vocabulary profile backup helper is unavailable: ${name}.`);
+          }
+        }
+
+        return helpers;
+      })
+      .catch((error) => {
+        vocabularyProfileBackupHelpersPromise = null;
+        throw error;
+      });
+  }
+
+  return vocabularyProfileBackupHelpersPromise;
 }
 
 async function loadVocabularyPersonalizationModules() {
@@ -792,24 +921,207 @@ export async function applyVocabularyPreviewAction(action, term, options = {}) {
 
 installSlashReaderDebugApi();
 
-if (typeof document !== "undefined") {
-  document.addEventListener("DOMContentLoaded", init);
+function scheduleAppInit() {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  const start = () => {
+    init().catch((error) => {
+      console.error("Interleaf Reader: startup failed.", error);
+    });
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", start, { once: true });
+  } else {
+    start();
+  }
 }
+
+scheduleAppInit();
 
 // app.js owns UI wiring and state. EPUB parsing, matching, translation, and
 // persistence are delegated to small modules so Phase 1 can grow safely.
 async function init() {
   cacheElements();
-  bindEvents();
+  initializeAppPreferences();
+  applyInterfaceLanguage();
+
+  try {
+    bindEvents();
+  } catch (error) {
+    console.error("Interleaf Reader: event binding failed before startup completed.", error);
+  }
+
+  await refreshHomeLibraryState();
+  renderLanguageGate();
   syncModeControls();
   await loadSeedData();
   renderCurrentChapter();
   showView("home");
 }
 
+function getNavigatorLanguagePreference() {
+  if (typeof navigator === "undefined") {
+    return DEFAULT_UI_LANGUAGE;
+  }
+
+  return detectPreferredUiLanguage(navigator);
+}
+
+function initializeAppPreferences() {
+  const preferredLanguage = getNavigatorLanguagePreference();
+  state.appPreferences = getAppPreferences({ uiLanguage: preferredLanguage });
+  state.uiLanguage = normalizeUiLanguage(state.appPreferences.uiLanguage);
+
+}
+
+function t(key, params = {}) {
+  return getTranslation(state.uiLanguage, key, params);
+}
+
+function applyInterfaceLanguage() {
+  const language = normalizeUiLanguage(state.uiLanguage);
+  state.uiLanguage = language;
+
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  document.documentElement.lang = language;
+  document.title = t("app.name");
+
+  document.querySelectorAll("[data-i18n]").forEach((node) => {
+    node.textContent = t(node.dataset.i18n);
+  });
+
+  document.querySelectorAll("[data-i18n-placeholder]").forEach((node) => {
+    node.setAttribute("placeholder", t(node.dataset.i18nPlaceholder));
+  });
+
+  document.querySelectorAll("[data-i18n-aria-label]").forEach((node) => {
+    node.setAttribute("aria-label", t(node.dataset.i18nAriaLabel));
+  });
+}
+
+function renderLanguageGate() {
+  if (!elements.languageGate) {
+    return;
+  }
+
+  const languageState = getFirstRunLanguageChoiceState(state.appPreferences || {}, {
+    navigatorLike: typeof navigator === "undefined" ? {} : navigator
+  });
+
+  elements.languageGate.hidden = !languageState.shouldShow;
+
+  if (elements.languageChoiceButtons) {
+    for (const button of elements.languageChoiceButtons) {
+      const isSelected = button.dataset.uiLanguageChoice === languageState.selectedLanguage;
+      button.setAttribute("aria-pressed", isSelected ? "true" : "false");
+      button.classList.toggle("is-selected", isSelected);
+    }
+  }
+}
+
+function handleUiLanguageChoice(language) {
+  const nextPreferences = setUiLanguagePreference(language);
+  state.appPreferences = nextPreferences;
+  state.uiLanguage = normalizeUiLanguage(nextPreferences.uiLanguage);
+
+  applyInterfaceLanguage();
+  renderLanguageGate();
+  renderSettingsView();
+  renderLocalLibrary();
+  renderVocabularyLibrarySummary();
+}
+
+function handleSettingsUiLanguageChange(event) {
+  handleUiLanguageChoice(event.target.value);
+  setSettingsFeedback(t("settings.language.feedback"), "success");
+}
+
+function renderSettingsView() {
+  if (!elements.settingsView) {
+    return;
+  }
+
+  if (elements.settingsUiLanguageSelect) {
+    elements.settingsUiLanguageSelect.value = normalizeUiLanguage(state.uiLanguage);
+  }
+
+  if (elements.settingsShowGuideButton) {
+    const isVisible = state.appPreferences?.guideVisibleInLibrary !== false;
+    elements.settingsShowGuideButton.disabled = isVisible;
+    elements.settingsShowGuideButton.textContent = isVisible
+      ? t("settings.help.guideVisible")
+      : t("settings.help.showGuide");
+  }
+}
+
+function setSettingsFeedback(message = "", tone = "info") {
+  if (!elements.settingsFeedback) {
+    return;
+  }
+
+  elements.settingsFeedback.textContent = message;
+  elements.settingsFeedback.dataset.tone = tone;
+}
+
+function openHelpCenter() {
+  if (elements.helpCenterPanel) {
+    elements.helpCenterPanel.hidden = false;
+    elements.helpCenterPanel.scrollIntoView({ block: "nearest" });
+  }
+
+  setSettingsFeedback("");
+}
+
+function confirmGuideHide() {
+  if (typeof window === "undefined" || typeof window.confirm !== "function") {
+    return true;
+  }
+
+  return window.confirm(t("guide.hide.confirm"));
+}
+
+function hideGuideFromLibrary() {
+  if (!confirmGuideHide()) {
+    return;
+  }
+
+  state.appPreferences = setGuideVisibilityPreference(false);
+  renderLocalLibrary();
+  renderSettingsView();
+  setStatus(t("guide.hide.done"), "success");
+  setSettingsFeedback(t("guide.hide.done"), "success");
+}
+
+function showGuideInLibrary() {
+  state.appPreferences = setGuideVisibilityPreference(true);
+  renderLocalLibrary();
+  renderSettingsView();
+  setSettingsFeedback(t("guide.restore.done"), "success");
+  setStatus(t("guide.restore.done"), "success");
+}
+
 function cacheElements() {
+  elements.languageGate = document.querySelector("#languageGate");
+  elements.languageChoiceButtons = [...document.querySelectorAll("[data-ui-language-choice]")];
   elements.homeView = document.querySelector("#homeView");
   elements.readerView = document.querySelector("#readerView");
+  elements.settingsView = document.querySelector("#settingsView");
+  elements.openSettingsButton = document.querySelector("#openSettingsButton");
+  elements.settingsBackHomeButton = document.querySelector("#settingsBackHomeButton");
+  elements.settingsUiLanguageSelect = document.querySelector("#settingsUiLanguageSelect");
+  elements.settingsOpenGuideButton = document.querySelector("#settingsOpenGuideButton");
+  elements.settingsShowGuideButton = document.querySelector("#settingsShowGuideButton");
+  elements.openHelpCenterButton = document.querySelector("#openHelpCenterButton");
+  elements.helpCenterPanel = document.querySelector("#helpCenterPanel");
+  elements.helpCenterOpenGuideButton = document.querySelector("#helpCenterOpenGuideButton");
+  elements.helpCenterShowGuideButton = document.querySelector("#helpCenterShowGuideButton");
+  elements.settingsFeedback = document.querySelector("#settingsFeedback");
   elements.backToHomeButton = document.querySelector("#backToHomeButton");
   elements.epubInput = document.querySelector("#epubInput");
   elements.dropZone = document.querySelector("#dropZone");
@@ -831,14 +1143,22 @@ function cacheElements() {
   elements.vocabularyPageMasteredCount = document.querySelector("#vocabularyPageMasteredCount");
   elements.vocabularyPageHiddenCount = document.querySelector("#vocabularyPageHiddenCount");
   elements.vocabularyPageLevel = document.querySelector("#vocabularyPageLevel");
+  elements.vocabularyLevelSelect = document.querySelector("#vocabularyLevelSelect");
+  elements.vocabularyLevelHelp = document.querySelector("#vocabularyLevelHelp");
+  elements.vocabularyLevelFeedback = document.querySelector("#vocabularyLevelFeedback");
   elements.vocabularyManualAddForm = document.querySelector("#vocabularyManualAddForm");
   elements.vocabularyManualAddInput = document.querySelector("#vocabularyManualAddInput");
   elements.vocabularyManualAddButton = document.querySelector("#vocabularyManualAddButton");
   elements.vocabularyManualFeedback = document.querySelector("#vocabularyManualFeedback");
   elements.copyLearningButton = document.querySelector("#copyLearningButton");
+  elements.downloadLearningTxtButton = document.querySelector("#downloadLearningTxtButton");
   elements.copyAllVocabularyButton = document.querySelector("#copyAllVocabularyButton");
   elements.downloadVocabularyCsvButton = document.querySelector("#downloadVocabularyCsvButton");
   elements.vocabularyExportFeedback = document.querySelector("#vocabularyExportFeedback");
+  elements.backupVocabularyProfileButton = document.querySelector("#backupVocabularyProfileButton");
+  elements.restoreVocabularyProfileInput = document.querySelector("#restoreVocabularyProfileInput");
+  elements.restoreVocabularyProfileButton = document.querySelector("#restoreVocabularyProfileButton");
+  elements.vocabularyBackupFeedback = document.querySelector("#vocabularyBackupFeedback");
   elements.vocabularyLibraryTabs = [...document.querySelectorAll("[data-vocabulary-tab]")];
   elements.vocabularyLibraryPanelStatus = document.querySelector("#vocabularyLibraryPanelStatus");
   elements.vocabularyLibraryTermList = document.querySelector("#vocabularyLibraryTermList");
@@ -865,6 +1185,11 @@ function cacheElements() {
   elements.tapProgressButton = document.querySelector("#tapProgressButton");
   elements.tapVocabButton = document.querySelector("#tapVocabButton");
   elements.tapModeButton = document.querySelector("#tapModeButton");
+  elements.readerHelpButton = document.querySelector("#readerHelpButton");
+  elements.readerHelpPanel = document.querySelector("#readerHelpPanel");
+  elements.readerHelpCloseButton = document.querySelector("#readerHelpCloseButton");
+  elements.readerHelpOpenHelpCenterButton = document.querySelector("#readerHelpOpenHelpCenterButton");
+  elements.readerHelpOpenGuideButton = document.querySelector("#readerHelpOpenGuideButton");
   elements.tapPrevChapterButton = document.querySelector("#tapPrevChapterButton");
   elements.tapNextChapterButton = document.querySelector("#tapNextChapterButton");
   elements.debugPanel = document.querySelector("#debugPanel");
@@ -913,6 +1238,12 @@ function cacheElements() {
 function bindEvents() {
   state.eventsBound = false;
 
+  for (const languageButton of elements.languageChoiceButtons || []) {
+    languageButton.addEventListener("click", () => {
+      handleUiLanguageChoice(languageButton.dataset.uiLanguageChoice);
+    });
+  }
+
   elements.epubInput.addEventListener("change", (event) => {
     handleSelectedFile(event.target.files?.[0]).finally(() => {
       event.target.value = "";
@@ -944,12 +1275,28 @@ function bindEvents() {
 
     const bookKey = card.dataset.bookKey;
 
+    if (event.target.closest("[data-hide-guide]")) {
+      if (isGuideBookKey(bookKey)) {
+        hideGuideFromLibrary();
+      }
+      return;
+    }
+
     if (event.target.closest("[data-open-book]")) {
+      if (isGuideBookKey(bookKey)) {
+        openBuiltInGuide();
+        return;
+      }
+
       openSavedBookFromLibrary(bookKey);
       return;
     }
 
     if (event.target.closest("[data-delete-book]")) {
+      if (isGuideBookKey(bookKey)) {
+        return;
+      }
+
       const title = card.querySelector(".library-card-title")?.textContent || "this book";
       openForgetBookModal(bookKey, title);
     }
@@ -966,6 +1313,31 @@ function bindEvents() {
   bindClick(elements.vocabularyBackHomeButton, () => {
     showView("home");
   }, "Vocabulary Library Back to Home");
+  bindClick(elements.openSettingsButton, () => {
+    showView("settings");
+  }, "Settings entry");
+  bindClick(elements.settingsBackHomeButton, () => {
+    showView("home");
+  }, "Settings Back to Home");
+  bindClick(elements.settingsOpenGuideButton, () => {
+    openBuiltInGuide();
+  }, "Settings Open Guide");
+  bindClick(elements.settingsShowGuideButton, () => {
+    showGuideInLibrary();
+  }, "Settings Show Guide in Library");
+  bindClick(elements.openHelpCenterButton, () => {
+    openHelpCenter();
+  }, "Settings Help Center");
+  bindClick(elements.helpCenterOpenGuideButton, () => {
+    openBuiltInGuide();
+  }, "Help Center Open Guide");
+  bindClick(elements.helpCenterShowGuideButton, () => {
+    showGuideInLibrary();
+  }, "Help Center Show Guide in Library");
+
+  if (elements.settingsUiLanguageSelect) {
+    elements.settingsUiLanguageSelect.addEventListener("change", handleSettingsUiLanguageChange);
+  }
 
   for (const tab of elements.vocabularyLibraryTabs) {
     tab.addEventListener("click", () => {
@@ -981,6 +1353,12 @@ function bindEvents() {
     console.warn("Vocabulary Library manual add form is unavailable; leaving other controls active.");
   }
 
+  if (elements.vocabularyLevelSelect) {
+    elements.vocabularyLevelSelect.addEventListener("change", handleVocabularyLevelChange);
+  } else {
+    console.warn("Vocabulary Level selector is unavailable; leaving other controls active.");
+  }
+
   if (elements.vocabularyLibraryTermList) {
     elements.vocabularyLibraryTermList.addEventListener("click", handleVocabularyLibraryTermListClick);
   } else {
@@ -988,12 +1366,28 @@ function bindEvents() {
   }
 
   bindClick(elements.copyLearningButton, () => handleVocabularyExportAction("copy-learning"), "Copy Learning export");
+  bindClick(
+    elements.downloadLearningTxtButton,
+    () => handleVocabularyExportAction("download-learning-txt"),
+    "Download Learning TXT export"
+  );
   bindClick(elements.copyAllVocabularyButton, () => handleVocabularyExportAction("copy-all"), "Copy All export");
   bindClick(
     elements.downloadVocabularyCsvButton,
     () => handleVocabularyExportAction("download-csv"),
     "Download vocabulary CSV"
   );
+  bindClick(elements.backupVocabularyProfileButton, handleVocabularyProfileBackup, "Backup vocabulary profile");
+  bindClick(elements.restoreVocabularyProfileButton, () => {
+    if (elements.restoreVocabularyProfileInput) {
+      elements.restoreVocabularyProfileInput.value = "";
+      elements.restoreVocabularyProfileInput.click();
+    }
+  }, "Restore vocabulary profile");
+
+  if (elements.restoreVocabularyProfileInput) {
+    elements.restoreVocabularyProfileInput.addEventListener("change", handleVocabularyProfileRestore);
+  }
 
   elements.dropZone.addEventListener("dragover", (event) => {
     event.preventDefault();
@@ -1080,6 +1474,17 @@ function bindEvents() {
   elements.tapModeButton.addEventListener("click", () => {
     openMobileSheet(elements.mobileModeSheet);
   });
+  bindClick(elements.readerHelpButton, openReaderHelp, "Reader contextual help");
+  bindClick(elements.readerHelpCloseButton, closeReaderHelp, "Reader contextual help close");
+  bindClick(elements.readerHelpOpenHelpCenterButton, () => {
+    closeReaderHelp();
+    showView("settings");
+    openHelpCenter();
+  }, "Reader contextual help Help Center action");
+  bindClick(elements.readerHelpOpenGuideButton, () => {
+    closeReaderHelp();
+    openBuiltInGuide();
+  }, "Reader contextual help Guide action");
 
   elements.tapPrevChapterButton.addEventListener("click", () => {
     goToAdjacentChapter("previous");
@@ -1203,7 +1608,6 @@ function bindEvents() {
   renderImportDiagnostics();
   renderBookGlossary();
   renderNavigationControls();
-  refreshHomeLibraryState();
   state.eventsBound = true;
 }
 
@@ -1297,6 +1701,17 @@ function switchReadingMode(nextMode) {
     return;
   }
 
+  if (state.isBuiltInGuideOpen && state.book?.isBuiltInGuide) {
+    state.currentMode = nextMode;
+    storage.set("last-mode", state.currentMode);
+    syncModeControls();
+    syncGuideBookForReadingMode(state.book, nextMode);
+    renderBookMeta();
+    renderChapterOptions();
+    renderCurrentChapter();
+    return;
+  }
+
   if (!state.book || !state.currentChapterId) {
     state.currentMode = nextMode;
     storage.set("last-mode", state.currentMode);
@@ -1344,6 +1759,7 @@ function openMobileSheet(sheet) {
   }
 
   hideBubble();
+  closeReaderHelp();
   hideReaderTapControls();
   closeMobileSheets();
   if (sheet === elements.mobileProgressSheet) {
@@ -1369,6 +1785,23 @@ function closeMobileSheets() {
       sheet.hidden = true;
     }
   });
+}
+
+function openReaderHelp() {
+  if (!elements.readerHelpPanel) {
+    return;
+  }
+
+  hideBubble();
+  closeMobileSheets();
+  elements.readerHelpPanel.hidden = false;
+  elements.readerHelpPanel.querySelector("button")?.focus({ preventScroll: true });
+}
+
+function closeReaderHelp() {
+  if (elements.readerHelpPanel) {
+    elements.readerHelpPanel.hidden = true;
+  }
 }
 
 function resetProgressSliderPreview() {
@@ -1446,6 +1879,7 @@ function toggleReaderTapControls() {
 }
 
 function hideReaderTapControls() {
+  closeReaderHelp();
   setReaderTapControlsVisible(false, { skipProgressSave: true });
 }
 
@@ -1527,6 +1961,7 @@ async function loadAndOpenEpubFile(file, options = {}) {
     state.currentChapterId = state.book.chapters[0]?.id || null;
     state.bookGlossary = [];
     state.lastScrollProgress = options.progress || null;
+    state.isBuiltInGuideOpen = false;
 
     renderBookMeta();
     renderChapterOptions();
@@ -1675,12 +2110,36 @@ function renderVocabularyLibraryPageSummaryState(summary) {
   elements.vocabularyPageLearningCount.textContent = String(summary.learningCount);
   elements.vocabularyPageMasteredCount.textContent = String(summary.masteredCount);
   elements.vocabularyPageHiddenCount.textContent = String(summary.hiddenCount);
-  elements.vocabularyPageLevel.textContent = `Level ${summary.selectedLevel || "-"}`;
+  elements.vocabularyPageLevel.textContent = formatVocabularyLevelDisplay(summary.selectedLevel);
+  renderVocabularyLevelSelectorState(getVocabularyLevelSelectorState(summary, {
+    hasError: summary.hasError
+  }));
+}
+
+function renderVocabularyLevelSelectorState(levelState) {
+  if (!elements.vocabularyLevelSelect) {
+    return;
+  }
+
+  elements.vocabularyLevelSelect.value = levelState.selectedLevel;
+  elements.vocabularyLevelSelect.disabled = levelState.disabled;
+
+  for (const optionElement of elements.vocabularyLevelSelect.options || []) {
+    optionElement.selected = optionElement.value === levelState.selectedLevel;
+  }
+
+  if (elements.vocabularyLevelHelp) {
+    elements.vocabularyLevelHelp.textContent = levelState.helpText;
+  }
 }
 
 function renderVocabularyExportState(exportState) {
   if (elements.copyLearningButton) {
     elements.copyLearningButton.disabled = exportState.copyLearningDisabled;
+  }
+
+  if (elements.downloadLearningTxtButton) {
+    elements.downloadLearningTxtButton.disabled = exportState.downloadLearningTxtDisabled;
   }
 
   if (elements.copyAllVocabularyButton) {
@@ -1759,6 +2218,58 @@ function setVocabularyExportFeedback(message = "", tone = "neutral") {
   elements.vocabularyExportFeedback.dataset.tone = tone;
 }
 
+function setVocabularyBackupFeedback(message = "", tone = "neutral") {
+  if (!elements.vocabularyBackupFeedback) {
+    return;
+  }
+
+  elements.vocabularyBackupFeedback.textContent = message;
+  elements.vocabularyBackupFeedback.dataset.tone = tone;
+}
+
+function setVocabularyLevelFeedback(message = "", tone = "neutral") {
+  if (!elements.vocabularyLevelFeedback) {
+    return;
+  }
+
+  elements.vocabularyLevelFeedback.textContent = message;
+  elements.vocabularyLevelFeedback.dataset.tone = tone;
+}
+
+async function handleVocabularyLevelChange(event) {
+  const select = event.currentTarget;
+  const nextLevel = select?.value;
+
+  if (!VOCABULARY_LEVEL_VALUES.has(nextLevel)) {
+    setVocabularyLevelFeedback("Choose a valid Vocabulary Level.", "error");
+    await renderVocabularyLibraryView();
+    return;
+  }
+
+  select.disabled = true;
+  setVocabularyLevelFeedback("Saving Vocabulary Level...");
+
+  try {
+    const setVocabularyComfortLevel = await loadVocabularyLevelSetter();
+    const profile = await setVocabularyComfortLevel(nextLevel);
+
+    resetVocabularyPersonalizationCache();
+    renderVocabularyLibraryPageSummaryState(getVocabularyLibrarySummaryState(profile));
+    await renderVocabularyLibraryView();
+    renderVocabularyLibrarySummary();
+    refreshCurrentVocabularyPreviewPersonalization();
+    setVocabularyLevelFeedback("Vocabulary Level saved.", "success");
+  } catch (error) {
+    console.warn("Could not update Vocabulary Level.", error);
+    setVocabularyLevelFeedback("Could not save Vocabulary Level.", "error");
+    await renderVocabularyLibraryView();
+  } finally {
+    if (elements.vocabularyLevelSelect) {
+      elements.vocabularyLevelSelect.disabled = false;
+    }
+  }
+}
+
 async function copyTextToClipboard(text) {
   const clipboard = typeof navigator !== "undefined" ? navigator.clipboard : null;
 
@@ -1794,9 +2305,99 @@ function downloadTextFile(contents, filename, mimeType) {
   URL.revokeObjectURL(url);
 }
 
+async function readTextFile(file) {
+  if (!file) {
+    throw new Error("Choose a JSON backup file.");
+  }
+
+  if (typeof file.text === "function") {
+    return file.text();
+  }
+
+  if (typeof FileReader === "undefined") {
+    throw new Error("File reading APIs are unavailable.");
+  }
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error || new Error("Could not read backup file."));
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.readAsText(file, "utf-8");
+  });
+}
+
+async function handleVocabularyProfileBackup() {
+  const button = elements.backupVocabularyProfileButton;
+
+  if (button) {
+    button.disabled = true;
+  }
+
+  try {
+    const getProfile = await loadVocabularyProfileReader();
+    const helpers = await loadVocabularyProfileBackupHelpers();
+    const profile = await getProfile();
+    const backup = helpers.createVocabularyProfileBackup(profile);
+
+    downloadTextFile(
+      JSON.stringify(backup, null, 2),
+      "interleaf-reader-vocabulary-profile.json",
+      "application/json;charset=utf-8"
+    );
+    setVocabularyBackupFeedback("Vocabulary profile backup downloaded.", "success");
+  } catch (error) {
+    console.warn("Vocabulary profile backup failed.", error);
+    setVocabularyBackupFeedback("Backup failed.", "error");
+  } finally {
+    if (button) {
+      button.disabled = false;
+    }
+  }
+}
+
+async function handleVocabularyProfileRestore(event) {
+  const input = event.currentTarget;
+  const file = input?.files?.[0] || null;
+
+  if (!file) {
+    return;
+  }
+
+  if (elements.restoreVocabularyProfileButton) {
+    elements.restoreVocabularyProfileButton.disabled = true;
+  }
+
+  setVocabularyBackupFeedback("Restoring vocabulary profile...");
+
+  try {
+    const helpers = await loadVocabularyProfileBackupHelpers();
+    const jsonText = await readTextFile(file);
+    const profile = helpers.parseVocabularyProfileBackupJson(jsonText);
+
+    await helpers.saveVocabularyProfile(profile);
+    resetVocabularyPersonalizationCache();
+    await renderVocabularyLibraryView();
+    renderVocabularyLibrarySummary();
+    refreshCurrentVocabularyPreviewPersonalization();
+    setVocabularyBackupFeedback("Vocabulary profile restored.", "success");
+  } catch (error) {
+    console.warn("Vocabulary profile restore failed.", error);
+    setVocabularyBackupFeedback(error?.message || "Restore failed.", "error");
+  } finally {
+    if (elements.restoreVocabularyProfileButton) {
+      elements.restoreVocabularyProfileButton.disabled = false;
+    }
+
+    if (input) {
+      input.value = "";
+    }
+  }
+}
+
 async function handleVocabularyExportAction(action) {
   const actionButton = {
     "copy-learning": elements.copyLearningButton,
+    "download-learning-txt": elements.downloadLearningTxtButton,
     "copy-all": elements.copyAllVocabularyButton,
     "download-csv": elements.downloadVocabularyCsvButton
   }[action];
@@ -1814,7 +2415,10 @@ async function handleVocabularyExportAction(action) {
 
     renderVocabularyExportState(exportState);
 
-    if (action === "copy-learning" && exportState.copyLearningDisabled) {
+    if (
+      (action === "copy-learning" && exportState.copyLearningDisabled) ||
+      (action === "download-learning-txt" && exportState.downloadLearningTxtDisabled)
+    ) {
       setVocabularyExportFeedback("No words to export yet.");
       return;
     }
@@ -1827,6 +2431,16 @@ async function handleVocabularyExportAction(action) {
     if (action === "copy-learning") {
       await copyTextToClipboard(formatVocabularyLearningExportText(profile));
       setVocabularyExportFeedback("Copied Learning words.", "success");
+      return;
+    }
+
+    if (action === "download-learning-txt") {
+      downloadTextFile(
+        formatVocabularyLearningExportText(profile),
+        "interleaf-reader-bbdc-learning-words.txt",
+        "text/plain;charset=utf-8"
+      );
+      setVocabularyExportFeedback("Learning TXT downloaded.", "success");
       return;
     }
 
@@ -1855,6 +2469,7 @@ async function handleVocabularyExportAction(action) {
       const disabledByState = latestExportState
         ? {
           "copy-learning": latestExportState.copyLearningDisabled,
+          "download-learning-txt": latestExportState.downloadLearningTxtDisabled,
           "copy-all": latestExportState.copyAllDisabled,
           "download-csv": latestExportState.downloadCsvDisabled
         }[action]
@@ -1952,7 +2567,7 @@ function renderVocabularyLibrarySummaryState(summary) {
   elements.vocabularyLearningCount.textContent = String(summary.learningCount);
   elements.vocabularyMasteredCount.textContent = String(summary.masteredCount);
   elements.vocabularyHiddenCount.textContent = String(summary.hiddenCount);
-  elements.vocabularyLibraryLevel.textContent = `Level ${summary.selectedLevel || "-"}`;
+  elements.vocabularyLibraryLevel.textContent = formatVocabularyLevelDisplay(summary.selectedLevel);
   elements.vocabularyLibraryEmpty.textContent = summary.note;
   elements.vocabularyLibraryEmpty.dataset.state = summary.hasError
     ? "error"
@@ -2001,18 +2616,22 @@ async function renderLocalLibrary() {
 
   try {
     const books = await listSavedBooks();
-    const hasBooks = books.length > 0;
+    const libraryState = getLocalLibraryViewState(books, {
+      includeBuiltInGuide: state.appPreferences?.guideVisibleInLibrary !== false
+    });
 
-    elements.libraryEmpty.hidden = hasBooks;
-    elements.libraryList.hidden = !hasBooks;
+    elements.libraryEmpty.hidden = !libraryState.showEmptyState;
+    elements.libraryList.hidden = !libraryState.hasVisibleItems;
 
-    if (!hasBooks) {
-      elements.libraryEmpty.textContent = HOME_ENTRY_COPY.libraryEmptyState;
+    if (!libraryState.hasVisibleItems) {
+      elements.libraryEmpty.textContent = libraryState.emptyText;
       elements.libraryList.innerHTML = "";
       return;
     }
 
-    elements.libraryList.innerHTML = books.map((book) => renderLibraryCard(book)).join("");
+    elements.libraryList.innerHTML = libraryState.items
+      .map((book) => book.isBuiltInGuide ? renderGuideLibraryCard(book) : renderLibraryCard(book))
+      .join("");
   } catch (error) {
     console.warn("Could not render local library.", error);
     elements.libraryEmpty.hidden = false;
@@ -2020,6 +2639,28 @@ async function renderLocalLibrary() {
     elements.libraryEmpty.textContent = "Could not load saved books from this browser.";
     elements.libraryList.innerHTML = "";
   }
+}
+
+function renderGuideLibraryCard(book) {
+  const title = book.title || "Interleaf Reader Guide";
+  const author = book.author || "BookHeart";
+  const progress = t("home.guide.progress");
+
+  return `
+    <article class="library-card library-card-guide" role="listitem" data-book-key="${escapeHtml(book.bookKey)}" data-book-kind="built-in-guide">
+      <div class="library-card-body">
+        <p class="library-card-badge">${escapeHtml(t("home.guide.badge"))}</p>
+        <h3 class="library-card-title">${escapeHtml(title)}</h3>
+        <p class="library-card-author">${escapeHtml(author)}</p>
+        <p class="library-card-progress">${escapeHtml(progress)}</p>
+        <p class="library-card-updated">${escapeHtml(t("home.guide.note"))}</p>
+      </div>
+      <div class="library-card-actions">
+        <button type="button" class="library-open-button" data-open-book>${escapeHtml(t("home.library.open"))}</button>
+        <button type="button" class="library-delete-button" data-hide-guide>${escapeHtml(t("guide.hide"))}</button>
+      </div>
+    </article>
+  `;
 }
 
 function renderLibraryCard(book) {
@@ -2039,8 +2680,8 @@ function renderLibraryCard(book) {
         ${updated ? `<p class="library-card-updated">Last read ${escapeHtml(updated)}</p>` : ""}
       </div>
       <div class="library-card-actions">
-        <button type="button" class="library-open-button" data-open-book>${HOME_ENTRY_COPY.libraryOpenAction}</button>
-        <button type="button" class="library-delete-button" data-delete-book>Forget</button>
+        <button type="button" class="library-open-button" data-open-book>${escapeHtml(t("home.library.open"))}</button>
+        <button type="button" class="library-delete-button" data-delete-book>${escapeHtml(t("home.library.forget"))}</button>
       </div>
     </article>
   `;
@@ -2098,6 +2739,50 @@ async function openSavedBookFromLibrary(bookKey) {
     setStatus("Could not open the saved EPUB. Please try importing it again.", "error");
     revealDebugPanel();
   }
+}
+
+async function openBuiltInGuide(options = {}) {
+  const readingMode = options.mode || state.currentMode || MODES.ENGLISH_STUDY;
+  const guideBook = syncGuideBookForReadingMode(createGuideBook(), readingMode);
+  const requestedChapterIndex = Number.isInteger(options.chapterIndex) ? options.chapterIndex : 0;
+  const safeChapterIndex = guideBook.chapters.length
+    ? Math.min(Math.max(requestedChapterIndex, 0), guideBook.chapters.length - 1)
+    : -1;
+
+  setStatus(`Opening ${guideBook.title}...`, "info");
+  hideBubble();
+  closeMobileSheets();
+  hideReaderTapControls();
+  hideRestorePrompt();
+  hideReaderSavedPanel();
+
+  state.book = guideBook;
+  state.epubHandle = null;
+  state.currentBookKey = null;
+  state.currentChapterId = safeChapterIndex >= 0 ? guideBook.chapters[safeChapterIndex].id : null;
+  state.bookGlossary = [];
+  state.lastScrollProgress = null;
+  state.isBuiltInGuideOpen = true;
+  state.currentMode = readingMode;
+  storage.set("last-mode", state.currentMode);
+  syncModeControls();
+
+  renderBookMeta();
+  renderChapterOptions();
+  renderNavigationControls();
+  renderBookGlossary();
+
+  if (state.currentChapterId) {
+    await selectChapter(state.currentChapterId, {
+      skipCurrentProgressSave: true,
+      skipProgressSave: true
+    });
+  } else {
+    renderCurrentChapter();
+  }
+
+  showView("reader");
+  setStatus(`Opened ${guideBook.title}.`, "success");
 }
 
 function openForgetBookModal(bookKey, displayTitle = "this book") {
@@ -2182,6 +2867,10 @@ function showView(view) {
     elements.vocabularyLibraryView.hidden = visibility.vocabularyLibraryHidden;
   }
 
+  if (elements.settingsView) {
+    elements.settingsView.hidden = visibility.settingsHidden;
+  }
+
   if (visibility.currentView === "home") {
     window.scrollTo({ top: 0, behavior: "auto" });
     updateReturnToReaderPanel();
@@ -2190,6 +2879,9 @@ function showView(view) {
   } else if (visibility.currentView === "vocabulary-library") {
     window.scrollTo({ top: 0, behavior: "auto" });
     renderVocabularyLibraryView();
+  } else if (visibility.currentView === "settings") {
+    window.scrollTo({ top: 0, behavior: "auto" });
+    renderSettingsView();
   }
 }
 
@@ -2298,8 +2990,12 @@ function renderBookMeta() {
     return;
   }
 
+  const metaLabel = state.book.isBuiltInGuide && state.book.guideModeLabel
+    ? `${state.book.author} · ${state.book.guideModeLabel}`
+    : state.book.author;
+
   elements.bookMeta.innerHTML = `
-    <p class="eyebrow">${escapeHtml(state.book.author)}</p>
+    <p class="eyebrow">${escapeHtml(metaLabel)}</p>
     <h2>${escapeHtml(state.book.title)}</h2>
   `;
 }
@@ -2332,22 +3028,28 @@ function renderChapterOptions() {
   renderNavigationControls();
 }
 
+function setChapterListMarkup(markup) {
+  if (elements.chapterList) {
+    elements.chapterList.innerHTML = markup;
+  }
+
+  if (elements.mobileChapterList) {
+    elements.mobileChapterList.innerHTML = markup;
+  }
+}
+
 function renderChapterList(chapters) {
   if (!elements.chapterList && !elements.mobileChapterList) {
     return;
   }
 
   if (!state.book) {
-    const empty = "<p class=\"empty-state compact-empty\">Import an EPUB to see chapters.</p>";
-    elements.chapterList.innerHTML = empty;
-    elements.mobileChapterList.innerHTML = empty;
+    setChapterListMarkup("<p class=\"empty-state compact-empty\">Import an EPUB to see chapters.</p>");
     return;
   }
 
   if (!chapters.length) {
-    const empty = "<p class=\"empty-state compact-empty\">No readable chapters found.</p>";
-    elements.chapterList.innerHTML = empty;
-    elements.mobileChapterList.innerHTML = empty;
+    setChapterListMarkup("<p class=\"empty-state compact-empty\">No readable chapters found.</p>");
     return;
   }
 
@@ -2374,8 +3076,7 @@ function renderChapterList(chapters) {
     })
     .join("");
 
-  elements.chapterList.innerHTML = rows;
-  elements.mobileChapterList.innerHTML = rows;
+  setChapterListMarkup(rows);
 }
 
 async function selectChapter(chapterId, options = {}) {
@@ -2443,7 +3144,8 @@ function renderCurrentChapter() {
   try {
     rendered = renderChapterForMode(chapter, state.currentMode, {
       vocabularyItems: state.vocabularyItems,
-      protectedTerms: state.protectedTerms
+      protectedTerms: state.protectedTerms,
+      isBuiltInGuide: Boolean(state.book?.isBuiltInGuide)
     });
   } catch (error) {
     console.error(error);

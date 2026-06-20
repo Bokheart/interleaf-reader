@@ -28,29 +28,45 @@
     <script type="module" src="./app.js"></script>
   </head>
   <body>
+    <div id="languageGate" class="language-gate" role="dialog" aria-modal="true" aria-labelledby="languageGateTitle" hidden>
+      <section class="language-gate-panel">
+        <p class="eyebrow">Interleaf Reader</p>
+        <h1 id="languageGateTitle" data-i18n="languageGate.title">Choose interface language</h1>
+        <p id="languageGateSubtitle" data-i18n="languageGate.subtitle">选择界面语言</p>
+        <div class="language-gate-actions" role="group" aria-label="Choose interface language">
+          <button type="button" data-ui-language-choice="zh-CN">中文</button>
+          <button type="button" data-ui-language-choice="en">English</button>
+        </div>
+        <p class="language-gate-note" data-i18n="languageGate.note">You can change this later in Settings.</p>
+      </section>
+    </div>
+
     <div id="homeView" class="app-view">
       <header class="app-header home-header">
         <div>
           <p class="eyebrow">Interleaf Reader</p>
-          <h1>EPUB web novel reader</h1>
+          <h1 data-i18n="home.title">EPUB web novel reader</h1>
         </div>
-        <p class="header-note">English Study Mode with gentle vocabulary support.</p>
+        <div class="header-actions">
+          <p class="header-note" data-i18n="app.tagline">English Study Mode with gentle vocabulary support.</p>
+          <button id="openSettingsButton" type="button" class="page-back-button" data-i18n="settings.open">Settings</button>
+        </div>
       </header>
 
       <main class="app-shell home-shell">
         <section class="import-panel" aria-labelledby="import-title">
         <div>
-          <h2 id="import-title">Import an EPUB</h2>
-          <p>Drop an English EPUB here or choose a file to start a local reading session.</p>
+          <h2 id="import-title" data-i18n="home.import.title">Import an EPUB</h2>
+          <p data-i18n="home.import.description">Drop an English EPUB here or choose a file to start a local reading session.</p>
         </div>
 
         <label class="drop-zone" id="dropZone">
           <input id="epubInput" type="file" accept=".epub,application/epub+zip">
-          <span class="drop-title">Drop EPUB file</span>
-          <span class="drop-subtitle">or click to browse</span>
+          <span class="drop-title" data-i18n="home.import.dropTitle">Drop EPUB file</span>
+          <span class="drop-subtitle" data-i18n="home.import.dropSubtitle">or click to browse</span>
         </label>
 
-        <p id="statusText" class="status-text" role="status" aria-live="polite">Waiting for an EPUB file.</p>
+        <p id="statusText" class="status-text" role="status" aria-live="polite" data-i18n="home.import.status.waiting">Waiting for an EPUB file.</p>
 
         <details class="debug-panel" id="debugPanel">
           <summary>EPUB import diagnostics</summary>
@@ -90,26 +106,26 @@
 
         <section id="continueReadingPanel" class="continue-panel" hidden aria-labelledby="continue-title">
           <div>
-            <h2 id="continue-title">Continue Reading</h2>
-            <p class="entry-hint">Restore your most recently saved local book.</p>
+            <h2 id="continue-title" data-i18n="home.continue.title">Continue Reading</h2>
+            <p class="entry-hint" data-i18n="home.continue.hint">Restore your most recently saved local book.</p>
             <strong id="restoreTitle">Saved book</strong>
             <p id="restoreText">Saved locally in this browser.</p>
           </div>
           <div class="restore-actions">
-            <button id="restoreBookButton" type="button">Continue Reading</button>
-            <button id="dismissRestoreButton" type="button">Dismiss</button>
+            <button id="restoreBookButton" type="button" data-i18n="home.continue.action">Continue Reading</button>
+            <button id="dismissRestoreButton" type="button" data-i18n="home.continue.dismiss">Dismiss</button>
           </div>
         </section>
 
         <section class="vocabulary-library-summary" aria-labelledby="vocabulary-library-title">
           <div class="summary-heading">
             <div>
-              <h2 id="vocabulary-library-title">Vocabulary Library</h2>
-              <p class="section-hint">Saved on this device.</p>
+              <h2 id="vocabulary-library-title" data-i18n="home.vocabulary.title">Vocabulary Library</h2>
+              <p class="section-hint" data-i18n="home.vocabulary.hint">Saved on this device.</p>
             </div>
             <div class="summary-heading-actions">
               <span id="vocabularyLibraryLevel" class="summary-level">Level -</span>
-              <button id="openVocabularyLibraryButton" type="button" class="summary-open-button">View words</button>
+              <button id="openVocabularyLibraryButton" type="button" class="summary-open-button" data-i18n="home.vocabulary.viewWords">View words</button>
             </div>
           </div>
           <dl class="vocabulary-counts" aria-label="Vocabulary Library counts">
@@ -129,61 +145,10 @@
           <p id="vocabularyLibraryEmpty" class="vocabulary-summary-note">Save words from Vocabulary Preview to build your library.</p>
         </section>
 
-        <section class="home-guide-entry" aria-labelledby="home-guide-title">
-          <div>
-            <p class="eyebrow">Guide</p>
-            <h2 id="home-guide-title">Start with Interleaf Reader</h2>
-            <p class="section-hint">A local-first guide for import, reading, vocabulary, storage, and export basics.</p>
-          </div>
-
-          <details class="home-guide-details">
-            <summary>Open reader guide</summary>
-            <div class="home-guide-content">
-              <section aria-labelledby="home-guide-import">
-                <h3 id="home-guide-import">Import and read</h3>
-                <ul>
-                  <li>Import an EPUB with the file picker or drag-and-drop area.</li>
-                  <li>Use Previous, Next, Back to Top, and Contents to move through chapters.</li>
-                  <li>Progress is saved approximately in this browser so you can resume later.</li>
-                </ul>
-              </section>
-
-              <section aria-labelledby="home-guide-reader-tools">
-                <h3 id="home-guide-reader-tools">Reader tools</h3>
-                <ul>
-                  <li>Contents opens the chapter list.</li>
-                  <li>Progress shows the chapter slider and chapter position.</li>
-                  <li>Preview shows vocabulary candidates for the current reading context.</li>
-                  <li>Mode shows reading mode options. English Study works now; Chinese Reading Mode and Mixed Mode are placeholders.</li>
-                </ul>
-              </section>
-
-              <section aria-labelledby="home-guide-vocabulary">
-                <h3 id="home-guide-vocabulary">Vocabulary</h3>
-                <ul>
-                  <li>Vocabulary Preview underlines useful words and phrases from bundled word lists.</li>
-                  <li>Tap or click an underlined term to open a vocabulary bubble with available notes.</li>
-                  <li>Known marks a familiar word, Save adds it to Learning, and Hide removes it from future Preview results.</li>
-                  <li>Vocabulary Library keeps Learning, Mastered, and Hidden lists on this device.</li>
-                </ul>
-              </section>
-
-              <section aria-labelledby="home-guide-storage-export">
-                <h3 id="home-guide-storage-export">Storage and export</h3>
-                <ul>
-                  <li>Imported books, progress, and vocabulary lists are stored locally in this browser only.</li>
-                  <li>Clearing browser data, changing devices, or using private browsing can remove or hide local data.</li>
-                  <li>Use Copy Learning, Copy All, or Download CSV from Vocabulary Library for basic vocabulary export.</li>
-                </ul>
-              </section>
-            </div>
-          </details>
-        </section>
-
         <section class="local-library" aria-labelledby="library-title">
-          <h2 id="library-title">Local Library</h2>
-          <p class="section-hint">Saved in this browser on this device.</p>
-          <p id="libraryEmpty" class="library-empty">No saved books yet. Import an EPUB to start your local library.</p>
+          <h2 id="library-title" data-i18n="home.library.title">Local Library</h2>
+          <p class="section-hint" data-i18n="home.library.hint">Saved in this browser on this device.</p>
+          <p id="libraryEmpty" class="library-empty" data-i18n="home.library.empty">No saved books yet. Import an EPUB to start your local library.</p>
           <div id="libraryList" class="library-list" role="list" hidden></div>
         </section>
       </main>
@@ -205,6 +170,81 @@
         </section>
       </div>
 
+    </div>
+
+    <div id="settingsView" class="app-view" hidden>
+      <header class="app-header settings-page-header">
+        <div>
+          <p class="eyebrow">Interleaf Reader</p>
+          <h1 data-i18n="settings.title">Settings</h1>
+        </div>
+        <button id="settingsBackHomeButton" type="button" class="page-back-button" data-i18n="settings.backHome">Back to Home</button>
+      </header>
+
+      <main class="app-shell settings-page">
+        <section class="settings-panel" aria-labelledby="settingsLanguageTitle">
+          <h2 id="settingsLanguageTitle" data-i18n="settings.language.title">Language</h2>
+          <label for="settingsUiLanguageSelect" data-i18n="settings.language.label">Interface Language</label>
+          <select id="settingsUiLanguageSelect" aria-describedby="settingsFeedback">
+            <option value="zh-CN">中文</option>
+            <option value="en">English</option>
+          </select>
+        </section>
+
+        <section class="settings-panel" aria-labelledby="settingsHelpTitle">
+          <h2 id="settingsHelpTitle" data-i18n="settings.help.title">Help</h2>
+          <div class="settings-actions">
+            <button id="settingsOpenGuideButton" type="button" data-i18n="settings.help.openGuide">Open Interleaf Reader Guide</button>
+            <button id="settingsShowGuideButton" type="button" data-i18n="settings.help.showGuide">Show Guide in Library</button>
+            <button id="openHelpCenterButton" type="button" data-i18n="settings.help.openHelpCenter">Help Center</button>
+          </div>
+        </section>
+
+        <section id="helpCenterPanel" class="settings-panel help-center-panel" aria-labelledby="helpCenterTitle" hidden>
+          <h2 id="helpCenterTitle" data-i18n="settings.helpCenter.title">Help Center</h2>
+          <p data-i18n="settings.helpCenter.note">Use the full Guide Book for detailed walkthroughs.</p>
+          <div class="help-center-categories" aria-label="Help Center categories">
+            <section>
+              <h3 data-i18n="settings.helpCenter.gettingStarted">Getting Started</h3>
+              <p>Open the Guide Book to try the Reader flow before importing an EPUB.</p>
+            </section>
+            <section>
+              <h3 data-i18n="settings.helpCenter.reading">Reading</h3>
+              <p>Use Contents, Progress, Preview, and Mode from the Reader.</p>
+            </section>
+            <section>
+              <h3 data-i18n="settings.helpCenter.vocabulary">Vocabulary</h3>
+              <p>Known, Save, and Hide shape local word lists for reading support.</p>
+            </section>
+            <section>
+              <h3 data-i18n="settings.helpCenter.storage">Storage</h3>
+              <p>Books, progress, and vocabulary stay local to this browser and device.</p>
+            </section>
+            <section>
+              <h3 data-i18n="settings.helpCenter.featureStatus">Feature Status</h3>
+              <p>English Study works now. Chinese Reading Mode, Mixed Mode, and translation providers remain planned placeholders.</p>
+            </section>
+          </div>
+          <div class="settings-actions">
+            <button id="helpCenterOpenGuideButton" type="button" data-i18n="settings.helpCenter.openGuide">Open full Guide Book</button>
+            <button id="helpCenterShowGuideButton" type="button" data-i18n="settings.helpCenter.restoreGuide">Show/restore Guide in Library</button>
+          </div>
+        </section>
+
+        <section class="settings-panel" aria-labelledby="settingsStorageTitle">
+          <h2 id="settingsStorageTitle" data-i18n="settings.storage.title">Storage and status</h2>
+          <p data-i18n="settings.storage.local">Your books, progress, and vocabulary profile stay in this browser on this device.</p>
+          <p data-i18n="settings.storage.noSync">No account or cloud sync is implemented.</p>
+          <ul class="settings-status-list">
+            <li data-i18n="settings.status.english">English Study implemented</li>
+            <li data-i18n="settings.status.chinese">Chinese Reading Mode placeholder</li>
+            <li data-i18n="settings.status.mixed">Mixed Mode placeholder</li>
+            <li data-i18n="settings.status.providers">Translation providers not implemented</li>
+          </ul>
+        </section>
+
+        <p id="settingsFeedback" class="settings-feedback" role="status" aria-live="polite"></p>
+      </main>
     </div>
 
     <div id="vocabularyLibraryView" class="app-view" hidden>
@@ -242,6 +282,29 @@
           </dl>
           <p id="vocabularyPageLevel" class="vocabulary-page-level">Level -</p>
 
+          <section class="vocabulary-level-panel" aria-labelledby="vocabularyLevelTitle">
+            <div class="vocabulary-level-header">
+              <label id="vocabularyLevelTitle" for="vocabularyLevelSelect">Vocabulary Level</label>
+              <details class="vocabulary-level-help">
+                <summary aria-label="Vocabulary Level help">?</summary>
+                <p id="vocabularyLevelHelp">
+                  Vocabulary Level controls which basic words are treated as already known. Changing the level changes which words may be filtered from Vocabulary Preview. It is not a test score, not a full dictionary completeness level, and can be changed anytime.
+                </p>
+              </details>
+            </div>
+            <select
+              id="vocabularyLevelSelect"
+              aria-describedby="vocabularyLevelHelp vocabularyLevelFeedback"
+            >
+              <option value="level1">Level 1</option>
+              <option value="level2">Level 2</option>
+              <option value="level3">Level 3</option>
+              <option value="level4">Level 4</option>
+              <option value="level5">Level 5</option>
+            </select>
+            <p id="vocabularyLevelFeedback" class="vocabulary-level-feedback" role="status" aria-live="polite"></p>
+          </section>
+
           <form id="vocabularyManualAddForm" class="vocabulary-add-form" autocomplete="off">
             <label for="vocabularyManualAddInput">Add a word to Learning</label>
             <div class="vocabulary-add-row">
@@ -260,14 +323,28 @@
           <section class="vocabulary-export-panel" aria-labelledby="vocabularyExportTitle">
             <div>
               <h3 id="vocabularyExportTitle">Export</h3>
-              <p>Export your local word lists for review or use in other apps later.</p>
+              <p>Export your local word lists for review or use in other apps later. Learning TXT for 不背单词 uses one word or phrase per line. No definitions, examples, source sentences, book text, or copyrighted context are included. They are not synced or uploaded.</p>
             </div>
             <div class="vocabulary-export-actions">
               <button id="copyLearningButton" type="button">Copy Learning</button>
+              <button id="downloadLearningTxtButton" type="button">Download 不背单词 TXT</button>
               <button id="copyAllVocabularyButton" type="button">Copy All</button>
               <button id="downloadVocabularyCsvButton" type="button">Download CSV</button>
             </div>
             <p id="vocabularyExportFeedback" class="vocabulary-export-feedback" role="status" aria-live="polite">No words to export yet.</p>
+          </section>
+
+          <section class="vocabulary-export-panel" aria-labelledby="vocabularyBackupTitle">
+            <div>
+              <h3 id="vocabularyBackupTitle">Backup / Restore</h3>
+              <p>Backup / Restore is vocabulary profile only. It includes Vocabulary Level and local word lists, and does not include EPUB files, book text, Local Library files, or reading progress.</p>
+            </div>
+            <div class="vocabulary-export-actions">
+              <button id="backupVocabularyProfileButton" type="button">Backup profile JSON</button>
+              <input id="restoreVocabularyProfileInput" type="file" accept="application/json,.json" hidden>
+              <button id="restoreVocabularyProfileButton" type="button">Restore profile JSON</button>
+            </div>
+            <p id="vocabularyBackupFeedback" class="vocabulary-export-feedback" role="status" aria-live="polite"></p>
           </section>
 
           <div class="vocabulary-tabs" role="tablist" aria-label="Vocabulary Library lists">
@@ -284,7 +361,7 @@
 
     <div id="readerView" class="app-view" hidden>
       <header class="reader-top-bar">
-        <button id="backToHomeButton" type="button">Back to Home</button>
+        <button id="backToHomeButton" type="button" data-i18n="reader.backHome">Back to Home</button>
         <div id="readerSavedPanel" class="reader-saved-panel" hidden>
           <span id="readerSavedText">Saved locally in this browser.</span>
           <button id="clearSavedBookButton" type="button">Forget saved book</button>
@@ -300,10 +377,11 @@
           </div>
         </div>
         <div class="reader-chrome-bar reader-chrome-bottom" aria-label="Reader quick controls">
-          <button id="tapChaptersButton" type="button">Contents</button>
-          <button id="tapProgressButton" type="button">Progress</button>
-          <button id="tapVocabButton" type="button">Preview</button>
-          <button id="tapModeButton" type="button">Mode</button>
+          <button id="tapChaptersButton" type="button" data-i18n="reader.controls.contents">Contents</button>
+          <button id="tapProgressButton" type="button" data-i18n="reader.controls.progress">Progress</button>
+          <button id="tapVocabButton" type="button" data-i18n="reader.controls.preview">Preview</button>
+          <button id="tapModeButton" type="button" data-i18n="reader.controls.mode">Mode</button>
+          <button id="readerHelpButton" class="reader-help-button" type="button" aria-label="Reader help" data-i18n-aria-label="reader.help.aria">?</button>
         </div>
       </div>
 
@@ -325,18 +403,18 @@
           </section>
 
           <fieldset class="mode-selector">
-            <legend>Reading mode</legend>
+            <legend data-i18n="reader.mode.title">Reading mode</legend>
             <label>
               <input type="radio" name="readingMode" value="english-study" checked>
-              <span>English Study</span>
+              <span data-i18n="reader.mode.english">English Study</span>
             </label>
             <label>
               <input type="radio" name="readingMode" value="chinese">
-              <span>Chinese</span>
+              <span data-i18n="reader.mode.chinese">Chinese</span>
             </label>
             <label>
               <input type="radio" name="readingMode" value="cloze-mixed">
-              <span>Mixed Mode</span>
+              <span data-i18n="reader.mode.mixed">Mixed Mode</span>
             </label>
           </fieldset>
 
@@ -443,6 +521,21 @@
           <button type="button" data-mobile-mode="english-study">English Study</button>
           <button type="button" data-mobile-mode="chinese">Chinese</button>
           <button type="button" data-mobile-mode="cloze-mixed">Mixed Mode</button>
+        </div>
+      </section>
+
+      <section id="readerHelpPanel" class="reader-help-panel" role="dialog" aria-modal="false" aria-labelledby="readerHelpTitle" hidden>
+        <div class="mobile-sheet-header">
+          <h2 id="readerHelpTitle" data-i18n="reader.help.title">Reader help</h2>
+          <button id="readerHelpCloseButton" type="button" class="mobile-sheet-close" data-i18n="reader.help.close">Close</button>
+        </div>
+        <p data-i18n="reader.help.body">Use Contents for chapters, Progress for chapter navigation, Preview for vocabulary support, and Mode to check reading mode status.</p>
+        <p data-i18n="reader.help.progress">Progress changes chapters, not paragraph position.</p>
+        <p data-i18n="reader.help.preview">Preview shows current vocabulary support and remains local-first.</p>
+        <p data-i18n="reader.help.placeholders">Chinese Reading Mode and Mixed Mode remain placeholders.</p>
+        <div class="settings-actions">
+          <button id="readerHelpOpenHelpCenterButton" type="button" data-i18n="reader.help.openHelpCenter">Open Help Center</button>
+          <button id="readerHelpOpenGuideButton" type="button" data-i18n="reader.help.openGuide">Open Guide Book</button>
         </div>
       </section>
       </main>

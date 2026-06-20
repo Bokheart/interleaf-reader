@@ -10,6 +10,20 @@ const VOCABULARY_PROFILE_KEY = "local";
 const DEFAULT_VOCABULARY_LEVEL = "level3";
 const DEFAULT_VOCABULARY_CATEGORIES = ["ielts", "fiction", "slang"];
 const VALID_VOCABULARY_LEVELS = ["level1", "level2", "level3", "level4", "level5"];
+const VOCABULARY_PROFILE_BACKUP_SCHEMA_VERSION = 1;
+const VOCABULARY_PROFILE_BACKUP_FIELDS = Object.freeze([
+  "schemaVersion",
+  "exportedAt",
+  "selectedLevel",
+  "knownWords",
+  "learningWords",
+  "ignoredWords",
+  "preferredCategories"
+]);
+const APP_PREFERENCES_KEY = "app-preferences";
+const DEFAULT_UI_LANGUAGE = "en";
+const VALID_UI_LANGUAGES = ["en", "zh-CN"];
+const VALID_GUIDE_VERSIONS = ["english", "chinese", "bilingual"];
 
 // Small wrapper around localStorage so future library/progress data stays namespaced.
 function keyFor(name) {
@@ -62,6 +76,103 @@ export const storage = {
     window.localStorage.removeItem(keyFor(name));
   }
 };
+
+function normalizeUiLanguagePreference(language) {
+  const normalized = String(language || "").trim().toLowerCase();
+
+  if (normalized.startsWith("zh")) {
+    return "zh-CN";
+  }
+
+  if (normalized.startsWith("en")) {
+    return "en";
+  }
+
+  return DEFAULT_UI_LANGUAGE;
+}
+
+
+function normalizeGuideVersionPreference(versionId, fallback = "english") {
+  const normalized = String(versionId || "").trim().toLowerCase();
+  return VALID_GUIDE_VERSIONS.includes(normalized) ? normalized : fallback;
+}
+
+export function getDefaultAppPreferences(options = {}) {
+  const uiLanguage = normalizeUiLanguagePreference(options.uiLanguage);
+
+  return {
+    uiLanguage,
+    hasChosenUiLanguage: false,
+    guideVisibleInLibrary: true,
+    guideVersion: "english",
+    hasChosenGuideVersion: false,
+    updatedAt: null
+  };
+}
+
+export function normalizeAppPreferencesForStorage(preferences = {}, now = Date.now()) {
+  const safePreferences = preferences && typeof preferences === "object" ? preferences : {};
+  const uiLanguage = normalizeUiLanguagePreference(safePreferences.uiLanguage);
+
+  return {
+    uiLanguage,
+    hasChosenUiLanguage: safePreferences.hasChosenUiLanguage === true,
+    guideVisibleInLibrary: safePreferences.guideVisibleInLibrary !== false,
+    guideVersion: normalizeGuideVersionPreference(safePreferences.guideVersion, "english"),
+    hasChosenGuideVersion: safePreferences.hasChosenGuideVersion === true,
+    updatedAt: safePreferences.updatedAt || now
+  };
+}
+
+export function getAppPreferences(options = {}) {
+  const fallback = getDefaultAppPreferences(options);
+  const storedPreferences = storage.get(APP_PREFERENCES_KEY, null);
+
+  if (!storedPreferences) {
+    return fallback;
+  }
+
+  return normalizeAppPreferencesForStorage({
+    ...fallback,
+    ...storedPreferences
+  }, storedPreferences.updatedAt || Date.now());
+}
+
+export function saveAppPreferences(preferences = {}) {
+  const now = Date.now();
+  const normalizedPreferences = normalizeAppPreferencesForStorage(preferences, now);
+  storage.set(APP_PREFERENCES_KEY, normalizedPreferences);
+  return normalizedPreferences;
+}
+
+export function setUiLanguagePreference(language) {
+  const currentPreferences = getAppPreferences();
+  return saveAppPreferences({
+    ...currentPreferences,
+    uiLanguage: normalizeUiLanguagePreference(language),
+    hasChosenUiLanguage: true,
+    updatedAt: Date.now()
+  });
+}
+
+export function setGuideVisibilityPreference(isVisible) {
+  const currentPreferences = getAppPreferences();
+  return saveAppPreferences({
+    ...currentPreferences,
+    guideVisibleInLibrary: isVisible !== false,
+    updatedAt: Date.now()
+  });
+}
+
+export function setGuideVersionPreference(versionId) {
+  const currentPreferences = getAppPreferences();
+  return saveAppPreferences({
+    ...currentPreferences,
+    guideVersion: normalizeGuideVersionPreference(versionId, "english"),
+    hasChosenGuideVersion: true,
+    updatedAt: Date.now()
+  });
+}
 
 function normalizeKeyPart(value) {
   return String(value || "")
@@ -231,6 +342,62 @@ export function normalizeVocabularyProfileForStorage(profile = {}, now = Date.no
     preferredCategories: normalizePreferredCategories(normalizedProfile.preferredCategories),
     updatedAt: safeProfile.updatedAt || now
   };
+}
+
+function pickVocabularyProfileBackupFields(profile = {}) {
+  return {
+    selectedLevel: profile.selectedLevel,
+    knownWords: [...(profile.knownWords || [])],
+    learningWords: [...(profile.learningWords || [])],
+    ignoredWords: [...(profile.ignoredWords || [])],
+    preferredCategories: [...(profile.preferredCategories || [])]
+  };
+}
+
+export function createVocabularyProfileBackup(profile = {}, now = Date.now()) {
+  const timestamp = Number.isFinite(Number(now)) ? Number(now) : Date.now();
+  const normalizedProfile = normalizeVocabularyProfileForStorage(profile, profile?.updatedAt || timestamp);
+
+  return {
+    schemaVersion: VOCABULARY_PROFILE_BACKUP_SCHEMA_VERSION,
+    exportedAt: new Date(timestamp).toISOString(),
+    ...pickVocabularyProfileBackupFields(normalizedProfile)
+  };
+}
+
+export function parseVocabularyProfileBackupJson(jsonText = "") {
+  let payload;
+
+  try {
+    payload = JSON.parse(String(jsonText || ""));
+  } catch (error) {
+    throw new Error("Vocabulary profile backup must be valid JSON.");
+  }
+
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new Error("Vocabulary profile backup must be valid JSON.");
+  }
+
+  if (payload.schemaVersion !== VOCABULARY_PROFILE_BACKUP_SCHEMA_VERSION) {
+    throw new Error("Unsupported vocabulary profile backup schema.");
+  }
+
+  const allowedFields = new Set(VOCABULARY_PROFILE_BACKUP_FIELDS);
+  const unsupportedField = Object.keys(payload).find((key) => !allowedFields.has(key));
+
+  if (unsupportedField) {
+    throw new Error(`Unsupported vocabulary profile backup field: ${unsupportedField}`);
+  }
+
+  const normalizedProfile = normalizeVocabularyProfileForStorage({
+    selectedLevel: payload.selectedLevel,
+    knownWords: payload.knownWords,
+    learningWords: payload.learningWords,
+    ignoredWords: payload.ignoredWords,
+    preferredCategories: payload.preferredCategories
+  });
+
+  return pickVocabularyProfileBackupFields(normalizedProfile);
 }
 
 export function getDefaultVocabularyProfile(now = Date.now()) {

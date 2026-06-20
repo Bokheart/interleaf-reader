@@ -12,21 +12,30 @@ const {
   calculateScrollRatio,
   calculateScrollTopFromRatio,
   clampScrollRatio,
+  createVocabularyProfileBackup,
   createStoredBookMetadata,
   formatSavedBookProgressLabel,
+  getAppPreferences,
   getDefaultVocabularyProfile,
+  getDefaultAppPreferences,
   getReadingProgress,
   getVocabularyProfile,
   ignoreVocabularyWord,
   markWordKnown,
   mergeSavedBookListItem,
+  normalizeAppPreferencesForStorage,
   normalizeReadingProgress,
   normalizeVocabularyProfileForStorage,
+  parseVocabularyProfileBackupJson,
   pickEffectiveUpdatedAt,
   restoreVocabularyWord,
   resolveProgressChapterId,
   saveReadingProgress,
+  saveAppPreferences,
   saveVocabularyProfile,
+  setGuideVersionPreference,
+  setGuideVisibilityPreference,
+  setUiLanguagePreference,
   setVocabularyComfortLevel,
   shouldRestoreScrollForProgress,
   sortSavedBooksByUpdatedAt
@@ -480,6 +489,50 @@ assert.deepEqual(
 );
 
 assert.deepEqual(
+  getDefaultAppPreferences({ uiLanguage: "zh-CN" }),
+  {
+    uiLanguage: "zh-CN",
+    hasChosenUiLanguage: false,
+    guideVisibleInLibrary: true,
+    guideVersion: "english",
+    hasChosenGuideVersion: false,
+    updatedAt: null
+  },
+  "default app preferences keep legacy guideVersion independent from UI language"
+);
+
+assert.deepEqual(
+  normalizeAppPreferencesForStorage({
+    uiLanguage: "zh-cn",
+    hasChosenUiLanguage: true,
+    guideVisibleInLibrary: false,
+    guideVersion: "bilingual",
+    hasChosenGuideVersion: true,
+    updatedAt: 2000
+  }, 3000),
+  {
+    uiLanguage: "zh-CN",
+    hasChosenUiLanguage: true,
+    guideVisibleInLibrary: false,
+    guideVersion: "bilingual",
+    hasChosenGuideVersion: true,
+    updatedAt: 2000
+  },
+  "normalizes app preferences without renaming existing storage/database keys"
+);
+
+assert.equal(
+  normalizeAppPreferencesForStorage({
+    uiLanguage: "zh-CN",
+    hasChosenUiLanguage: true,
+    guideVersion: "english",
+    hasChosenGuideVersion: false
+  }, 4000).guideVersion,
+  "english",
+  "UI language no longer overwrites stored legacy guideVersion"
+);
+
+assert.deepEqual(
   normalizeVocabularyProfileForStorage({
     selectedLevel: " level4 ",
     knownWords: ["Relentless", "relentless", "  TERM "],
@@ -505,19 +558,145 @@ assert.equal(
   "falls back to level3 for invalid comfort levels"
 );
 
+const vocabularyBackup = createVocabularyProfileBackup({
+  selectedLevel: " level4 ",
+  knownWords: ["Known", "known"],
+  learningWords: ["Learn"],
+  ignoredWords: ["Hide"],
+  preferredCategories: ["IELTS", "fiction", "IELTS"],
+  fileBlob: "must not export",
+  bookText: "must not export",
+  readingProgress: { currentChapterId: "chapter-1" }
+}, 1700000000000);
+assert.deepEqual(
+  Object.keys(vocabularyBackup),
+  [
+    "schemaVersion",
+    "exportedAt",
+    "selectedLevel",
+    "knownWords",
+    "learningWords",
+    "ignoredWords",
+    "preferredCategories"
+  ],
+  "Vocabulary profile backup emits only allowed fields"
+);
+assert.deepEqual(
+  vocabularyBackup,
+  {
+    schemaVersion: 1,
+    exportedAt: "2023-11-14T22:13:20.000Z",
+    selectedLevel: "level4",
+    knownWords: ["known"],
+    learningWords: ["learn"],
+    ignoredWords: ["hide"],
+    preferredCategories: ["ielts", "fiction"]
+  },
+  "Vocabulary profile backup normalizes profile-only data"
+);
+assert.deepEqual(
+  parseVocabularyProfileBackupJson(JSON.stringify({
+    schemaVersion: 1,
+    exportedAt: "2023-11-14T22:13:20.000Z",
+    selectedLevel: "level5",
+    knownWords: ["Known"],
+    learningWords: ["Learn"],
+    ignoredWords: ["Hide"],
+    preferredCategories: ["Slang"]
+  })),
+  {
+    selectedLevel: "level5",
+    knownWords: ["known"],
+    learningWords: ["learn"],
+    ignoredWords: ["hide"],
+    preferredCategories: ["slang"]
+  },
+  "Vocabulary profile restore parses valid JSON through profile normalization"
+);
+assert.throws(
+  () => parseVocabularyProfileBackupJson("{"),
+  /valid JSON/,
+  "Vocabulary profile restore rejects malformed JSON"
+);
+assert.throws(
+  () => parseVocabularyProfileBackupJson(JSON.stringify({ schemaVersion: 999 })),
+  /Unsupported vocabulary profile backup schema/,
+  "Vocabulary profile restore rejects unsupported schema versions"
+);
+assert.throws(
+  () => parseVocabularyProfileBackupJson(JSON.stringify({
+    schemaVersion: 1,
+    selectedLevel: "level3",
+    knownWords: [],
+    learningWords: [],
+    ignoredWords: [],
+    preferredCategories: [],
+    fileBlob: "blocked"
+  })),
+  /Unsupported vocabulary profile backup field/,
+  "Vocabulary profile restore rejects EPUB or book-context fields"
+);
+
 const originalWindow = globalThis.window;
 const originalDateNow = Date.now;
 const mockIndexedDB = createMockIndexedDB();
+const localStorageRows = new Map();
 globalThis.window = {
   indexedDB: mockIndexedDB,
   localStorage: {
-    getItem() {
-      return null;
+    getItem(key) {
+      return localStorageRows.has(key) ? localStorageRows.get(key) : null;
     },
-    setItem() {},
-    removeItem() {}
+    setItem(key, value) {
+      localStorageRows.set(key, String(value));
+    },
+    removeItem(key) {
+      localStorageRows.delete(key);
+    }
   }
 };
+
+Date.now = () => 4000;
+
+const savedAppPreferences = saveAppPreferences({
+  uiLanguage: "zh-CN",
+  hasChosenUiLanguage: true,
+  guideVisibleInLibrary: false,
+  guideVersion: "bilingual",
+  hasChosenGuideVersion: true
+});
+
+assert.equal(savedAppPreferences.uiLanguage, "zh-CN", "saveAppPreferences stores selected UI language");
+assert.equal(savedAppPreferences.guideVisibleInLibrary, false, "saveAppPreferences stores guide visibility");
+assert.deepEqual(
+  getAppPreferences(),
+  savedAppPreferences,
+  "getAppPreferences reads back local app preferences"
+);
+
+Date.now = () => 4100;
+assert.equal(
+  setUiLanguagePreference("en").uiLanguage,
+  "en",
+  "setUiLanguagePreference updates the local interface language"
+);
+assert.equal(
+  getAppPreferences().guideVersion,
+  "bilingual",
+  "legacy guideVersion field remains stored for compatibility without controlling Guide content"
+);
+
+Date.now = () => 4200;
+assert.equal(
+  setGuideVisibilityPreference(true).guideVisibleInLibrary,
+  true,
+  "setGuideVisibilityPreference restores Guide visibility without deleting Guide content"
+);
+
+Date.now = () => 4300;
+const guideVersionPreference = setGuideVersionPreference("chinese");
+assert.equal(guideVersionPreference.guideVersion, "chinese", "setGuideVersionPreference stores legacy Guide version field");
+assert.equal(guideVersionPreference.hasChosenGuideVersion, true, "setGuideVersionPreference records explicit legacy Guide choice");
 
 Date.now = () => 4000;
 

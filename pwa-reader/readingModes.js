@@ -1,3 +1,4 @@
+import { resolveGuideChapterContent } from "./guideBook.js";
 import { annotateVocabularyHtml, buildVocabularyPreview } from "./vocabEngine.js";
 import { createChinesePlaceholder, createClozePlaceholder } from "./translationEngine.js";
 
@@ -48,6 +49,28 @@ export function renderChapterForMode(chapter, mode, options = {}) {
     return {
       html: chapterErrorHtml(chapter),
       vocabularyPreview: []
+    };
+  }
+
+  if (options.isBuiltInGuide) {
+    const guideContent = resolveGuideChapterContent(chapter, mode);
+    const vocabularyPreview = buildVocabularyPreview(guideContent.plainText, vocabularyItems, {
+      limit: options.previewLimit || 20
+    });
+
+    if (mode === MODES.ENGLISH_STUDY) {
+      return {
+        html: annotateVocabularyHtml(guideContent.html || emptyChapterHtml(), vocabularyPreview, {
+          maxHighlights: options.maxHighlights || 80,
+          maxHighlightsPerTerm: options.maxHighlightsPerTerm || 3
+        }),
+        vocabularyPreview: chapter.vocabularyPreview || vocabularyPreview
+      };
+    }
+
+    return {
+      html: guideContent.html || emptyChapterHtml(),
+      vocabularyPreview: chapter.vocabularyPreview || vocabularyPreview
     };
   }
 
