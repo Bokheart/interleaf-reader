@@ -1,192 +1,72 @@
-# Interleaf Reader Handoff
+# Interleaf Reader — Engineering Handoff
 
-## Product requirements
+## 1. Purpose
 
-Canonical product specs live in:
+This document contains operational information for running, testing, smoke-checking, and troubleshooting Interleaf Reader.
 
-- `docs/INTERLEAF_READER_PRD.md` (English, canonical)
-- `docs/INTERLEAF_READER_PRD_CN.md` (Chinese mirror)
-- `docs/PRD_SOURCE_AUDIT.md` (implementation inventory input for the PRD)
+It owns:
 
-Before major feature work, read the PRD + `PRD_SOURCE_AUDIT.md`, then use this handoff for current implementation detail.
+* local startup;
+* runtime assumptions;
+* test commands;
+* smoke fixture generation;
+* browser verification procedures;
+* deployment verification entry points;
+* operational caveats.
 
-## Governance docs
+It does not define product scope, milestone priority, implementation status, architecture, or AI policy.
 
-Agent and contributor workflow:
+Use:
 
-- `AGENTS.md` — concise root instructions for future AI agents; read this first before repository work
-- `docs/PROJECT_STATE.md` — current phase, implemented vs planned, backlog
-- `docs/DECISION_LOG.md` — dated product/engineering decisions
-- `docs/AI_WORKFLOW_PROTOCOL.md` — reading order, task rules, safety constraints
+| Document | Responsibility |
+| --- | --- |
+| `docs/INTERLEAF_READER_PRD.md` | Product truth |
+| `docs/PROJECT_STATE.md` | Current implementation and verification truth |
+| `docs/MILESTONES.md` | Milestone scope and order |
+| `docs/DECISION_LOG.md` | Durable decisions |
+| `docs/ARCHITECTURE.md` | Current architecture |
+| `docs/DATA_MODEL.md` | Persisted-data contracts |
+| `AGENTS.md` | AI-assisted repository rules |
 
-Also read `PRIVACY.md` before adding analytics, upload flows, cloud sync, provider calls, or API key storage.
+The former AI workflow protocol is superseded.
 
-Contributors and AI agents should follow `CONTRIBUTING.md` plus `docs/AI_WORKFLOW_PROTOCOL.md`: one focused task, small diffs, no copyrighted sample content, no frontend secrets, and docs updated when behavior/status changes.
+---
 
-GitHub issue templates exist for bug reports, feature requests, and docs tasks, and `.github/pull_request_template.md` should be used for PR summaries, checks run, privacy/security notes, copyright/source-material checks, and follow-up risks.
+## 2. Runtime Assumptions
 
-Read root `AGENTS.md` first, then `PROJECT_STATE.md` and `AI_WORKFLOW_PROTOCOL.md` before starting an AI-assisted task.
+The standard local environment requires:
 
-GitHub Pages deployment is live and documented in `docs/GITHUB_PAGES_DEPLOYMENT.md`. Use branch/root Pages deployment: Source `Deploy from a branch`, branch `main`, folder `/ (root)`, then open `https://<owner>.github.io/<repo-name>/pwa-reader/`. A root `index.html` redirects to `./pwa-reader/`. Keep the app served from repo root so `pwa-reader/` can fetch `../data/`. `pwa-reader/manifest.webmanifest` provides minimal PWA metadata with relative `start_url`/`scope` and basic self-authored icons from `pwa-reader/assets/icons/`; there is still no service worker/offline cache.
+* Windows-compatible shell such as PowerShell;
+* Python available as `python` or `py`;
+* Node.js available as `node`;
+* a modern browser with ES modules, IndexedDB, localStorage, and download support;
+* a static HTTP server started from the repository root;
+* network access when CDN-hosted JSZip or epub.js must load.
 
-Read `docs/PWA_OFFLINE_CACHE_PLAN.md` before creating or registering any service worker. The first service worker must be app-shell-only, must not cache user EPUBs or private files, and must not add analytics, provider calls, cloud sync, or API key storage.
+The current application has:
 
-## Project Summary
+* no frontend build step;
+* no mandatory backend;
+* no account server.
 
-Interleaf Reader, formerly Slash Reader v2, is a web/PWA EPUB learning reader for non-native English readers. The target user wants to read English novels or fanfiction while staying inside the story instead of constantly leaving the reader to look up vocabulary.
+Do not place personal usernames or machine-specific absolute paths in canonical documentation.
 
-The core product goal is a controlled browser reading environment with learning overlays: EPUB import, chapter navigation, English Study Mode, vocabulary preview, inline vocabulary bubbles, and future translation modes.
+Opening `pwa-reader/index.html` through `file://` is not supported.
 
-The primary product path is the PWA reader. Enhanced EPUB export and AO3 import helper tooling are future optional features, not the main architecture.
+---
 
-## Current Implemented Features
+## 3. Run Locally
 
-- EPUB import through file picker and drag-and-drop.
-- User-facing browser title and Home branding now use Interleaf Reader. Legacy internal compatibility names such as the `slash-reader-v2` path, IndexedDB/localStorage namespaces, `window.slashReaderScriptStatus`, and `window.__slashReaderDebug` remain unchanged unless a future migration explicitly targets them.
-- EPUB import diagnostics panel showing file name, size, MIME type, extension, load step, epub.js/JSZip status, ArrayBuffer status, metadata, spine count, and last error.
-- epub.js loading path with JSZip preflight and clearer failure causes.
-- Chapter list generation from EPUB spine entries.
-- Fallback chapter labels such as `Chapter 1`, `Preface`, and `Title Page`.
-- Reader navigation with a custom clickable table of contents, synchronized hidden dropdown fallback, top and bottom Previous/Next controls, Back to Top, readable progress text, and first/last disabled states.
-- Reader chrome: tapping/clicking the reader text toggles lightweight top and bottom bars on mobile and desktop without covering the reading text. The top bar shows Home plus book/chapter context. The bottom bar shows Contents, Progress, Preview, and Mode. Contents opens the existing chapter list as a mobile left drawer and centered sheet on wider screens. Progress opens a bottom reader panel with current/target chapter title, `X / Y` chapter position, a chapter-index slider for fast chapter jumping, and Previous/Next chapter controls. The slider is a chapter navigator only, not a paragraph/scroll-position scrubber. Interactive targets such as vocabulary terms, bubbles, sheets, links, buttons, and form controls are ignored by the tap toggle.
-- Chapter sidebar click-to-jump bug is fixed. Root cause was `escapeHtml()` returning empty strings for rendered chapter attributes/labels, which blanked `data-chapter-id` and made `selectChapter("")` return early; temporary navigation instrumentation was removed after verification.
-- Local book persistence through IndexedDB. The last imported EPUB file blob, file metadata, EPUB title/author, chapter count, and reading progress are stored in the browser so refresh can restore the book without re-uploading.
-- Reading progress now includes optional chapter scroll data: `scrollTop`, clamped `scrollRatio`, and `updatedAt`. Restore uses the saved ratio after chapter render, so scroll-level resume is approximate and tolerant of layout/content height changes.
-- Reading progress can also include `currentMode`. Mode switching saves the current chapter/scroll before rendering the new mode, preserves the selected chapter, restores the approximate scroll ratio, and avoids overwriting progress with a placeholder-mode top position.
-- Restore UI offers `Restore`, `Dismiss`, and `Forget saved book`; after a book is saved/restored, `Forget saved book` clears the local EPUB and progress data for that saved book.
-- Minimal Home/Reader/Vocabulary Library view split: Home shows import, one primary reading action, Vocabulary Library summary, and a Local Library list from IndexedDB; Reader contains the existing reading workspace plus Back to Home; Vocabulary Library is a standalone app view for local vocabulary lists. Import and restore switch to Reader; Back to Home keeps the loaded book in memory.
-- View isolation regression guard: Home, Reader, and Vocabulary Library must be mutually exclusive. The app uses `getAppViewVisibility()` and `showView()` to keep inactive views hidden, and hidden app views must not intercept pointer events. A prior Vocabulary Library refactor risked breaking Reader navigation because new view bindings/view state were mixed into the old Home/Reader-only assumptions; future view additions must not let optional view controls abort Reader event binding or leave inactive views covering Reader controls.
-- Dev-only browser diagnostics are available from the console with `window.__slashReaderDebug.getDiagnostics()`. This read-only helper reports active app view, Home/Reader/Vocabulary Library hidden state, Reader navigation control counts, `bindEvents()` completion, and Vocabulary Library control counts. It is not user-facing and must not trigger imports, renders, storage writes, or profile loading; it exists to debug view-state and Reader navigation binding regressions.
-- Home primary reading action priority: `Resume current session` appears when a book is already loaded in memory and returns to Reader without re-import or IndexedDB restore. `Continue Reading` appears only when there is no in-memory book and a recent saved local book exists. Continue Reading is hidden when Resume is available to avoid duplicate large reading cards for the same book.
-- Home Local Library lists browser-local saved EPUB metadata only (title, author, progress, last read). Open restores a selected saved book through the existing IndexedDB path; Forget removes that saved book and its progress from this browser only.
-- Home includes a non-storage Reader guide entry implemented as a native expandable section, not as an imported EPUB or IndexedDB book. It summarizes EPUB import, chapter navigation, Contents / Progress / Preview / Mode, Vocabulary Preview and bubbles, Known / Save / Hide, Vocabulary Library, local-only storage, export basics, and clearly states that Chinese Reading Mode and Mixed Mode are placeholders.
-- Home Vocabulary Library summary is a small secondary card showing local vocabulary profile counts: Learning (`learningWords`), Mastered (`knownWords`), Hidden (`ignoredWords`), plus selected level. Its `View words` button switches to the independent Vocabulary Library view with Learning / Mastered / Hidden tabs and terms only. Local Library means saved EPUB books; Vocabulary Library means saved vocabulary profile state. The Vocabulary Library view is not a modal and includes a quiet note that word lists are saved locally in this browser on this device. It supports a compact manual Add to Learning form, small row-level Remove actions, and basic local export through Copy Learning, Copy All, and Download CSV. There is still no sync, review mode, external app integration, or definitions/examples.
-- Local Library Forget uses an in-app confirmation modal with Cancel / Forget book actions. Browser-native `confirm()` is no longer used for this path.
-- Mobile-first reader UX pass: narrow screens hide the permanent sidebar, give the reading pane full width, and use compact mobile controls for Chapters, Vocabulary Preview, and Reading Mode.
-- Mobile Chapters and Vocabulary Preview open as bottom sheets. The desktop sidebar remains available on wider screens.
-- Reader UX polish for AO3/web-novel-style vertical reading, active chapter highlighting, calmer empty states, and collapsed safer Book Glossary display.
-- Phase 1 reading behavior is vertical scrolling, not pagination. Page-flip pagination remains a future feature.
-- Chinese Reading Mode and Mixed Mode are still placeholders. Switching into either placeholder must preserve book, chapter, navigation state, and approximate reading position; it must not behave like a chapter change. Internal mode values may still use `cloze-mixed` for compatibility.
-- English Study Mode renders the selected chapter.
-- Plain text extraction from chapter HTML.
-- Vocabulary Preview from a curated MVP seed dataset: 77 IELTS/fiction/general vocabulary entries and 35 slang/idiom/phrasal verb entries.
-- Seed vocabulary entries include compact Chinese meanings, short English definitions, IELTS usage phrases where useful, priority scores, and `user_curated_seed` source tags.
-- Vocabulary seed quality can be checked with `python scripts\check_vocabulary_dataset.py`; it writes `generated/reports/vocabulary_quality_report.md`.
-- Vocabulary Preview rendering bug is fixed. Root cause was `vocabEngine.escapeHtml()` using a template pattern that blanked rendered fields, leaving dash-only cards.
-- Vocabulary Preview now applies stored profile filtering after chapter render. The app lazy-loads personalization-only helpers, reads the local vocabulary profile, resolves effective known words from the selected level baseline, hides known/ignored words, keeps learning words, and falls back to the original unfiltered Preview if helper loading, profile loading, baseline loading, or filtering fails. Personalization must never block app startup, EPUB import, or chapter rendering.
-- Vocabulary Preview cards have minimal `Known`, `Save`, and `Hide` actions. These update the local IndexedDB vocabulary profile: Known and Hide hide the term after refresh, while Save uses the existing `addLearningWord()` storage helper and keeps the term visible as a learning word. Saved learning words show a small `Saved` state in Preview. Storage function names and profile schema are unchanged. The Vocabulary Library view now offers minimal local list management and term-only local export, but still has no definitions/examples, review mode, external app integration, or external sync.
-- Underlined vocabulary terms in chapter text.
-- Click/tap vocabulary bubble with lightweight fields only: term, Chinese meaning, English definition when available, and IELTS usage when available. Tapping the same underlined term again closes the bubble; tapping a different term switches it.
-- Vocabulary Preview remains the place for richer study details such as source sentence, context note, type badge, usage note, examples, and priority/source metadata.
-- This seed is not a full dictionary. Source PDFs are not copied into the dataset; dictionary providers can later enrich missing fields, but any ECDICT or English-English provider data should be compiled into a small app-ready subset instead of loaded directly in the PWA.
-- Book Glossary skeleton with rule-based candidate extraction and mock classifier.
-- In-memory Book Glossary panel for current loaded chapter text.
-- IndexedDB vocabulary profile storage helpers for one local profile. They support a default `level3` profile, normalized save/readback, comfort-level updates, and known/learning/ignored word helpers used by the minimal Preview actions.
-- Lightweight tests for vocabulary matching, glossary candidate extraction, navigation helpers, storage helpers, and Home entry state/copy helpers.
-- Repeatable copyright-safe EPUB smoke fixture workflow: `scripts/generate_smoke_epub.py` writes `tests/fixtures/interleaf_smoke.epub` for M1 browser import/navigation/Preview checks.
-- PWA icon generation uses `scripts/generate_pwa_icons.py` to create the self-authored SVG/PNG icons in `pwa-reader/assets/icons/`.
-
-## Current Placeholders / Not Implemented
-
-- Chinese Reading Mode is placeholder only.
-- Mixed Mode is placeholder only. Internal code/data compatibility names may still use `cloze-mixed` and `clozeHtml`.
-- No real DeepL integration.
-- No real GPT glossary classifier.
-- No enhanced EPUB export.
-- No AO3 browser extension.
-- No cloud library or cross-device sync.
-- IndexedDB persistence stores saved EPUBs and reading progress locally in this browser on this device.
-- Local Library list UI is browser-local only. IndexedDB stores EPUB blobs and reading progress in this browser; there is no cloud sync, account system, or cross-device library.
-- Forget/Delete in Home Local Library or Reader removes that saved EPUB and progress from IndexedDB. An in-memory loaded book may remain open until refresh.
-- No user glossary override editing UI.
-- No backend server or login.
-- Vocabulary personalization planning, level baseline helpers, IndexedDB profile storage helpers, live Preview filtering, minimal Preview actions, saved-state badges, the Home count summary, and an independent Vocabulary Library view exist. Vocabulary Library supports local manual Add to Learning, row-level Remove actions, and term-only copy/CSV export. There is still no external dictionary sync, batch import, review mode, rich metadata export, definitions/examples, or comfort-level onboarding UI.
-
-## Planning Documents
-
-- `docs/VOCABULARY_PERSONALIZATION_PLAN.md` — comfort levels, user vocabulary profile, scoring, Preview/bubble rules, enrichment stages, and Phase 2 roadmap for personalized vocabulary learning.
-- `docs/VOCABULARY_INTERACTION_SEMANTICS.md` — product semantics for Vocabulary Preview vs Vocabulary Library / 生词本, vocabulary filtering, candidate/learning/mastered/known/ignored lifecycle, Known / Save / Hide / Mastered behavior, and future source grouping. Do not expand vocabulary UI until the Known / Save / Hide / Mastered semantics are followed.
-- `data/levels/level1_basic_words.json` … `level5_basic_words.json` — placeholder comfort-level known-word baseline skeletons aligned with the personalization plan. Small hand-curated seed lists only; not complete frequency lists; not wired into runtime yet.
-- `pwa-reader/levelBaselineEngine.js` — pure helper module for normalizing vocabulary profile word lists, resolving effective known words from level baselines plus user known/ignored/learning words, loading/validating `data/levels/*.json` via `loadLevelBaseline(levelId, { fetchImpl })`, and combining both through `loadEffectiveKnownWordsForProfile(userProfile, options)`. It is integrated with Preview through a best-effort, lazy-loaded app path.
-- `pwa-reader/storage.js` also owns the local vocabulary profile IndexedDB store. The profile helpers are used by the minimal Preview actions and are intentionally not connected to candidate extraction yet. `vocabEngine.js` has pure Preview filtering helpers used by the live Preview path.
-
-## Architecture Overview
-
-### `pwa-reader/app.js`
-
-Main browser controller. Owns UI state, event wiring, Home/Reader view switching, import flow, selected chapter, reading mode, guarded mode switching, Vocabulary Preview rendering, Book Glossary rendering, bubble display, diagnostics panel updates, chapter navigation controls, mobile tap controls, and scroll-progress save/restore.
-
-### `pwa-reader/epubLoader.js`
-
-EPUB boundary module. Accepts a browser `File`, validates readable EPUB/ZIP structure, creates the epub.js book object, loads metadata/navigation/spine, normalizes chapter records, and loads chapter HTML on demand.
-
-### `pwa-reader/vocabEngine.js`
-
-Vocabulary matching module. Loads vocabulary/slang/idiom JSON, normalizes terms, finds non-duplicate chapter matches, extracts source sentences, builds Vocabulary Preview items, exposes pure personalization filtering/explanation helpers, and annotates chapter HTML with clickable underlined terms. `app.js` now calls the filtering helper for live Preview rendering after resolving the stored vocabulary profile.
-
-### `pwa-reader/levelBaselineEngine.js`
-
-Pure vocabulary personalization helper. Normalizes word lists and user profile shapes, resolves effective known words from level baseline + known + ignored lists while excluding learning words, exposes summary counts, loads level baseline JSON with schema validation through injectable `fetchImpl`, and provides `loadEffectiveKnownWordsForProfile(userProfile, options)` to load the selected baseline and return effective known words plus counts. Not integrated with Preview yet.
-
-### `pwa-reader/glossaryEngine.js`
-
-Book Glossary Builder skeleton. Extracts rule-based candidates from loaded chapter text, merges Global Glossary protected terms, and classifies candidates with a mock local classifier. No API calls.
-
-### `pwa-reader/navigationEngine.js`
-
-Pure navigation helper module. Generates fallback chapter labels, normalizes chapter lists, computes current/adjacent chapter indexes, and formats progress text.
-
-### `pwa-reader/readingModes.js`
-
-Mode rendering boundary. English Study Mode renders original HTML plus vocabulary annotations. Chinese and Mixed modes intentionally return placeholders. Internal mode id `cloze-mixed` remains unchanged.
-
-### `pwa-reader/translationEngine.js`
-
-Future translation boundary. Loads protected terms and exposes placeholder translation request/output helpers. No provider integration yet.
-
-### `pwa-reader/storage.js`
-
-Small namespaced `localStorage` wrapper plus IndexedDB helpers for saved EPUB blobs, reading progress, optional mode/scroll progress fields, scroll ratio helpers, lightweight saved-book library metadata via `listSavedBooks()`, and one local vocabulary user profile via `getVocabularyProfile()` / `saveVocabularyProfile()`.
-
-### `data/vocabulary.json`
-
-Seed IELTS/general vocabulary items used by English Study Mode.
-
-### `data/protected_terms.json`
-
-Global Glossary seed. Contains general protected terms and preservation flags. Future translation prep should combine this with Book Glossary and User Overrides.
-
-### `data/slang_idioms.json`
-
-Seed slang, idiom, and fandom-like phrase vocabulary for preview and matching.
-
-## Data Flow
-
-```text
-EPUB file
-  -> import diagnostics
-  -> epubLoader
-  -> normalized chapter list
-  -> selected chapter render
-  -> chapter HTML
-  -> plain text extraction
-  -> vocabulary matching
-  -> Vocabulary Preview
-  -> underlined chapter terms
-  -> click/tap bubble
-  -> Book Glossary candidate generation from loaded plain text
-  -> scroll progress save as chapter id/index plus approximate scroll ratio
-```
-
-Book Glossary output is not used for translation yet. It is intended to feed future protected-term handling for DeepL/local translation, Chinese Reading Mode, and Mixed Mode.
-
-## How To Run Locally
-
-From PowerShell:
+From the repository root:
 
 ```powershell
-cd "D:\BookHeart\slash reader\slash-reader-v2"
 python -m http.server 8000
+```
+
+Alternative launcher:
+
+```powershell
+py -m http.server 8000
 ```
 
 Open:
@@ -195,183 +75,367 @@ Open:
 http://127.0.0.1:8000/pwa-reader/
 ```
 
-Serve from the project root, not from `pwa-reader/`, because the app fetches JSON from `data/`. Docs use port `8000` as the recommended default; any other free local port can work if the server starts from the repo root.
+The port may be changed.
 
-If the UI looks stale, stop old local servers, use `127.0.0.1` instead of mixing hostnames, hard-refresh with Ctrl+F5 or enable DevTools Disable cache, and try a cache-busting URL such as `http://127.0.0.1:8000/pwa-reader/?v=manual-test`.
+Always serve from the repository root because the application loads shared resources from directories such as `data/`.
 
-## Smoke EPUB Fixture
+Use one hostname consistently.
 
-Generate the repeatable browser smoke-test EPUB:
-
-```powershell
-cd "D:\BookHeart\slash reader\slash-reader-v2"
-python scripts\generate_smoke_epub.py
-```
-
-If plain `python` resolves incorrectly, use the bundled runtime:
-
-```powershell
-C:\Users\Susie\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe scripts\generate_smoke_epub.py
-```
-
-The script writes:
+These are different browser origins:
 
 ```text
-tests\fixtures\interleaf_smoke.epub
+http://localhost:8000/
+http://127.0.0.1:8000/
 ```
 
-The fixture book is `Interleaf Smoke Test Book` by `Interleaf Test Fixture`. It contains self-authored test text only and intentionally includes vocabulary seed terms such as `anxious`, `reluctant`, `glance`, `mutter`, `tension`, `figure out`, `bring up`, and `back off`.
+They have separate IndexedDB and localStorage data.
 
-Use it for M1 browser smoke checks:
+---
 
-1. Start the local static server from the project root.
-2. Open `http://127.0.0.1:8000/pwa-reader/`.
-3. Import `tests\fixtures\interleaf_smoke.epub`.
-4. Confirm Reader opens, three chapters appear, Vocabulary Preview has matches, bubbles work, Local Library save/restore works, and Chinese/Mixed modes remain placeholders.
+## 4. Fresh-Load Troubleshooting
 
-Reader chrome / Contents smoke checklist:
+When the interface appears stale, incomplete, or unresponsive:
 
-1. Start `python -m http.server 8000` from the repo root.
-2. Open `http://127.0.0.1:8000/pwa-reader/`.
-3. Import `tests\fixtures\interleaf_smoke.epub`.
-4. Open Reader.
-5. Click or tap the reading area and confirm only the top/bottom reader chrome appears.
-6. Click Contents and confirm the chapter list opens.
-7. Jump to another chapter.
-8. Click Progress and confirm the bottom sheet shows chapter title, `X / Y`, a chapter slider, and Previous / Next.
-9. Drag the slider and confirm the target chapter label updates, then release and confirm it jumps once to the selected chapter.
-10. Confirm Previous and Next still work.
-11. Confirm Vocabulary Preview and the vocabulary bubble still work.
-12. Confirm Home still works.
+1. Stop duplicate local HTTP servers.
+2. Confirm the server started from the repository root.
+3. Open the intended origin.
+4. Hard-refresh with `Ctrl+F5`.
+5. Open DevTools and enable **Disable cache**.
+6. Try a cache-busting URL:
 
-## Browser Diagnostics Smoke Test
+```text
+http://127.0.0.1:8000/pwa-reader/?v=manual-test
+```
 
-Open DevTools Console and run:
+7. Check Console for:
+   * syntax errors;
+   * local module import failures;
+   * circular-dependency errors;
+   * missing CDN globals;
+   * initialization exceptions.
+8. Check Network for:
+   * HTTP 200 on application modules;
+   * successful `data/` JSON requests;
+   * JSZip and epub.js availability;
+   * usable JavaScript MIME types.
+9. Confirm the expected browser origin.
+10. Confirm module evaluation completed before debugging individual controls.
+
+If `app.js` or one of its static imports fails, event binding and startup logic may never run.
+
+---
+
+## 5. Automated Checks
+
+Run from the repository root.
+
+### JavaScript syntax
+
+```powershell
+Get-ChildItem pwa-reader -Filter *.js |
+  ForEach-Object { node --check $_.FullName }
+```
+
+Single-file example:
+
+```powershell
+node --check pwa-reader/app.js
+```
+
+Syntax checks confirm parsing only.
+
+### Current Node tests
+
+```powershell
+$tests = @(
+  "tests/vocabEngine.test.mjs",
+  "tests/glossaryEngine.test.mjs",
+  "tests/navigationEngine.test.mjs",
+  "tests/storage.test.mjs",
+  "tests/homeState.test.mjs",
+  "tests/levelBaselineEngine.test.mjs"
+)
+
+foreach ($test in $tests) {
+  node $test
+  if ($LASTEXITCODE -ne 0) {
+    throw "Test failed: $test"
+  }
+}
+```
+
+The suites may also be run individually with `node`.
+
+Pure-module tests do not replace browser integration checks.
+
+### Vocabulary dataset validation
+
+Run only when vocabulary data or dataset logic changes:
+
+```powershell
+python scripts/check_vocabulary_dataset.py
+```
+
+Alternative:
+
+```powershell
+py scripts/check_vocabulary_dataset.py
+```
+
+The checker may write generated output.
+
+Do not run it for unrelated documentation work.
+
+### Git whitespace check
+
+```powershell
+git diff --check
+```
+
+On Windows, LF-to-CRLF warnings may appear without indicating a whitespace error.
+
+Do not ignore actual `trailing whitespace` or conflict-marker failures.
+
+---
+
+## 6. Copyright-Safe Smoke Fixture
+
+Generate:
+
+```powershell
+python scripts/generate_smoke_epub.py
+```
+
+Alternative:
+
+```powershell
+py scripts/generate_smoke_epub.py
+```
+
+Expected output:
+
+```text
+tests/fixtures/interleaf_smoke.epub
+```
+
+Use this fixture instead of private EPUBs, paid books, fanfiction exports, copyrighted samples, or personal reading files.
+
+---
+
+## 7. Core Browser Smoke
+
+This is a procedure, not an automatic claim that the current branch passed.
+
+### Startup and Home
+
+1. Start the server from repository root.
+2. Open the canonical local origin.
+3. Confirm no startup-blocking Console error.
+4. Confirm Home is visible.
+5. Confirm the Guide entry does not block startup.
+
+### EPUB import and Reader
+
+6. Import `tests/fixtures/interleaf_smoke.epub`.
+7. Confirm Reader opens.
+8. Confirm chapter content renders.
+9. Use Contents to open another chapter.
+10. Test Previous and Next.
+11. Open Progress and test its chapter controls.
+12. Return to the chapter without losing selected-book state.
+
+### Vocabulary
+
+13. Confirm Vocabulary Preview where fixture terms match.
+14. Open an interactive term.
+15. Confirm the bubble opens.
+16. Confirm supported close behavior.
+17. Test Known, Save, and Hide as relevant.
+18. Open Vocabulary Library.
+19. Manually add a safe test term.
+20. Confirm it persists in the expected collection.
+21. Test the export action affected by the task.
+22. Confirm output or download completes without a blocking error.
+
+### Guide, Settings, and language
+
+23. Open the built-in Guide.
+24. Confirm Reader routing and Guide navigation.
+25. Hide and restore the Guide when relevant.
+26. Open Settings and Help.
+27. Change Interface Language when relevant.
+28. Confirm imported book title, author, chapters, and body content remain unchanged.
+29. Confirm Interface Language does not change Reading Mode.
+
+### Persistence and Local Library
+
+30. Return Home.
+31. Confirm the book appears in Local Library.
+32. Refresh.
+33. Confirm expected book and progress restoration.
+34. Open Forget Book.
+35. Confirm cancel.
+36. Confirm destructive action only when using disposable smoke data.
+
+### Vocabulary backup and restore
+
+37. Export a vocabulary-profile backup.
+38. Inspect filename and payload shape when relevant.
+39. Restore a valid disposable profile.
+40. Confirm supported fields are replaced.
+41. Test malformed restore and confirm no mutation.
+
+### Mode honesty
+
+42. Open Chinese Reading Mode for the imported smoke book.
+43. Confirm explicit placeholder behavior.
+44. Open Mixed Mode.
+45. Confirm explicit placeholder behavior.
+46. Confirm neither claims provider output.
+
+### Mobile
+
+47. Repeat the affected flow at an appropriate mobile viewport.
+48. Check for horizontal overflow, inaccessible controls, and popup placement.
+
+### Completion
+
+49. Review Console.
+50. Record skipped steps as unverified, not passed.
+
+---
+
+## 8. Targeted Verification
+
+Use the smallest set that covers the changed risk.
+
+| Change | Minimum verification |
+| --- | --- |
+| Reader UI or navigation | Affected Reader browser flow |
+| Storage or backup | Storage tests plus browser save, refresh, restore, malformed-input, and failure checks |
+| Vocabulary logic | Relevant pure tests; browser Preview or Library when integration changes |
+| Localization | Every affected language and surface |
+| Mobile UI | Appropriate mobile viewport |
+| Guide | Open, navigation, hide/restore, mode separation |
+| PWA or deployment | Official URL, assets, manifest, update behavior, offline boundary |
+| Documentation only | No full application test unless executable claims or commands changed |
+
+For broad cross-module changes, run all current syntax and Node tests before browser smoke.
+
+---
+
+## 9. Diagnostics
+
+A development helper may be available:
 
 ```js
 window.__slashReaderDebug.getDiagnostics()
 ```
 
-On Home:
+It may expose information about:
 
-- `activeView` should be `home`.
-- `views.home.exists` should be true and `views.home.hidden` should be false.
-- `views.reader.hidden` and `views.vocabularyLibrary.hidden` should be true.
-- `readerNavigation.bindEventsCompleted` should be true.
+* active app view;
+* visible and hidden views;
+* event binding;
+* navigation controls;
+* selected control presence.
 
-On Reader:
+Treat returned fields as implementation details.
 
-- `activeView` should be `reader`.
-- `views.reader.exists` should be true and `views.reader.hidden` should be false.
-- `views.home.hidden` and `views.vocabularyLibrary.hidden` should be true.
-- `readerNavigation.previousButtonsFound` and `readerNavigation.nextButtonsFound` should be greater than zero.
-- `readerNavigation.chapterListFound` should be true when the chapter list markup is present.
+If the helper is unavailable:
 
-On Vocabulary Library:
+1. confirm the expected source loaded;
+2. confirm module evaluation completed;
+3. inspect import and initialization failures.
 
-- `activeView` should be `vocabulary-library`.
-- `views.vocabularyLibrary.exists` should be true and `views.vocabularyLibrary.hidden` should be false.
-- `views.home.hidden` and `views.reader.hidden` should be true.
+Diagnostics do not prove complete user behavior.
 
-Regression workflow:
+---
 
-1. Hard refresh the app.
-2. Run diagnostics on Home.
-3. Import or restore `Well_Jung.epub`.
-4. Open Reader.
-5. Run diagnostics.
-6. Click Next chapter.
-7. Go Home.
-8. Open Vocabulary Library.
-9. Run diagnostics.
-10. Back to Home.
-11. Resume Reader.
-12. Confirm Next chapter still works.
+## 10. Deployment Verification
 
-Troubleshooting notes:
+Deployment setup belongs in:
 
-- If buttons do not respond but diagnostics shows the wrong `activeView`, inspect `showView()`.
-- If an inactive view is visible or not hidden, inspect app view hidden state and CSS.
-- If `bindEventsCompleted` is false, inspect `bindEvents()` for null element binding errors.
-- If Previous/Next count is zero, inspect Reader control selectors and markup.
-- Optional modules must remain lazy-loaded or isolated behind fallback so startup, EPUB import, and chapter render do not depend on them.
-
-## How To Run Tests
-
-Use the bundled Node runtime:
-
-```powershell
-cd "D:\BookHeart\slash reader\slash-reader-v2"
-C:\Users\Susie\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe tests\vocabEngine.test.mjs
-C:\Users\Susie\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe tests\glossaryEngine.test.mjs
-C:\Users\Susie\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe tests\navigationEngine.test.mjs
-C:\Users\Susie\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe tests\storage.test.mjs
-C:\Users\Susie\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe tests\homeState.test.mjs
+```text
+docs/GITHUB_PAGES_DEPLOYMENT.md
 ```
 
-For vocabulary dataset quality:
+Current deployment status belongs in:
 
-```powershell
-cd "D:\BookHeart\slash reader\slash-reader-v2"
-python scripts\check_vocabulary_dataset.py
+```text
+docs/PROJECT_STATE.md
 ```
 
-For JS syntax checks:
+HTTP 200 proves only that a URL responded.
 
-```powershell
-cd "D:\BookHeart\slash reader\slash-reader-v2"
-Get-ChildItem -Path "pwa-reader" -Filter "*.js" | ForEach-Object { C:\Users\Susie\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe --check $_.FullName }
-```
+It does not prove:
 
-## Known Issues
+* JavaScript initialized;
+* CDN dependencies loaded;
+* data paths resolved;
+* EPUB import worked;
+* IndexedDB persisted;
+* Reader interactions passed.
 
-- The reader currently depends on CDN scripts for JSZip and epub.js.
-- Browser visual automation may not run in the Windows sandbox, so manual browser checks are still important.
-- No translation provider exists yet.
-- No API keys should exist in this frontend.
-- `PRIVACY.md` documents the current local-first MVP. Future analytics, upload flows, cloud sync, translation provider calls, or API key storage require a `PRIVACY.md` update and a `docs/DECISION_LOG.md` entry before implementation.
-- IndexedDB stores EPUB files locally in the user's browser only. There is no backend, login, cloud sync, cross-device sync, or multi-book shelf UI.
-- Users can clear saved EPUB/progress data with `Forget saved book` in the restore/saved-book panel.
-- EPUB compatibility is limited by epub.js and the current simple spine/chapter loading path.
-- Navigation is chapter-based with approximate scroll-ratio restore. There is no page-flip pagination or EPUB CFI position tracking yet.
-- Mobile overlay controls are functional and lightly polished, but full novel-reader visual design remains future work.
-- The visible chapter selector is a custom list because native select rendering was unreliable in the browser environment.
-- Book Glossary is generated from loaded chapter text only, not the entire EPUB upfront.
-- `git status` may be unavailable in the sandbox due to local permission restrictions.
+A deployed functional check should:
 
-## Development Rules For Future Agents
+1. use the copyright-safe smoke fixture;
+2. avoid private books and data;
+3. inspect Console and Network;
+4. verify the affected workflow;
+5. confirm relative asset paths;
+6. distinguish availability from functional verification.
 
-- Do not implement DeepL directly in the browser.
-- Do not expose API keys in frontend code.
-- Do not add analytics, upload flows, cloud sync, translation provider calls, or API key storage without updating `PRIVACY.md` and `docs/DECISION_LOG.md`.
-- Do not casually rename compatibility surfaces such as IndexedDB database names, object stores, localStorage prefixes, debug namespaces, script-status globals, CSS hooks, or repo paths during user-facing copy cleanup.
-- Do not delete or regress working Phase 1 features: import diagnostics, English Study Mode, Vocabulary Preview, underlines, bubbles, Book Glossary skeleton, and navigation.
-- Optional modules such as vocabulary personalization, translation providers, and enrichment helpers must be lazy-loaded or isolated behind safe fallback. EPUB import and chapter render are primary paths and must not depend on optional module success.
-- Keep changes small and testable.
-- Add tests for pure logic modules.
-- Preserve the PWA as the primary product path.
-- Treat enhanced EPUB export as a future feature.
-- Treat the AO3 extension as a future import helper, not the main product.
-- Keep Chinese Reading Mode and Mixed Mode placeholder-only until translation architecture is ready. Do not rename internal `cloze-mixed` / `clozeHtml` compatibility fields during copy-only cleanup.
-- Prefer module boundaries already present instead of putting all logic into `app.js`.
+---
 
-## Next Recommended Phases
+## 11. Known Operational Caveats
 
-1. Reader Navigation polish
-2. Handoff docs
-3. Persistent reading progress
-4. Translation architecture skeleton
-5. Translation demo panel
-6. Secure local translation provider
-7. Real DeepL one-paragraph test
-8. Real DeepL one-chapter test
-9. Chinese Reading Mode
-10. Mixed Mode
-11. Enhanced EPUB export
-12. AO3 import helper extension
+### CDN dependencies
 
-## Future Agent Notes
+JSZip and epub.js may load from a CDN.
 
-The most important constraint is security: translation provider keys must not be placed in frontend JavaScript. Add a secure local provider or backend boundary before any real DeepL call.
+Network restrictions, content blockers, proxies, or CDN outages can prevent EPUB import.
 
-The second most important constraint is product direction: Interleaf Reader is a controlled PWA reader first. Do not pivot back to generated EPUB as the primary product path.
+Confirm dependency availability before treating import failure as application logic failure.
+
+### Origin-scoped storage
+
+Hostname, port, protocol, browser profile, and private-browsing context affect which local data is visible.
+
+### Approximate progress restoration
+
+Viewport, fonts, layout, chapter HTML, and annotations may move the restored position.
+
+### Compatibility identifiers
+
+Historical values such as `cloze-mixed`, `clozeHtml`, and Slash-era storage or debug names may remain intentionally.
+
+### Built-in Guide
+
+The Guide is a virtual book, not a user-imported EPUB blob.
+
+Guide-authored multilingual content does not prove imported-book multilingual generation.
+
+### Placeholder modes
+
+Chinese Reading Mode and Mixed Mode for imported books remain placeholders unless `docs/PROJECT_STATE.md` records a later verified implementation.
+
+### Browser automation
+
+Automation availability differs by local and sandbox environment.
+
+When automation is unavailable, record the limitation and perform required manual checks.
+
+### Offline status
+
+Do not assume service-worker or offline startup support.
+
+Use `docs/PROJECT_STATE.md` for current status.
+
+---
+
+## 12. Update Rule
+
+Update this file only when startup, launchers, local URL structure, serving directory, test commands, fixture generation, browser smoke, deployment verification, diagnostics, or operational caveats materially change.
+
+Do not use this file as a product specification, roadmap, milestone log, or implementation-status source.
