@@ -165,23 +165,35 @@ Interleaf Reader currently has an English-reading product baseline centered on:
 * manual vocabulary capture;
 * vocabulary export.
 
-The reproducible runtime baseline now also contains Guide, Settings, Help, interface-language foundations, additional export, and vocabulary-profile backup and restore.
+The tracked runtime also contains Guide, Settings, Help, interface-language foundations, additional export, and vocabulary-profile backup and restore.
 
-The current runtime baseline is recorded in:
+The historical M2 runtime-baseline commit is:
 
 ```text
 91d6914 — feat: establish reproducible M2 runtime baseline
 ```
 
-It has been pushed to `origin/feature/m2-reader-toc`.
+The current clean runtime candidate commit is:
+
+```text
+817d902 — design: preserve vocabulary preview responsive prototype
+```
+
+Commit `91d6914` is an ancestor of `817d902`. The current candidate is pushed to `origin/feature/m2-reader-toc`, but it has not yet passed fresh closure-candidate verification or been accepted as the R0 closure baseline.
+
+The responsive Vocabulary Preview prototype retained under `design-lab/` is version-controlled non-runtime experimental material. It is not imported by production, is not approved implementation, and does not count as milestone-completion evidence.
+
+A separate six-file Guide redesign and interaction draft was preserved externally and removed from the R0 working tree. It remains unapproved R1 work. Complete Interface Language localization is also R1 work and has not started.
 
 Current verification evidence and limitations are maintained in `docs/PROJECT_STATE.md`.
 
 Chinese Reading Mode and imported-book Mixed Mode remain placeholders.
 
-M2 contains substantial implemented and verified runtime work but is not considered closed.
+M2 contains substantial implemented and historically verified runtime work but is not considered closed.
 
-The project is not accepting new feature development while the documentation/history baseline remains unresolved.
+R0 remains Active. The project is not accepting R1 implementation until clean-baseline automated and browser verification, baseline locking, and explicit product-owner acceptance satisfy the R0 exit criteria.
+
+R1 remains Next. R2 remains the Following planned milestone and has not started.
 
 ---
 
@@ -213,9 +225,17 @@ The following R0 work is complete:
 * previously untracked Guide and locale modules were added to Git;
 * the runtime baseline was verified;
 * the runtime baseline was committed as `91d6914`;
-* the runtime baseline was pushed to the remote branch.
+* the runtime baseline was pushed to the remote branch;
+* subsequent R0 governance, canonical-document, persistence, and archive reconciliation was committed;
+* the Guide vocabulary-annotation regression repair was committed;
+* unresolved localization design records were archived;
+* the responsive Vocabulary Preview design-lab prototype was retained as version-controlled non-runtime experimentation;
+* the unapproved Guide redesign draft was preserved outside the repository and removed from the R0 working tree;
+* the repository working tree was reconciled to clean candidate HEAD `817d902`.
 
 These completed items do not by themselves close R0.
+
+Fresh automated and desktop/mobile browser verification against the clean candidate, final baseline locking, and explicit product-owner acceptance remain required.
 
 ### Included
 
@@ -303,6 +323,8 @@ R0 may close only when all of the following are true:
 ### Entry Condition
 
 R1 may begin only after R0 is closed and the reproducible baseline is locked.
+
+R1 implementation has not started. The externally preserved Guide draft is deferred review input, not accepted implementation or milestone evidence.
 
 ### User Outcome
 

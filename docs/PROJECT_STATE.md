@@ -1,6 +1,6 @@
 # Interleaf Reader — Project State
 
-**Last updated:** 2026-06-20
+**Last updated:** 2026-06-21
 **Canonical product specification:** `docs/INTERLEAF_READER_PRD.md`
 **Active control phase:** `R0 — Project Truth and Structure Reset`
 
@@ -11,19 +11,19 @@
 | Field | Current state |
 | --- | --- |
 | **Repository branch** | `feature/m2-reader-toc` |
-| **HEAD** | `91d6914` — `feat: establish reproducible M2 runtime baseline` |
-| **Remote status** | Pushed to `origin/feature/m2-reader-toc` |
-| **Runtime baseline** | Reconciled, verified, committed, and pushed |
-| **Working tree** | Dirty; remaining changes are documentation, archive moves, and unresolved design material |
-| **Documentation baseline** | Rebuilt in the working tree but not yet fully reconciled and committed |
+| **Runtime candidate commit** | `817d902` — `design: preserve vocabulary preview responsive prototype` |
+| **Remote status** | `817d902` is pushed to `origin/feature/m2-reader-toc` |
+| **Runtime baseline** | Clean R0 closure candidate; not yet accepted or locked as the closure baseline |
+| **Working tree** | Clean at reconciliation preflight; no tracked, staged, or untracked changes |
+| **Documentation baseline** | Canonical and historical archive work is committed; current-state references are being reconciled to `817d902` |
 | **Current delivery status** | M2 remains unresolved and is not formally closed |
-| **Localization status** | Foundation implemented; complete coverage remains unfinished |
+| **Localization status** | Interface-language foundation exists; complete localization is planned for R1 and has not started |
 | **Feature-development status** | Paused during R0 |
-| **Current priority** | Finalize the canonical documentation and historical archive baseline |
+| **Current priority** | Run fresh clean-baseline R0 closure-candidate verification against `817d902` |
 
 The earlier runtime reproducibility risk is resolved. The current application no longer depends on untracked Guide or localization modules.
 
-R0 is not closed. The remaining work concerns documentation truth, historical archive pairing, unresolved design references, and local-only artifacts.
+R0 remains Active and is not ready to close. Documentation and archive reconciliation is committed, but fresh closure-candidate verification, final baseline locking, and explicit product-owner acceptance remain outstanding.
 
 ---
 
@@ -67,11 +67,11 @@ The product remains separate from:
 
 ---
 
-## 3. Reconciled Runtime Baseline
+## 3. Current Clean Candidate Baseline
 
-**Status: Verified and committed**
+**Status: Clean candidate; not yet accepted as the R0 closure baseline**
 
-Commit `91d6914` establishes the reproducible runtime baseline for the current M2 working-copy implementation.
+Commit `91d6914` is the historical M2 runtime-baseline commit. It is an ancestor of current HEAD `817d902`, with ten committed changes following it. Those commits contain R0 governance and archive reconciliation, canonical-document alignment, architecture and persistence documentation, the Guide vocabulary-annotation regression repair, archived localization design records, and the retained non-runtime design-lab prototype.
 
 The baseline includes:
 
@@ -99,17 +99,21 @@ The four modules that were previously untracked runtime dependencies are now tra
 * `pwa-reader/locales/en.js`
 * `pwa-reader/locales/zh-CN.js`
 
-The baseline was pushed to:
+The current clean runtime candidate commit is pushed to:
 
 ```text
-origin/feature/m2-reader-toc
+817d902 — origin/feature/m2-reader-toc
 ```
+
+Commit `817d902` retains the responsive Vocabulary Preview prototype under `design-lab/` as version-controlled non-runtime experimental material. Production files do not import it. It is not approved runtime implementation and does not count as milestone-completion evidence.
+
+A separate six-file Guide redesign and interaction draft was preserved outside the repository, verified as recoverable in an isolated worktree, and removed from the R0 working tree. It is unapproved R1 work, is not part of `817d902`, and leaves Guide chapter-ID and editorial decisions deferred.
 
 ---
 
-## 4. Verification Evidence
+## 4. Historical Verification Evidence
 
-**Status: Verified within the recorded environment**
+**Status: Historical evidence; not current R0 closure-candidate verification**
 
 | Check | Result |
 | --- | --- |
@@ -140,15 +144,23 @@ Two apparent failures were traced to test timing rather than product defects:
 
 The sequential user flows passed when synchronized against persisted IndexedDB state. No application fix was required.
 
+The preserved Guide draft also passed all seven Node suites in its isolated verification worktree. That result establishes patch recoverability only; it does not verify clean HEAD `817d902` and does not count as R0 closure-candidate evidence.
+
 ---
 
 ## 5. Remaining Verification Limits
 
-The runtime-baseline checks do not establish complete M2 acceptance.
+The historical runtime-baseline checks do not establish current R0 closure readiness for clean HEAD `817d902`.
 
 The following remain unverified or incomplete:
 
-* EPUB import in the validation environment, because network policy blocked CDN-hosted JSZip and epub.js;
+* the full automated check set against the clean closure-candidate tree;
+* desktop browser smoke against `817d902`;
+* mobile-sized browser smoke against `817d902`;
+* copyright-safe EPUB import in an environment where required dependencies are available;
+* chapter rendering and navigation in the closure-candidate browser flow;
+* persistence and restore behavior where required by the smoke flow;
+* confirmation that no P0 startup, import, rendering, navigation, persistence, or data-loss regression remains;
 * non-Chromium browser behavior;
 * complete interface-localization coverage;
 * complete accessibility coverage;
@@ -158,6 +170,8 @@ The following remain unverified or incomplete:
 * real imported-book Chinese Reading Mode;
 * real imported-book Mixed Mode;
 * translation-provider behavior.
+
+R0 also still requires a final reproducible baseline lock and explicit product-owner acceptance before it may close.
 
 These limits must not be represented as completed functionality.
 
@@ -220,7 +234,7 @@ A manifest and planning documents exist, but no service worker is implemented or
 
 ### Complete localization
 
-Interface-language infrastructure exists, but complete English and Chinese coverage remains unfinished.
+Interface-language infrastructure exists, but complete English and Chinese Interface Language localization is planned for R1 and has not started. It remains prohibited while R0 is Active.
 
 Known remaining areas include:
 
@@ -230,11 +244,13 @@ Known remaining areas include:
 * complete Chinese interface coverage;
 * final Guide Mixed-content compliance.
 
+The preserved Guide redesign draft is not localization implementation and is not part of the clean candidate HEAD.
+
 ---
 
 ## 8. Documentation and Archive Baseline
 
-**Status: In progress**
+**Status: Committed; current-state reconciliation in progress**
 
 The R0 documentation rebuild currently includes:
 
@@ -254,72 +270,29 @@ The former AI workflow has been replaced by:
 * a superseded stub at `docs/AI_WORKFLOW_PROTOCOL.md`;
 * a dated historical copy at `docs/archive/AI_WORKFLOW_PROTOCOL_2026-06-20.md`.
 
-Historical PRD, roadmap, audit, report, and M2 execution records are being moved under `docs/archive/`.
+Historical PRD, roadmap, audit, report, M2 execution, redundant guide, vocabulary-semantics, and localization-design records have been committed under `docs/archive/` where applicable.
 
-The documentation/history baseline remains incomplete because the working tree still contains:
-
-* modified canonical documents;
-* tracked documents moved to archive;
-* restored documents whose final location must be decided;
-* unresolved M2 design references;
-* an unresolved design-lab prototype;
-* local-only backup and source material.
+The post-`91d6914` documentation and archive changes are committed history, not pending working-tree changes. The repository was clean at this reconciliation task's preflight.
 
 ---
 
 ## 9. Remaining Repository Decisions
 
-### Historical archive moves
+### Historical archive material
 
-A tracked deletion must be committed together with its corresponding archive addition.
-
-Verified historical moves include the former:
-
-* Chinese PRD;
-* product specification;
-* roadmap;
-* PRD source audit;
-* M1 stabilization report.
-
-### Restored documents
-
-The following documents were restored to prevent accidental data loss:
-
-* `docs/LICENSE_DECISION.md`
-* `docs/USER_GUIDE_BILINGUAL.md`
-* `docs/VOCABULARY_INTERACTION_SEMANTICS.md`
-
-`docs/LICENSE_DECISION.md` remains an active licensing-rationale document.
-
-The bilingual guide and vocabulary-semantics document require a deliberate keep/archive decision.
-
-### M2 design references
-
-The following documents require product-owner disposition:
-
-* `docs/M2_HELP_AND_LANGUAGE_SPEC.md`
-* `docs/M2_LOCALIZATION_AND_CONTENT_SPEC.md`
-* `docs/M2_LOCALIZATION_COVERAGE_MATRIX.md`
-
-They may become governed R1 input or historical archive material. They are not current milestone authority.
+The verified archive moves and preserved M2 records are committed. The former bilingual guide and vocabulary-semantics document were archived in commit `c62ab70`; unresolved localization design records were archived in `9f9d67d`. Archived material remains historical evidence and does not control current milestones.
 
 ### Design-lab material
 
-`design-lab/` and `docs/VOCABULARY_PREVIEW_RESPONSIVE_SPEC.md` must be handled as one unit.
+Commit `817d902` retains the responsive Vocabulary Preview prototype under `design-lab/` as version-controlled non-runtime experimental material. It is not imported by the production application, is not approved for production, and is not evidence that responsive Vocabulary Preview has been implemented.
 
-They are not part of the production runtime baseline.
+### Preserved Guide draft
+
+The six-file Guide redesign and interaction draft is preserved externally as verified, recoverable, unapproved R1 work. It is absent from the clean R0 candidate tree. Guide chapter-ID and editorial decisions remain deferred until R1 review.
 
 ### Local-only material
 
-The following must not enter the public baseline without separate review:
-
-* `source_materials/` PDFs;
-* generated reports and candidates;
-* Python cache files;
-* external project backups;
-* `docs.current.zip`.
-
-`docs.current.zip` is a stale recovery snapshot rather than a verified duplicate. Keep it local until document recovery and archive reconciliation are complete.
+External backups, source material, generated candidates, and other local-only artifacts are not part of the tracked repository baseline and must not enter the public baseline without separate review.
 
 ---
 
@@ -363,15 +336,15 @@ They do not automatically become implementation work.
 
 ## 11. Immediate Next Action
 
-> Reconcile and commit the canonical documentation and historical archive baseline without mixing in unresolved M2 design references, design-lab experiments, or local-only artifacts.
+> Run the clean R0 closure-candidate verification against HEAD `817d902`.
 
 The next R0 change set should:
 
-1. finalize the core state, milestone, decision, release, and licensing documents;
-2. commit canonical control-document changes;
-3. commit verified historical archive moves with their paired deletions;
-4. decide the location of the restored bilingual-guide and vocabulary-semantics records;
-5. leave unresolved M2 design references and design-lab material outside the commit until separately classified.
+1. run the complete automated check set against the clean candidate;
+2. complete desktop and mobile-sized browser smoke;
+3. verify copyright-safe EPUB import, chapter rendering, navigation, and required persistence/restore behavior;
+4. confirm that no P0 core regression remains;
+5. record the evidence without implementing localization or restoring the Guide draft.
 
 No new product-feature implementation should begin during this step.
 
@@ -379,18 +352,15 @@ No new product-feature implementation should begin during this step.
 
 ## 12. Remaining Unknowns
 
-* whether the three M2 design-reference documents become R1 inputs or archive records;
-* whether `design-lab/` remains versioned experimentation or local-only material;
-* whether the restored bilingual guide and vocabulary-semantics document should remain active or move to archive;
-* whether the deployed Pages build matches commit `91d6914`;
+* whether the deployed Pages build matches clean candidate HEAD `817d902`;
 * whether EPUB import passes when CDN dependencies are available;
 * whether non-Chromium browsers pass supported flows;
-* whether complete localization satisfies the future R1 contract;
+* whether the clean closure candidate passes desktop and mobile-sized browser smoke;
+* whether complete localization satisfies the future R1 contract after R1 begins;
 * whether manifest and icons produce a verified installable experience;
 * whether service-worker work belongs in R2;
 * whether maintainer contact and legal review are complete;
-* how local source PDFs are retained without publication risk;
-* when `docs.current.zip` may be safely removed.
+* whether the final closure baseline is accepted and locked by the product owner.
 
 ---
 

@@ -93,6 +93,7 @@ Current status details belong in `PROJECT_STATE.md`, not here.
 | DEC-022 | 2026-06-20 | Vocabulary               | Vocabulary Library is a collection and export layer          | Active     | —                         |
 | DEC-023 | 2026-06-20 | Documentation governance | Assign one responsibility to each control document           | Active     | —                         |
 | DEC-024 | 2026-06-20 | Milestone governance     | Adopt one Active milestone and formal change control         | Active     | —                         |
+| DEC-025 | 2026-06-21 | Experiment governance    | Keep the responsive Preview prototype non-runtime            | Active     | —                         |
 
 ---
 
@@ -546,6 +547,25 @@ Current status details belong in `PROJECT_STATE.md`, not here.
 * **Supersedes:** The old phase-only Roadmap as the controlling delivery model
 * **Superseded by:** None
 * **Related documents:** `docs/MILESTONES.md`, `docs/PROJECT_STATE.md`, `AGENTS.md`
+
+---
+
+### DEC-025 — Keep the responsive Preview prototype non-runtime
+
+* **Date:** 2026-06-21
+* **Status:** Active
+* **Area:** Experiment governance
+* **Decision:** The responsive Vocabulary Preview prototype may remain version-controlled under `design-lab/` as non-runtime experimental material.
+* **Context:** Commit `817d902` preserves the prototype for future reference without promoting it into the production application or active milestone scope.
+* **Consequences:**
+
+  * Production runtime files must not import the prototype unless a separately approved implementation task authorizes that change.
+  * The prototype is not approved production behavior.
+  * Its presence in Git does not prove that responsive Vocabulary Preview has been implemented.
+  * It does not count as milestone-completion evidence.
+* **Supersedes:** None
+* **Superseded by:** None
+* **Related documents:** `docs/PROJECT_STATE.md`, `docs/MILESTONES.md`, `design-lab/`
 
 ---
 
