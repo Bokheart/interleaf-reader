@@ -12,18 +12,20 @@
 | --- | --- |
 | **Repository branch** | `feature/m2-reader-toc` |
 | **Runtime candidate commit** | `817d902` — `design: preserve vocabulary preview responsive prototype` |
-| **Remote status** | `817d902` is pushed to `origin/feature/m2-reader-toc` |
+| **Remote status** | Runtime candidate commit `817d902` is contained in the pushed history of `origin/feature/m2-reader-toc` |
 | **Runtime baseline** | Clean R0 closure candidate; not yet accepted or locked as the closure baseline |
-| **Working tree** | Clean at reconciliation preflight; no tracked, staged, or untracked changes |
-| **Documentation baseline** | Canonical and historical archive work is committed; current-state references are being reconciled to `817d902` |
+| **Repository state rule** | Read the current repository HEAD from Git; `817d902` remains the fixed runtime candidate commit |
+| **Documentation baseline** | Canonical and historical archive work is committed and reconciled; later documentation-only commits do not change the runtime candidate |
 | **Current delivery status** | M2 remains unresolved and is not formally closed |
 | **Localization status** | Interface-language foundation exists; complete localization is planned for R1 and has not started |
 | **Feature-development status** | Paused during R0 |
-| **Current priority** | Run fresh clean-baseline R0 closure-candidate verification against `817d902` |
+| **Current priority** | Run fresh R0 closure-candidate verification against runtime candidate commit `817d902` |
 
 The earlier runtime reproducibility risk is resolved. The current application no longer depends on untracked Guide or localization modules.
 
 R0 remains Active and is not ready to close. Documentation and archive reconciliation is committed, but fresh closure-candidate verification, final baseline locking, and explicit product-owner acceptance remain outstanding.
+
+The exact repository HEAD is intentionally not hard-coded in this document because documentation-only commits may advance it. Git is the source of truth for the current HEAD; `817d902` remains the fixed runtime candidate until R0 verification accepts and locks a final baseline.
 
 ---
 
@@ -67,11 +69,11 @@ The product remains separate from:
 
 ---
 
-## 3. Current Clean Candidate Baseline
+## 3. Current Runtime Candidate Baseline
 
 **Status: Clean candidate; not yet accepted as the R0 closure baseline**
 
-Commit `91d6914` is the historical M2 runtime-baseline commit. It is an ancestor of current HEAD `817d902`, with ten committed changes following it. Those commits contain R0 governance and archive reconciliation, canonical-document alignment, architecture and persistence documentation, the Guide vocabulary-annotation regression repair, archived localization design records, and the retained non-runtime design-lab prototype.
+Commit `91d6914` is the historical M2 runtime-baseline commit. It is an ancestor of runtime candidate commit `817d902`, with ten committed changes following it. Those commits contain R0 governance and archive reconciliation, canonical-document alignment, architecture and persistence documentation, the Guide vocabulary-annotation regression repair, archived localization design records, and the retained non-runtime design-lab prototype.
 
 The baseline includes:
 
@@ -144,19 +146,19 @@ Two apparent failures were traced to test timing rather than product defects:
 
 The sequential user flows passed when synchronized against persisted IndexedDB state. No application fix was required.
 
-The preserved Guide draft also passed all seven Node suites in its isolated verification worktree. That result establishes patch recoverability only; it does not verify clean HEAD `817d902` and does not count as R0 closure-candidate evidence.
+The preserved Guide draft also passed all seven Node suites in its isolated verification worktree. That result establishes patch recoverability only; it does not verify runtime candidate commit `817d902` and does not count as R0 closure-candidate evidence.
 
 ---
 
 ## 5. Remaining Verification Limits
 
-The historical runtime-baseline checks do not establish current R0 closure readiness for clean HEAD `817d902`.
+The historical runtime-baseline checks do not establish current R0 closure readiness for runtime candidate commit `817d902`.
 
 The following remain unverified or incomplete:
 
 * the full automated check set against the clean closure-candidate tree;
-* desktop browser smoke against `817d902`;
-* mobile-sized browser smoke against `817d902`;
+* desktop browser smoke against runtime candidate commit `817d902`;
+* mobile-sized browser smoke against runtime candidate commit `817d902`;
 * copyright-safe EPUB import in an environment where required dependencies are available;
 * chapter rendering and navigation in the closure-candidate browser flow;
 * persistence and restore behavior where required by the smoke flow;
@@ -244,15 +246,15 @@ Known remaining areas include:
 * complete Chinese interface coverage;
 * final Guide Mixed-content compliance.
 
-The preserved Guide redesign draft is not localization implementation and is not part of the clean candidate HEAD.
+The preserved Guide redesign draft is not localization implementation and is not part of runtime candidate commit `817d902`.
 
 ---
 
 ## 8. Documentation and Archive Baseline
 
-**Status: Committed; current-state reconciliation in progress**
+**Status: Committed and reconciled**
 
-The R0 documentation rebuild currently includes:
+The R0 documentation rebuild includes:
 
 * canonical product truth in `docs/INTERLEAF_READER_PRD.md`;
 * milestone control in `docs/MILESTONES.md`;
@@ -272,7 +274,7 @@ The former AI workflow has been replaced by:
 
 Historical PRD, roadmap, audit, report, M2 execution, redundant guide, vocabulary-semantics, and localization-design records have been committed under `docs/archive/` where applicable.
 
-The post-`91d6914` documentation and archive changes are committed history, not pending working-tree changes. The repository was clean at this reconciliation task's preflight.
+The post-`91d6914` documentation and archive changes are committed history, not pending working-tree changes. Later documentation-only commits do not alter runtime candidate commit `817d902`.
 
 ---
 
@@ -288,7 +290,7 @@ Commit `817d902` retains the responsive Vocabulary Preview prototype under `desi
 
 ### Preserved Guide draft
 
-The six-file Guide redesign and interaction draft is preserved externally as verified, recoverable, unapproved R1 work. It is absent from the clean R0 candidate tree. Guide chapter-ID and editorial decisions remain deferred until R1 review.
+The six-file Guide redesign and interaction draft is preserved externally as verified, recoverable, unapproved R1 work. It is absent from runtime candidate commit `817d902`. Guide chapter-ID and editorial decisions remain deferred until R1 review.
 
 ### Local-only material
 
@@ -336,11 +338,11 @@ They do not automatically become implementation work.
 
 ## 11. Immediate Next Action
 
-> Run the clean R0 closure-candidate verification against HEAD `817d902`.
+> Run the clean R0 closure-candidate verification against runtime candidate commit `817d902`.
 
 The next R0 change set should:
 
-1. run the complete automated check set against the clean candidate;
+1. run the complete automated check set against the clean runtime candidate;
 2. complete desktop and mobile-sized browser smoke;
 3. verify copyright-safe EPUB import, chapter rendering, navigation, and required persistence/restore behavior;
 4. confirm that no P0 core regression remains;
@@ -352,10 +354,10 @@ No new product-feature implementation should begin during this step.
 
 ## 12. Remaining Unknowns
 
-* whether the deployed Pages build matches clean candidate HEAD `817d902`;
+* whether the deployed Pages build matches runtime candidate commit `817d902`;
 * whether EPUB import passes when CDN dependencies are available;
 * whether non-Chromium browsers pass supported flows;
-* whether the clean closure candidate passes desktop and mobile-sized browser smoke;
+* whether the runtime candidate passes desktop and mobile-sized browser smoke;
 * whether complete localization satisfies the future R1 contract after R1 begins;
 * whether manifest and icons produce a verified installable experience;
 * whether service-worker work belongs in R2;
