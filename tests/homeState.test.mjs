@@ -338,23 +338,71 @@ for (const [mode, contentKey, label] of [
 
 const virtualGuideBook = createGuideBook();
 const welcomeChapter = virtualGuideBook.chapters[0];
-assert.equal(
-  resolveGuideChapterContent(welcomeChapter, MODES.ENGLISH_STUDY).html,
-  resolveGuideChapterContent(welcomeChapter, MODES.ENGLISH_STUDY).html,
-  "Guide welcome variant resolves deterministically for English Study mode"
-);
+const guideSnapshotsByMode = new Map();
 
-for (const [mode, englishPattern, chinesePattern] of [
-  [MODES.ENGLISH_STUDY, /Welcome to Interleaf Reader/, null],
-  [MODES.CHINESE, null, /欢迎使用 Interleaf Reader/],
-  [MODES.CLOZE_MIXED, null, /欢迎使用 Interleaf Reader/]
+function snapshotGuideBook(book) {
+  return {
+    guideContentKey: book.guideContentKey,
+    guideModeLabel: book.guideModeLabel,
+    readingMode: book.readingMode,
+    title: book.title,
+    chapters: book.chapters.map((chapter) => ({
+      id: chapter.id,
+      title: chapter.title,
+      originalHtml: chapter.originalHtml,
+      plainText: chapter.plainText
+    }))
+  };
+}
+
+for (const [mode, expectedContentKey] of [
+  [MODES.ENGLISH_STUDY, "english"],
+  [MODES.CHINESE, "chinese"],
+  [MODES.CLOZE_MIXED, "bilingual"]
 ]) {
-  const rendered = renderChapterForMode(welcomeChapter, mode, { isBuiltInGuide: true }).html;
-  if (englishPattern) {
-    assert.match(rendered, englishPattern, `${mode} truth table renders English Guide content`);
-  }
-  if (chinesePattern) {
-    assert.match(rendered, chinesePattern, `${mode} truth table renders Chinese or mixed Guide content`);
+  const freshBook = createGuideBook(mode);
+  const synchronizedBook = syncGuideBookForReadingMode(createGuideBook(), mode);
+  const freshFirstChapter = freshBook.chapters[0];
+  const resolvedFirstChapter = resolveGuideChapterContent(welcomeChapter, mode);
+  const freshSnapshot = snapshotGuideBook(freshBook);
+
+  assert.equal(freshBook.guideContentKey, expectedContentKey, `${mode} resolves its mode-owned Guide variant`);
+  assert.equal(freshFirstChapter.id, welcomeChapter.id, `${mode} keeps the stable first Guide chapter ID`);
+  assert.deepEqual(
+    {
+      title: freshFirstChapter.title,
+      html: freshFirstChapter.originalHtml,
+      plainText: freshFirstChapter.plainText
+    },
+    resolvedFirstChapter,
+    `${mode} active first chapter matches the resolved mode-owned variant`
+  );
+  assert.deepEqual(
+    snapshotGuideBook(synchronizedBook),
+    freshSnapshot,
+    `${mode} fresh creation and synchronization produce equivalent Guide content`
+  );
+
+  guideSnapshotsByMode.set(mode, freshSnapshot);
+}
+
+for (const field of ["title", "originalHtml", "plainText"]) {
+  const englishValue = guideSnapshotsByMode.get(MODES.ENGLISH_STUDY).chapters[0][field];
+  const chineseValue = guideSnapshotsByMode.get(MODES.CHINESE).chapters[0][field];
+  const mixedValue = guideSnapshotsByMode.get(MODES.CLOZE_MIXED).chapters[0][field];
+
+  assert.notEqual(englishValue, chineseValue, `English and Chinese first-chapter ${field} differ by Reading Mode`);
+  assert.notEqual(englishValue, mixedValue, `English and Mixed first-chapter ${field} differ by Reading Mode`);
+  assert.notEqual(chineseValue, mixedValue, `Chinese and Mixed first-chapter ${field} differ by Reading Mode`);
+}
+
+for (const uiLanguage of ["en", "zh-CN"]) {
+  for (const mode of [MODES.ENGLISH_STUDY, MODES.CHINESE, MODES.CLOZE_MIXED]) {
+    assert.deepEqual(
+      snapshotGuideBook(createGuideBook(mode)),
+      guideSnapshotsByMode.get(mode),
+      `${normalizeUiLanguage(uiLanguage)} Interface Language does not alter the ${mode} Guide snapshot`
+    );
   }
 }
 

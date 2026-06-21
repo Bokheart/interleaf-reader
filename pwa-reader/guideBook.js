@@ -16,8 +16,8 @@ export const GUIDE_MODE_TO_CONTENT_KEY = Object.freeze({
 
 const GUIDE_CONTENT_LABELS = Object.freeze({
   english: "English Guide",
-  chinese: "Chinese Guide",
-  bilingual: "Mixed Guide"
+  chinese: "中文指南",
+  bilingual: "混合指南"
 });
 
 const GUIDE_CHAPTERS = Object.freeze([
