@@ -173,31 +173,39 @@ The historical M2 runtime-baseline commit is:
 91d6914 — feat: establish reproducible M2 runtime baseline
 ```
 
-The current clean runtime candidate commit is:
+The accepted R0 runtime closure baseline is:
 
 ```text
 99ad1e3 — fix: align Guide labels with mode contract
 ```
 
-Commit `91d6914` is an ancestor of runtime candidate commit `99ad1e3`. The candidate is contained in the pushed history of `origin/feature/m2-reader-toc`, but it has not yet passed fresh closure-candidate verification or been accepted as the R0 closure baseline.
+Commit `91d6914` is an ancestor of accepted runtime baseline `99ad1e3`. The baseline is contained in the pushed history of `origin/feature/m2-reader-toc`, tagged `r0-closure-99ad1e3`, and accepted by product owner 孙书心 on `2026-06-22`.
 
 The responsive Vocabulary Preview prototype retained under `design-lab/` is version-controlled non-runtime experimental material. It is not imported by production, is not approved implementation, and does not count as milestone-completion evidence.
 
-A separate six-file Guide redesign and interaction draft was preserved externally and removed from the R0 working tree. It remains unapproved R1 work. Complete Interface Language localization is also R1 work and has not started.
+A separate six-file Guide redesign and interaction draft was preserved externally and removed from the R0 working tree. It remains deferred R1 input and was not applied to the accepted baseline. Complete Interface Language localization is R1 work and has not started.
 
-Current verification evidence and limitations are maintained in `docs/PROJECT_STATE.md`.
+Current verification evidence and closure status are maintained in `docs/PROJECT_STATE.md`.
 
 Chinese Reading Mode and imported-book Mixed Mode remain placeholders.
 
-M2 contains substantial implemented and historically verified runtime work but is not considered closed.
+R0 is **Closed** as of `2026-06-22`.
 
-R0 remains Active. The project is not accepting R1 implementation until clean-baseline automated and browser verification, baseline locking, and explicit product-owner acceptance satisfy the R0 exit criteria.
+R1 is **Active**. Entry conditions are satisfied. The first R1 action is planning and scope confirmation, not immediate broad implementation.
 
-R1 remains Next. R2 remains the Following planned milestone and has not started.
+R2 remains **Following** and has not started.
 
 ---
 
-## 4. Active Milestone — R0: Project Truth and Structure Reset
+## 4. Closed Milestone — R0: Project Truth and Structure Reset
+
+**Status: Closed (`2026-06-22`)**
+
+**Accepted runtime baseline:** `99ad1e3`
+
+**Closure baseline tag:** `r0-closure-99ad1e3`
+
+**Product-owner acceptance:** 孙书心 — `2026-06-22`
 
 ### Outcome
 
@@ -232,11 +240,14 @@ The following R0 work is complete:
 * unresolved localization design records were archived;
 * the responsive Vocabulary Preview design-lab prototype was retained as version-controlled non-runtime experimentation;
 * the unapproved Guide redesign draft was preserved outside the repository and removed from the R0 working tree;
-* the repository working tree was reconciled to runtime candidate commit `99ad1e3` after the approved Guide label and semantic-test regression correction.
+* the repository working tree was reconciled to runtime candidate commit `99ad1e3` after the approved Guide label and semantic-test regression correction;
+* closure verification completed for syntax, tests, Guide contract, desktop/mobile smoke, EPUB import, navigation, placeholders, persistence, restore, and data integrity;
+* product-owner acceptance was recorded on `2026-06-22`;
+* runtime baseline `99ad1e3` was accepted and tagged `r0-closure-99ad1e3`.
 
-These completed items do not by themselves close R0.
+### Closure record
 
-Fresh automated and desktop/mobile browser verification against the clean candidate, final baseline locking, and explicit product-owner acceptance remain required.
+Technical exit evidence and product-owner acceptance are complete. R0 closed on `2026-06-22`.
 
 ### Included
 
@@ -319,13 +330,15 @@ R0 may close only when all of the following are true:
 
 ---
 
-## 5. Next Milestone — R1: Complete Interface Localization and Onboarding
+## 5. Active Milestone — R1: Complete Interface Localization and Onboarding
+
+**Status: Active**
 
 ### Entry Condition
 
-R1 may begin only after R0 is closed and the reproducible baseline is locked.
+R1 entry conditions are satisfied. R0 closed on `2026-06-22` with accepted runtime baseline `99ad1e3` and tag `r0-closure-99ad1e3`.
 
-R1 implementation has not started. The externally preserved Guide draft is deferred review input, not accepted implementation or milestone evidence.
+R1 implementation has not started. The first R1 action is read-only entry audit and bounded task-plan proposal. The externally preserved Guide draft is deferred review input, not accepted implementation or milestone evidence, and must not be restored automatically.
 
 ### User Outcome
 
@@ -681,8 +694,8 @@ During an active milestone:
 
 | Milestone                                                     | Outcome                                                                                                     | Status                  | Entry condition                                    | Exit condition                                                                                             |
 | ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------- | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| **R0 — Project Truth and Structure Reset**                    | A consistent, reproducible, trusted development baseline                                                    | **Active**              | Project reset approved; feature development paused | Canonical docs and archive reconciled, repository reproducible, evidence current, trusted baselines locked |
-| **R1 — Complete Interface Localization and Onboarding**       | Chinese-interface users can complete all current supported workflows without altering imported content      | **Next**                | R0 closed                                          | Localization and onboarding acceptance flows pass without English Study regression                         |
+| **R0 — Project Truth and Structure Reset**                    | A consistent, reproducible, trusted development baseline                                                    | **Closed** (`2026-06-22`) | Project reset approved; feature development paused | Canonical docs and archive reconciled, repository reproducible, evidence current, trusted baselines locked |
+| **R1 — Complete Interface Localization and Onboarding**       | Chinese-interface users can complete all current supported workflows without altering imported content      | **Active**              | R0 closed (`2026-06-22`)                           | Localization and onboarding acceptance flows pass without English Study regression                         |
 | **R2 — Installable Local-First Release**                      | Users can access the official release, understand install/offline boundaries, and retain local reading data | **Following**           | R0 closed and R1 closed or formally deferred       | Release, privacy, deployment, installability or fallback, update, and local-data verification pass         |
 | **Translation and multilingual book system**                  | Real Translation Versions, Chinese Mode, and Mixed Mode                                                     | **Later / uncommitted** | Separate approved milestone                        | Not defined                                                                                                |
 | **Vocabulary enrichment and additional exports**              | Greater vocabulary depth without replacing reading                                                          | **Later / uncommitted** | Separate approved milestone                        | Not defined                                                                                                |

@@ -95,6 +95,7 @@ Current status details belong in `PROJECT_STATE.md`, not here.
 | DEC-024 | 2026-06-20 | Milestone governance     | Adopt one Active milestone and formal change control         | Active     | —                         |
 | DEC-025 | 2026-06-21 | Experiment governance    | Keep the responsive Preview prototype non-runtime            | Active     | —                         |
 | DEC-026 | 2026-06-21 | Guide testing governance | Keep Guide selection Mode-owned without exact-copy locking   | Active     | —                         |
+| DEC-027 | 2026-06-22 | Milestone governance     | Accept R0 runtime baseline and activate R1                   | Active     | —                         |
 
 ---
 
@@ -588,6 +589,35 @@ Current status details belong in `PROJECT_STATE.md`, not here.
 * **Supersedes:** None
 * **Superseded by:** None
 * **Related documents:** `docs/PROJECT_STATE.md`, `docs/INTERLEAF_READER_PRD.md`, `AGENTS.md`, `pwa-reader/guideBook.js`, `tests/homeState.test.mjs`
+
+---
+
+### DEC-027 — Accept R0 runtime baseline and activate R1
+
+* **Date:** 2026-06-22
+* **Status:** Active
+* **Area:** Milestone governance
+* **Context:** Runtime candidate `99ad1e3` completed the required syntax checks, Node suites, Guide contract verification, desktop and mobile smoke, EPUB import, navigation, placeholder behavior, persistence, restore, and data-integrity verification. Final independent evidence review returned `R0 READY FOR PRODUCT-OWNER ACCEPTANCE`. Product owner 孙书心 explicitly accepted the candidate on `2026-06-22`.
+* **Decision:**
+
+  * `99ad1e3` is the accepted R0 runtime closure baseline;
+  * R0 is Closed;
+  * R1 is Active;
+  * the annotated baseline tag is `r0-closure-99ad1e3`;
+  * future documentation commits and R1 commits do not redefine the R0 runtime baseline;
+  * the externally preserved Guide redesign remains R1 input and is not part of the R0 baseline;
+  * imported Chinese and Mixed modes remain placeholders in the accepted baseline.
+* **Consequences:**
+
+  * no further R0 implementation is authorized;
+  * R0 may only be reopened for a confirmed baseline defect or governance correction;
+  * the next task is R1 planning and scope confirmation;
+  * broad R1 implementation must not begin without a bounded task plan;
+  * Codex is reserved for narrow implementation after Antigravity analysis;
+  * Cursor handles Git and file operations.
+* **Supersedes:** None
+* **Superseded by:** None
+* **Related documents:** `docs/PROJECT_STATE.md`, `docs/MILESTONES.md`, `docs/HANDOFF.md`, `AGENTS.md`
 
 ---
 

@@ -32,7 +32,38 @@ The former AI workflow protocol is superseded.
 
 ---
 
-## 2. Runtime Assumptions
+## 2. Current Control State
+
+As of `2026-06-22`:
+
+| Field | Current state |
+| --- | --- |
+| **R0** | Closed |
+| **R1** | Active — planning and scope confirmation only |
+| **Accepted runtime baseline** | `99ad1e3` |
+| **Runtime baseline tag** | `r0-closure-99ad1e3` |
+| **Repository branch** | `feature/m2-reader-toc` |
+| **Repository HEAD** | Dynamic — read from Git; do not treat HEAD as the runtime baseline |
+| **Closure evidence** | Complete |
+| **Further R0 verification** | Not required unless runtime code changes |
+
+The repository working tree was clean at product-owner acceptance. No external Guide redesign patch was applied. Complete Interface Language localization and Guide redesign implementation remain R1 work and have not started.
+
+### Tooling roles
+
+* **Antigravity** — initial R1 repository, document, and external-patch analysis
+* **Codex** — reserved for narrow implementation after Antigravity analysis
+* **Cursor** — file operations, Git, server commands, commit/push, and verification
+
+### Next recommended task
+
+Perform a **read-only R1 entry audit and bounded task-plan proposal**.
+
+Do not treat localization or the external Guide redesign as implemented.
+
+---
+
+## 3. Runtime Assumptions
 
 The standard local environment requires:
 
@@ -55,7 +86,7 @@ Opening `pwa-reader/index.html` through `file://` is not supported.
 
 ---
 
-## 3. Run Locally
+## 4. Run Locally
 
 From the repository root:
 
@@ -92,7 +123,7 @@ They have separate IndexedDB and localStorage data.
 
 ---
 
-## 4. Fresh-Load Troubleshooting
+## 5. Fresh-Load Troubleshooting
 
 When the interface appears stale, incomplete, or unresponsive:
 
@@ -125,7 +156,7 @@ If `app.js` or one of its static imports fails, event binding and startup logic 
 
 ---
 
-## 5. Automated Checks
+## 6. Automated Checks
 
 Run from the repository root.
 
@@ -199,7 +230,7 @@ Do not ignore actual `trailing whitespace` or conflict-marker failures.
 
 ---
 
-## 6. Copyright-Safe Smoke Fixture
+## 7. Copyright-Safe Smoke Fixture
 
 Generate:
 
@@ -223,7 +254,7 @@ Use this fixture instead of private EPUBs, paid books, fanfiction exports, copyr
 
 ---
 
-## 7. Core Browser Smoke
+## 8. Core Browser Smoke
 
 This is a procedure, not an automatic claim that the current branch passed.
 
@@ -306,7 +337,7 @@ This is a procedure, not an automatic claim that the current branch passed.
 
 ---
 
-## 8. Targeted Verification
+## 9. Targeted Verification
 
 Use the smallest set that covers the changed risk.
 
@@ -325,7 +356,7 @@ For broad cross-module changes, run all current syntax and Node tests before bro
 
 ---
 
-## 9. Diagnostics
+## 10. Diagnostics
 
 A development helper may be available:
 
@@ -353,7 +384,7 @@ Diagnostics do not prove complete user behavior.
 
 ---
 
-## 10. Deployment Verification
+## 11. Deployment Verification
 
 Deployment setup belongs in:
 
@@ -389,7 +420,7 @@ A deployed functional check should:
 
 ---
 
-## 11. Known Operational Caveats
+## 12. Known Operational Caveats
 
 ### CDN dependencies
 
@@ -435,7 +466,7 @@ Use `docs/PROJECT_STATE.md` for current status.
 
 ---
 
-## 12. Update Rule
+## 13. Update Rule
 
 Update this file only when startup, launchers, local URL structure, serving directory, test commands, fixture generation, browser smoke, deployment verification, diagnostics, or operational caveats materially change.
 

@@ -1,8 +1,8 @@
 # Interleaf Reader — Project State
 
-**Last updated:** 2026-06-21
+**Last updated:** 2026-06-22
 **Canonical product specification:** `docs/INTERLEAF_READER_PRD.md`
-**Active control phase:** `R0 — Project Truth and Structure Reset`
+**Active control phase:** `R1 — Complete Interface Localization and Onboarding`
 
 ---
 
@@ -11,21 +11,23 @@
 | Field | Current state |
 | --- | --- |
 | **Repository branch** | `feature/m2-reader-toc` |
-| **Runtime candidate commit** | `99ad1e3` — `fix: align Guide labels with mode contract` |
-| **Remote status** | Runtime candidate commit `99ad1e3` is contained in the pushed history of `origin/feature/m2-reader-toc` |
-| **Runtime baseline** | Clean R0 closure candidate; not yet accepted or locked as the closure baseline |
-| **Repository state rule** | Read the current repository HEAD from Git; `99ad1e3` remains the fixed runtime candidate commit |
-| **Documentation baseline** | Canonical and historical archive work is committed and reconciled; later documentation-only commits do not change the runtime candidate |
-| **Current delivery status** | M2 remains unresolved and is not formally closed |
-| **Localization status** | Interface-language foundation exists; complete localization is planned for R1 and has not started |
-| **Feature-development status** | Paused during R0 |
-| **Current priority** | Run fresh R0 closure-candidate verification against runtime candidate commit `99ad1e3` |
+| **Accepted runtime baseline** | `99ad1e3` — `fix: align Guide labels with mode contract` |
+| **Runtime baseline tag** | `r0-closure-99ad1e3` (annotated tag on `99ad1e3`) |
+| **Product-owner acceptance** | 孙书心 accepted the R0 runtime baseline on `2026-06-22` |
+| **R0 status** | **Closed** (`2026-06-22`) |
+| **R1 status** | **Active** — planning and scope confirmation; broad implementation has not started |
+| **R2 status** | **Following** |
+| **Repository state rule** | Read the current repository HEAD from Git; do not treat HEAD as the runtime baseline |
+| **Documentation baseline** | Canonical and historical archive work is committed and reconciled; later documentation-only commits do not change the accepted runtime baseline |
+| **Localization status** | Interface-language foundation exists; complete localization is R1 work and has not started |
+| **Feature-development status** | R1 active for bounded planning only |
+| **Current priority** | Read-only R1 entry audit and bounded task-plan proposal |
 
 The earlier runtime reproducibility risk is resolved. The current application no longer depends on untracked Guide or localization modules.
 
-R0 remains Active and is not ready to close. Documentation and archive reconciliation is committed, but fresh closure-candidate verification, final baseline locking, and explicit product-owner acceptance remain outstanding.
+R0 closure evidence is complete. No verified R0 P0 blocker remains. The product owner explicitly accepted runtime baseline `99ad1e3` on `2026-06-22`.
 
-The exact repository HEAD is intentionally not hard-coded in this document because documentation-only commits may advance it. Git is the source of truth for the current HEAD; `99ad1e3` remains the fixed runtime candidate until R0 verification accepts and locks a final baseline.
+The exact repository HEAD is intentionally not hard-coded in this document because documentation-only commits may advance it. Git is the source of truth for the current HEAD; `99ad1e3` remains the fixed accepted runtime baseline regardless of later documentation commits.
 
 ---
 
@@ -69,9 +71,9 @@ The product remains separate from:
 
 ---
 
-## 3. Current Runtime Candidate Baseline
+## 3. Accepted R0 Runtime Baseline
 
-**Status: Clean candidate; not yet accepted as the R0 closure baseline**
+**Status: Accepted, locked, and tagged as `r0-closure-99ad1e3`**
 
 Commit `91d6914` is the historical M2 runtime-baseline commit. It is an ancestor of runtime candidate commit `99ad1e3`, with thirteen committed changes following it. Those commits contain R0 governance and archive reconciliation, canonical-document alignment, architecture and persistence documentation, the Guide vocabulary-annotation regression repair, archived localization design records, the retained non-runtime design-lab prototype, and the approved Guide mode-label and semantic-test regression correction.
 
@@ -106,10 +108,10 @@ The four modules that were previously untracked runtime dependencies are now tra
 * `pwa-reader/locales/en.js`
 * `pwa-reader/locales/zh-CN.js`
 
-The current clean runtime candidate commit is pushed to:
+The accepted runtime baseline commit is contained in the pushed history of `origin/feature/m2-reader-toc` and is tagged:
 
 ```text
-99ad1e3 — origin/feature/m2-reader-toc
+r0-closure-99ad1e3 → 99ad1e3
 ```
 
 Commit `817d902` retains the responsive Vocabulary Preview prototype under `design-lab/` as version-controlled non-runtime experimental material. Production files do not import it. It is not approved runtime implementation and does not count as milestone-completion evidence.
@@ -155,9 +157,34 @@ The sequential user flows passed when synchronized against persisted IndexedDB s
 
 The preserved Guide draft also passed all seven Node suites in its isolated verification worktree. That result establishes patch recoverability only; it does not verify runtime candidate commit `99ad1e3` and does not count as R0 closure-candidate evidence.
 
-### Bounded evidence for runtime candidate `99ad1e3`
+### R0 closure evidence for accepted baseline `99ad1e3`
 
-**Status: Verified regression fix; not full R0 closure verification**
+**Status: Complete — accepted by product owner on `2026-06-22`**
+
+| Check | Result |
+| --- | --- |
+| Runtime JavaScript syntax (`node --check`) | 11 of 11 passed |
+| Node test suites | 7 of 7 passed |
+| Guide contract | Verified — Mode-owned selection; approved labels; Interface Language independence |
+| Desktop browser smoke | Passed at 1280 × 900 |
+| Mobile core browser smoke | Passed at 393 × 852 |
+| Mobile scrolling | Passed (direct mobile scrolling evidence supersedes the earlier isolated pane-scroll probe limitation) |
+| EPUB import (`interleaf_smoke.epub`) | Passed |
+| Chapter rendering and navigation | Passed |
+| Chinese and Mixed imported-book placeholders | Honest not-implemented placeholders verified |
+| Local Library persistence | Passed |
+| First reload persistence | Passed |
+| Resume/reopen | Passed |
+| Approximate chapter/progress restoration | Passed |
+| Second reload and restore | Passed |
+| IndexedDB / data integrity | No corruption or obvious user-data loss observed |
+| Independent evidence review | `R0 READY FOR PRODUCT-OWNER ACCEPTANCE` |
+| Product-owner acceptance | 孙书心 — `2026-06-22` |
+| Verified R0 P0 blockers | None remaining |
+
+### Bounded regression evidence (historical context)
+
+**Status: Historical supporting evidence; incorporated into R0 closure**
 
 The Guide mode-label and semantic-test regression correction in `99ad1e3` received independent read-only review with verdict `APPROVE`.
 
@@ -172,34 +199,25 @@ The Guide mode-label and semantic-test regression correction in `99ad1e3` receiv
 | `git diff --check` | Passed; line-ending warnings only |
 | Independent post-implementation review | `APPROVE` |
 
-This evidence verifies the bounded regression correction only. It does not replace full all-runtime syntax verification, desktop or mobile browser smoke, EPUB import, chapter rendering and navigation, persistence and restore, or final P0 closure assessment.
+This evidence supported the accepted baseline correction and is part of the completed R0 closure record.
 
 ---
 
-## 5. Remaining Verification Limits
+## 5. Post-R0 Monitoring and Remaining Limits
 
-The historical runtime-baseline checks and the bounded Guide regression checks do not establish full R0 closure readiness for runtime candidate commit `99ad1e3`.
+R0 closure verification is complete for baseline `99ad1e3`. No further R0 verification is required unless runtime code changes or a confirmed baseline defect requires governance correction.
 
-The following remain unverified or incomplete:
+The following remain outside the accepted R0 baseline or are deferred to later milestones:
 
-* a fresh closure run covering all runtime JavaScript syntax checks and all current Node suites against the final clean candidate;
-* desktop browser smoke against runtime candidate commit `99ad1e3`;
-* mobile-sized browser smoke against runtime candidate commit `99ad1e3`;
-* copyright-safe EPUB import in an environment where required dependencies are available;
-* chapter rendering and navigation in the closure-candidate browser flow;
-* persistence and restore behavior where required by the smoke flow;
-* confirmation that no P0 startup, import, rendering, navigation, persistence, or data-loss regression remains;
 * non-Chromium browser behavior;
 * complete interface-localization coverage;
 * complete accessibility coverage;
-* deliberate overlapping vocabulary writes and restore operations;
-* deployed behavior matching the current branch;
+* deliberate overlapping vocabulary writes and restore operations beyond the accepted smoke scope;
+* deployed behavior matching the accepted baseline on Pages;
 * installability and offline application-shell behavior;
 * real imported-book Chinese Reading Mode;
 * real imported-book Mixed Mode;
 * translation-provider behavior.
-
-R0 also still requires a final reproducible baseline lock and explicit product-owner acceptance before it may close.
 
 These limits must not be represented as completed functionality.
 
@@ -262,7 +280,7 @@ A manifest and planning documents exist, but no service worker is implemented or
 
 ### Complete localization
 
-Interface-language infrastructure exists, but complete English and Chinese Interface Language localization is planned for R1 and has not started. It remains prohibited while R0 is Active.
+Interface-language infrastructure exists, but complete English and Chinese Interface Language localization is R1 work and has not started.
 
 Known remaining areas include:
 
@@ -324,9 +342,11 @@ External backups, source material, generated candidates, and other local-only ar
 
 ---
 
-## 10. Active R0 Scope
+## 10. Closed R0 Scope (Historical Record)
 
-### Included
+R0 closed on `2026-06-22` with accepted runtime baseline `99ad1e3` and tag `r0-closure-99ad1e3`.
+
+### Included (completed)
 
 * align the canonical control documents;
 * remove active encoding corruption;
@@ -338,12 +358,11 @@ External backups, source material, generated candidates, and other local-only ar
 * preserve historical records without allowing them to control current work;
 * confirm tracked runtime reproducibility;
 * record verification evidence and limits honestly;
-* lock a trusted documentation/history baseline;
-* record remaining non-blocking debt.
+* lock the accepted runtime baseline and record closure evidence honestly.
 
-### Excluded
+### Excluded (remains out of scope)
 
-* new product features;
+* new product features beyond the accepted baseline;
 * real Chinese Reading Mode;
 * real Mixed Mode;
 * translation-provider integration;
@@ -356,39 +375,37 @@ External backups, source material, generated candidates, and other local-only ar
 * broad JavaScript refactoring;
 * IndexedDB compatibility migrations.
 
-New findings may be recorded during R0.
-
-They do not automatically become implementation work.
+R0 may be reopened only for a confirmed baseline defect or governance correction.
 
 ---
 
 ## 11. Immediate Next Action
 
-> Run the clean R0 closure-candidate verification against runtime candidate commit `99ad1e3`.
+> Perform a read-only R1 entry audit and propose a bounded R1 task plan.
 
-The next R0 change set should:
+The first R1 action is planning and scope confirmation, not immediate broad implementation.
 
-1. run the complete automated check set against the clean runtime candidate;
-2. complete desktop and mobile-sized browser smoke;
-3. verify copyright-safe EPUB import, chapter rendering, navigation, and required persistence/restore behavior;
-4. confirm that no P0 core regression remains;
-5. record the evidence without implementing localization or restoring the Guide draft.
+The next R1 change set should:
 
-No new product-feature implementation should begin during this step.
+1. audit externally preserved Guide redesign input and R1 localization scope boundaries;
+2. confirm what is in scope for Interface Language, onboarding, and Guide editorial review;
+3. propose bounded implementation tasks without restoring the external Guide patch automatically;
+4. keep Codex reserved for narrow implementation after Antigravity analysis;
+5. record the plan without implementing localization or Guide redesign yet.
+
+No broad R1 feature implementation should begin without an approved bounded task plan.
 
 ---
 
 ## 12. Remaining Unknowns
 
-* whether the deployed Pages build matches runtime candidate commit `99ad1e3`;
-* whether EPUB import passes when CDN dependencies are available;
+* whether the deployed Pages build matches accepted runtime baseline `99ad1e3`;
 * whether non-Chromium browsers pass supported flows;
-* whether the runtime candidate passes desktop and mobile-sized browser smoke;
-* whether complete localization satisfies the future R1 contract after R1 begins;
+* whether complete localization satisfies the R1 contract once R1 implementation begins;
 * whether manifest and icons produce a verified installable experience;
 * whether service-worker work belongs in R2;
 * whether maintainer contact and legal review are complete;
-* whether the final closure baseline is accepted and locked by the product owner.
+* how the externally preserved Guide redesign should be reviewed and sequenced within R1.
 
 ---
 
