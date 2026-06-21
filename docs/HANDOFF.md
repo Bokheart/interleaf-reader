@@ -153,6 +153,7 @@ $tests = @(
   "tests/navigationEngine.test.mjs",
   "tests/storage.test.mjs",
   "tests/homeState.test.mjs",
+  "tests/readingModes.test.mjs",
   "tests/levelBaselineEngine.test.mjs"
 )
 

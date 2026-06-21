@@ -94,6 +94,7 @@ Current status details belong in `PROJECT_STATE.md`, not here.
 | DEC-023 | 2026-06-20 | Documentation governance | Assign one responsibility to each control document           | Active     | —                         |
 | DEC-024 | 2026-06-20 | Milestone governance     | Adopt one Active milestone and formal change control         | Active     | —                         |
 | DEC-025 | 2026-06-21 | Experiment governance    | Keep the responsive Preview prototype non-runtime            | Active     | —                         |
+| DEC-026 | 2026-06-21 | Guide testing governance | Keep Guide selection Mode-owned without exact-copy locking   | Active     | —                         |
 
 ---
 
@@ -566,6 +567,27 @@ Current status details belong in `PROJECT_STATE.md`, not here.
 * **Supersedes:** None
 * **Superseded by:** None
 * **Related documents:** `docs/PROJECT_STATE.md`, `docs/MILESTONES.md`, `design-lab/`
+
+---
+
+### DEC-026 — Keep Guide selection Mode-owned without exact-copy locking
+
+* **Date:** 2026-06-21
+* **Status:** Active
+* **Area:** Guide testing governance
+* **Decision:** The built-in Guide's complete content variant and approved label are controlled only by Reading Mode. Interface Language does not alter Guide content. Regression tests should protect this contract semantically and may assert the approved labels `English Guide`, `中文指南`, and `混合指南`, but must not lock exact Guide body prose, punctuation, bilingual ordering, or welcome copy unless a separate editorial decision approves that wording.
+* **Context:** A Guide regression test combined valid mode-label expectations with unsupported exact welcome-copy assertions. This caused source and test truth to diverge and risked promoting unapproved R1 editorial wording into the R0 runtime contract.
+* **Consequences:**
+
+  * `english-study`, `chinese`, and `cloze-mixed` remain the persisted Reading Mode values.
+  * Reading Mode continues to select the complete English, Chinese, or Mixed Guide variant.
+  * Interface Language remains responsible for application UI chrome and must not select, regenerate, or translate Guide content.
+  * Tests should compare mode keys, stable chapter identity, mode-specific snapshots, synchronization behavior, and Interface Language independence.
+  * Exact Guide prose remains editorial content and may change without failing semantic contract tests unless explicitly approved as durable product truth.
+  * Imported-book Chinese and Mixed modes remain placeholders; authored Guide variants do not change that boundary.
+* **Supersedes:** None
+* **Superseded by:** None
+* **Related documents:** `docs/PROJECT_STATE.md`, `docs/INTERLEAF_READER_PRD.md`, `AGENTS.md`, `pwa-reader/guideBook.js`, `tests/homeState.test.mjs`
 
 ---
 

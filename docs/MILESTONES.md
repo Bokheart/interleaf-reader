@@ -176,10 +176,10 @@ The historical M2 runtime-baseline commit is:
 The current clean runtime candidate commit is:
 
 ```text
-817d902 — design: preserve vocabulary preview responsive prototype
+99ad1e3 — fix: align Guide labels with mode contract
 ```
 
-Commit `91d6914` is an ancestor of `817d902`. The current candidate is pushed to `origin/feature/m2-reader-toc`, but it has not yet passed fresh closure-candidate verification or been accepted as the R0 closure baseline.
+Commit `91d6914` is an ancestor of runtime candidate commit `99ad1e3`. The candidate is contained in the pushed history of `origin/feature/m2-reader-toc`, but it has not yet passed fresh closure-candidate verification or been accepted as the R0 closure baseline.
 
 The responsive Vocabulary Preview prototype retained under `design-lab/` is version-controlled non-runtime experimental material. It is not imported by production, is not approved implementation, and does not count as milestone-completion evidence.
 
@@ -228,10 +228,11 @@ The following R0 work is complete:
 * the runtime baseline was pushed to the remote branch;
 * subsequent R0 governance, canonical-document, persistence, and archive reconciliation was committed;
 * the Guide vocabulary-annotation regression repair was committed;
+* the approved Guide mode-label and semantic-test regression correction was committed as `99ad1e3`;
 * unresolved localization design records were archived;
 * the responsive Vocabulary Preview design-lab prototype was retained as version-controlled non-runtime experimentation;
 * the unapproved Guide redesign draft was preserved outside the repository and removed from the R0 working tree;
-* the repository working tree was reconciled to clean candidate HEAD `817d902`.
+* the repository working tree was reconciled to runtime candidate commit `99ad1e3` after the approved Guide label and semantic-test regression correction.
 
 These completed items do not by themselves close R0.
 

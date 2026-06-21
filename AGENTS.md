@@ -216,6 +216,7 @@ Common suites:
 * `tests/glossaryEngine.test.mjs`
 * `tests/storage.test.mjs`
 * `tests/homeState.test.mjs`
+* `tests/readingModes.test.mjs`
 
 ### Storage or backup
 
