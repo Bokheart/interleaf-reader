@@ -98,10 +98,10 @@
       </section>
 
         <button id="returnToReaderPanel" class="return-reader-card" type="button" hidden>
-          <span class="return-reader-title">Resume current session</span>
-          <span class="entry-hint">Back to your open reader. No reload needed.</span>
+          <span class="return-reader-title" data-i18n="home.returnToReader.title">Resume current session</span>
+          <span class="entry-hint" data-i18n="home.returnToReader.hint">Back to your open reader. No reload needed.</span>
           <span id="returnToReaderSubtext" class="return-reader-subtext"></span>
-          <span class="primary-card-action">Resume</span>
+          <span class="primary-card-action" data-i18n="home.returnToReader.action">Resume</span>
         </button>
 
         <section id="continueReadingPanel" class="continue-panel" hidden aria-labelledby="continue-title">
@@ -161,11 +161,11 @@
           aria-labelledby="forgetBookTitle"
           aria-describedby="forgetBookBody"
         >
-          <h2 id="forgetBookTitle">Forget this book?</h2>
-          <p id="forgetBookBody">Remove this book from this browser. This will delete its saved EPUB file and reading progress on this device.</p>
+          <h2 id="forgetBookTitle" data-i18n="savedBook.forget.title">Forget this book?</h2>
+          <p id="forgetBookBody" data-i18n="savedBook.forget.explanation">This will delete its saved EPUB file and reading progress on this device.</p>
           <div class="confirm-modal-actions">
-            <button id="cancelForgetBookButton" type="button">Cancel</button>
-            <button id="confirmForgetBookButton" type="button" class="danger-button">Forget book</button>
+            <button id="cancelForgetBookButton" type="button" data-i18n="savedBook.forget.cancel">Cancel</button>
+            <button id="confirmForgetBookButton" type="button" class="danger-button" data-i18n="savedBook.forget.confirm">Forget book</button>
           </div>
         </section>
       </div>
@@ -363,8 +363,8 @@
       <header class="reader-top-bar">
         <button id="backToHomeButton" type="button" data-i18n="reader.backHome">Back to Home</button>
         <div id="readerSavedPanel" class="reader-saved-panel" hidden>
-          <span id="readerSavedText">Saved locally in this browser.</span>
-          <button id="clearSavedBookButton" type="button">Forget saved book</button>
+          <span id="readerSavedText" data-i18n="reader.saved.status">Saved locally in this browser.</span>
+          <button id="clearSavedBookButton" type="button" data-i18n="reader.saved.forget">Forget saved book</button>
         </div>
       </header>
 

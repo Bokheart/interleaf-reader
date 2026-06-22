@@ -209,6 +209,21 @@ assert.equal(
   "Glossary truncation feedback localizes parameterized counts"
 );
 
+for (const [key, english, chinese] of [
+  ["home.returnToReader.title", "Resume current session", "\u7ee7\u7eed\u5f53\u524d\u9605\u8bfb"],
+  ["home.returnToReader.hint", "Back to your open reader. No reload needed.", "\u8fd4\u56de\u5f53\u524d\u6253\u5f00\u7684\u9605\u8bfb\u9875\u9762\uff0c\u65e0\u9700\u91cd\u65b0\u52a0\u8f7d\u3002"],
+  ["home.returnToReader.action", "Resume", "\u7ee7\u7eed\u9605\u8bfb"],
+  ["reader.saved.status", "Saved locally in this browser.", "\u5df2\u4fdd\u5b58\u5728\u6b64\u6d4f\u89c8\u5668\u4e2d\u3002"],
+  ["reader.saved.forget", "Forget saved book", "\u79fb\u9664\u5df2\u4fdd\u5b58\u4e66\u7c4d"],
+  ["savedBook.forget.title", "Forget this book?", "\u4ece\u672c\u8bbe\u5907\u79fb\u9664\u8fd9\u672c\u4e66\uff1f"],
+  ["savedBook.forget.explanation", "This will delete its saved EPUB file and reading progress on this device.", "\u8fd9\u5c06\u5220\u9664\u672c\u8bbe\u5907\u4e0a\u4fdd\u5b58\u7684 EPUB \u6587\u4ef6\u548c\u9605\u8bfb\u8fdb\u5ea6\u3002"],
+  ["savedBook.forget.cancel", "Cancel", "\u53d6\u6d88"],
+  ["savedBook.forget.confirm", "Forget book", "\u79fb\u9664\u8fd9\u672c\u4e66"]
+]) {
+  assert.equal(getTranslation("en", key), english, `${key} preserves the approved English copy`);
+  assert.equal(getTranslation("zh-CN", key), chinese, `${key} uses the exact approved Chinese copy`);
+}
+
 assert.deepEqual(
   getHomeEntryState(noLoadedBookState, []),
   {
@@ -1367,6 +1382,31 @@ assert.equal(emptyAction.ok, false, "Preview actions skip empty terms");
 assert.equal(emptyAction.reason, "empty-term", "Preview actions report empty terms");
 
 const homeHtml = await readFile(new URL("../pwa-reader/index.html", import.meta.url), "utf8");
+
+for (const [pattern, description] of [
+  [/class="return-reader-title"[^>]*data-i18n="home\.returnToReader\.title"/, "Return-to-Reader title"],
+  [/class="entry-hint"[^>]*data-i18n="home\.returnToReader\.hint"/, "Return-to-Reader hint"],
+  [/class="primary-card-action"[^>]*data-i18n="home\.returnToReader\.action"/, "Return-to-Reader action"],
+  [/id="readerSavedText"[^>]*data-i18n="reader\.saved\.status"/, "Reader saved status"],
+  [/id="clearSavedBookButton"[^>]*data-i18n="reader\.saved\.forget"/, "Reader Forget button"],
+  [/id="forgetBookTitle"[^>]*data-i18n="savedBook\.forget\.title"/, "Forget modal title"],
+  [/id="forgetBookBody"[^>]*data-i18n="savedBook\.forget\.explanation"/, "Forget modal explanation"],
+  [/id="cancelForgetBookButton"[^>]*data-i18n="savedBook\.forget\.cancel"/, "Forget modal Cancel button"],
+  [/id="confirmForgetBookButton"[^>]*data-i18n="savedBook\.forget\.confirm"/, "Forget modal confirm button"]
+]) {
+  assert.match(homeHtml, pattern, `${description} resolves through Interface Language`);
+}
+
+assert.match(
+  appSource,
+  /function openForgetBookModal\([\s\S]*forgetBookBody\.textContent\s*=\s*t\("savedBook\.forget\.explanation"\)/,
+  "Dynamic Forget modal explanation resolves through Interface Language"
+);
+assert.match(
+  appSource,
+  /function showSavedBookControls\([\s\S]*readerSavedText\.textContent\s*=\s*t\("reader\.saved\.status"\)/,
+  "Dynamic Reader saved status resolves through Interface Language"
+);
 
 assert.match(
   homeHtml,

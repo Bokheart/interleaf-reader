@@ -2803,7 +2803,7 @@ function openForgetBookModal(bookKey, displayTitle = "this book") {
     displayTitle
   };
 
-  elements.forgetBookBody.textContent = `Remove "${displayTitle}" from this browser. This will delete its saved EPUB file and reading progress on this device.`;
+  elements.forgetBookBody.textContent = t("savedBook.forget.explanation");
   elements.forgetBookModal.hidden = false;
   hideBubble();
   closeMobileSheets();
@@ -2926,7 +2926,7 @@ function showSavedBookControls(savedBook) {
     return;
   }
 
-  elements.readerSavedText.textContent = `Saved locally: ${savedBook.title || savedBook.fileName || "this book"}. Use Forget saved book to clear local EPUB data.`;
+  elements.readerSavedText.textContent = t("reader.saved.status");
   elements.readerSavedPanel.hidden = false;
 }
 
