@@ -1035,6 +1035,7 @@ function handleUiLanguageChoice(language) {
   renderSettingsView();
   renderLocalLibrary();
   renderVocabularyLibrarySummary();
+  refreshReaderChromeLanguage();
 }
 
 function handleSettingsUiLanguageChange(event) {
@@ -1657,7 +1658,9 @@ function syncModeControls() {
   }
 
   if (elements.mobileModeButton) {
-    elements.mobileModeButton.textContent = `Mode · ${getModeLabel(state.currentMode)}`;
+    elements.mobileModeButton.textContent = t("reader.mobile.modeSummary", {
+      mode: getModeLabel(state.currentMode)
+    });
   }
 
   if (elements.tapModeButton) {
@@ -1673,26 +1676,30 @@ function syncModeControls() {
 
 function getModeLabel(mode) {
   if (mode === MODES.CHINESE) {
-    return "Chinese";
+    return t("reader.mode.chinese");
   }
 
   if (mode === MODES.CLOZE_MIXED) {
-    return "Mixed Mode";
+    return t("reader.mode.mixed");
   }
 
-  return "English Study";
+  return t("reader.mode.english");
 }
 
-function getCompactModeLabel(mode) {
-  if (mode === MODES.CHINESE) {
-    return "Chinese";
+function getCompactModeLabel() {
+  return t("reader.controls.mode");
+}
+
+function refreshReaderChromeLanguage() {
+  if (!elements.bookMeta) {
+    return;
   }
 
-  if (mode === MODES.CLOZE_MIXED) {
-    return "Cloze";
-  }
-
-  return "English";
+  syncModeControls();
+  renderBookMeta();
+  renderChapterOptions();
+  const previewCount = Number(elements.mobileVocabButton?.dataset.previewCount || 0);
+  updateMobileVocabButton(previewCount);
 }
 
 function switchReadingMode(nextMode) {
@@ -2984,8 +2991,8 @@ async function clearSavedBook() {
 function renderBookMeta() {
   if (!state.book) {
     elements.bookMeta.innerHTML = `
-      <p class="eyebrow">No book loaded</p>
-      <h2>Choose an EPUB to begin.</h2>
+      <p class="eyebrow" data-i18n="reader.empty.noBook">${escapeHtml(t("reader.empty.noBook"))}</p>
+      <h2 data-i18n="reader.empty.chooseBook">${escapeHtml(t("reader.empty.chooseBook"))}</h2>
     `;
     return;
   }
@@ -3003,7 +3010,7 @@ function renderBookMeta() {
 function renderChapterOptions() {
   if (!state.book) {
     elements.chapterSelect.disabled = true;
-    elements.chapterSelect.innerHTML = "<option>No book loaded</option>";
+    elements.chapterSelect.innerHTML = `<option data-i18n="reader.empty.noBook">${escapeHtml(t("reader.empty.noBook"))}</option>`;
     renderChapterList([]);
     renderNavigationControls();
     return;
@@ -3011,7 +3018,7 @@ function renderChapterOptions() {
 
   if (!state.book.chapters.length) {
     elements.chapterSelect.disabled = true;
-    elements.chapterSelect.innerHTML = "<option>No chapters found</option>";
+    elements.chapterSelect.innerHTML = `<option data-i18n="reader.empty.noChapters">${escapeHtml(t("reader.empty.noChapters"))}</option>`;
     renderChapterList([]);
     renderNavigationControls();
     return;
@@ -3020,7 +3027,7 @@ function renderChapterOptions() {
   elements.chapterSelect.disabled = state.isLoadingChapter;
   elements.chapterSelect.innerHTML = state.book.chapters
     .map((chapter, index) => `
-      <option value="${escapeHtml(chapter.id)}">${escapeHtml(chapter.title || `Chapter ${index + 1}`)}</option>
+      <option value="${escapeHtml(chapter.id)}">${escapeHtml(chapter.title || t("reader.chapter.fallback", { number: index + 1 }))}</option>
     `)
     .join("");
   elements.chapterSelect.value = state.currentChapterId;
@@ -3044,12 +3051,12 @@ function renderChapterList(chapters) {
   }
 
   if (!state.book) {
-    setChapterListMarkup("<p class=\"empty-state compact-empty\">Import an EPUB to see chapters.</p>");
+    setChapterListMarkup(`<p class="empty-state compact-empty" data-i18n="reader.empty.importForChapters">${escapeHtml(t("reader.empty.importForChapters"))}</p>`);
     return;
   }
 
   if (!chapters.length) {
-    setChapterListMarkup("<p class=\"empty-state compact-empty\">No readable chapters found.</p>");
+    setChapterListMarkup(`<p class="empty-state compact-empty" data-i18n="reader.empty.noReadableChapters">${escapeHtml(t("reader.empty.noReadableChapters"))}</p>`);
     return;
   }
 
@@ -3057,7 +3064,7 @@ function renderChapterList(chapters) {
   const rows = chapters
     .map((chapter, index) => {
       const isActive = chapter.id === state.currentChapterId;
-      const label = chapter.title || `Chapter ${index + 1}`;
+      const label = chapter.title || t("reader.chapter.fallback", { number: index + 1 });
 
       return `
         <button
@@ -3214,7 +3221,7 @@ function renderVocabularyPreview(items = [], chapter = null) {
 
   if (state.vocabularyLoadError) {
     const html = `
-      <li class="empty-state">Vocabulary JSON failed to load. Start the app from a local server and check the data folder.</li>
+      <li class="empty-state" data-i18n="reader.empty.previewLoadError">${escapeHtml(t("reader.empty.previewLoadError"))}</li>
     `;
     elements.vocabList.innerHTML = html;
     elements.mobileVocabList.innerHTML = html;
@@ -3222,21 +3229,21 @@ function renderVocabularyPreview(items = [], chapter = null) {
   }
 
   if (!chapter) {
-    const html = "<li class=\"empty-state\">Vocabulary matches will appear after a chapter loads.</li>";
+    const html = `<li class="empty-state" data-i18n="reader.empty.previewWaiting">${escapeHtml(t("reader.empty.previewWaiting"))}</li>`;
     elements.vocabList.innerHTML = html;
     elements.mobileVocabList.innerHTML = html;
     return;
   }
 
   if (chapter.renderError) {
-    const html = "<li class=\"empty-state\">Vocabulary Preview is unavailable because this chapter did not render.</li>";
+    const html = `<li class="empty-state" data-i18n="reader.empty.previewUnavailable">${escapeHtml(t("reader.empty.previewUnavailable"))}</li>`;
     elements.vocabList.innerHTML = html;
     elements.mobileVocabList.innerHTML = html;
     return;
   }
 
   if (!items.length) {
-    const html = "<li class=\"empty-state\">No preview terms found from the current word lists.</li>";
+    const html = `<li class="empty-state" data-i18n="reader.empty.previewNone">${escapeHtml(t("reader.empty.previewNone"))}</li>`;
     elements.vocabList.innerHTML = html;
     elements.mobileVocabList.innerHTML = html;
     return;
@@ -3247,7 +3254,7 @@ function renderVocabularyPreview(items = [], chapter = null) {
     .filter(Boolean);
 
   if (!renderedItems.length) {
-    const html = "<li class=\"empty-state\">No preview terms found from the current word lists.</li>";
+    const html = `<li class="empty-state" data-i18n="reader.empty.previewNone">${escapeHtml(t("reader.empty.previewNone"))}</li>`;
     elements.vocabList.innerHTML = html;
     elements.mobileVocabList.innerHTML = html;
     return;
@@ -3292,11 +3299,15 @@ function renderVocabularyPreviewListItem(item, personalizationState = state.voca
 
 function updateMobileVocabButton(count) {
   if (elements.mobileVocabButton) {
-    elements.mobileVocabButton.textContent = `Vocabulary Preview · ${count} ${count === 1 ? "term" : "terms"}`;
+    elements.mobileVocabButton.dataset.previewCount = String(count);
+    elements.mobileVocabButton.textContent = t(
+      count === 1 ? "reader.mobile.previewCount.one" : "reader.mobile.previewCount.other",
+      { count }
+    );
   }
 
   if (elements.tapVocabButton) {
-    elements.tapVocabButton.textContent = "Preview";
+    elements.tapVocabButton.textContent = t("reader.controls.preview");
   }
 }
 
@@ -3449,7 +3460,9 @@ function renderNavigationControls() {
   const currentIndex = getCurrentChapterIndex();
   const total = chapters.length;
 
-  const progressText = formatChapterProgress(chapters, currentIndex);
+  const progressText = currentIndex >= 0
+    ? formatChapterProgress(chapters, currentIndex)
+    : t("reader.empty.noChapter");
   const currentChapter = currentIndex >= 0 ? chapters[currentIndex] : null;
   elements.chapterProgress.textContent = progressText;
   if (elements.tapBookTitle) {
@@ -3463,7 +3476,9 @@ function renderNavigationControls() {
   }
   renderProgressPanel();
   if (elements.sidebarChapterProgress) {
-    elements.sidebarChapterProgress.textContent = progressText;
+    elements.sidebarChapterProgress.textContent = state.book
+      ? progressText
+      : t("reader.empty.noBook");
   }
   if (elements.chapterCount) {
     elements.chapterCount.textContent = String(total);
@@ -3509,10 +3524,10 @@ function renderProgressPanel(options = {}) {
     ? clampIndexForChapters(state.pendingChapterIndex, total)
     : currentIndex;
   const displayChapter = displayIndex >= 0 ? chapters[displayIndex] : null;
-  const displayTitle = displayChapter?.title || "No chapter loaded";
+  const displayTitle = displayChapter?.title || t("reader.empty.noChapter");
   const positionText = displayIndex >= 0 && total > 0
     ? `${displayIndex + 1} / ${total}`
-    : "No chapter loaded";
+    : t("reader.empty.noChapter");
 
   if (elements.tapChapterProgressTitle) {
     elements.tapChapterProgressTitle.textContent = displayTitle;
@@ -3524,8 +3539,8 @@ function renderProgressPanel(options = {}) {
 
   if (elements.tapChapterSliderPreview) {
     elements.tapChapterSliderPreview.textContent = displayIndex >= 0
-      ? `Chapter ${displayIndex + 1}: ${displayTitle}`
-      : "Choose a chapter";
+      ? t("reader.chapter.sliderPreview", { number: displayIndex + 1, title: displayTitle })
+      : t("reader.chapter.choose");
   }
 
   if (elements.tapChapterSlider) {

@@ -370,13 +370,13 @@
 
       <div id="readerTapControls" class="reader-tap-controls" data-no-reader-toggle hidden>
         <div class="reader-chrome-bar reader-chrome-top">
-          <button id="tapHomeButton" type="button">Home</button>
+          <button id="tapHomeButton" type="button" data-i18n="reader.home">Home</button>
           <div class="reader-chrome-title">
             <p id="tapBookTitle">Interleaf Reader</p>
-            <p id="tapChapterTitle">No chapter loaded</p>
+            <p id="tapChapterTitle" data-i18n="reader.empty.noChapter">No chapter loaded</p>
           </div>
         </div>
-        <div class="reader-chrome-bar reader-chrome-bottom" aria-label="Reader quick controls">
+        <div class="reader-chrome-bar reader-chrome-bottom" aria-label="Reader quick controls" data-i18n-aria-label="reader.aria.quickControls">
           <button id="tapChaptersButton" type="button" data-i18n="reader.controls.contents">Contents</button>
           <button id="tapProgressButton" type="button" data-i18n="reader.controls.progress">Progress</button>
           <button id="tapVocabButton" type="button" data-i18n="reader.controls.preview">Preview</button>
@@ -386,19 +386,19 @@
       </div>
 
       <main class="app-shell reader-shell">
-      <section class="reader-layout" aria-label="Reader workspace">
+      <section class="reader-layout" aria-label="Reader workspace" data-i18n-aria-label="reader.aria.workspace">
         <aside class="reader-sidebar">
           <section class="chapter-navigator" aria-labelledby="chapter-nav-title">
             <div class="panel-heading">
-              <h2 id="chapter-nav-title">Chapters</h2>
+              <h2 id="chapter-nav-title" data-i18n="reader.sidebar.chapters">Chapters</h2>
               <span id="chapterCount">0</span>
             </div>
-            <p id="sidebarChapterProgress" class="sidebar-progress">No book loaded</p>
-            <select id="chapterSelect" class="native-chapter-select" disabled aria-label="Chapter selector fallback">
-              <option>No book loaded</option>
+            <p id="sidebarChapterProgress" class="sidebar-progress" data-i18n="reader.empty.noBook">No book loaded</p>
+            <select id="chapterSelect" class="native-chapter-select" disabled aria-label="Chapter selector fallback" data-i18n-aria-label="reader.aria.chapterSelector">
+              <option data-i18n="reader.empty.noBook">No book loaded</option>
             </select>
-            <div id="chapterList" class="chapter-list" role="listbox" aria-label="Table of contents">
-              <p class="empty-state">Import an EPUB to see chapters.</p>
+            <div id="chapterList" class="chapter-list" role="listbox" aria-label="Table of contents" data-i18n-aria-label="reader.aria.tableOfContents">
+              <p class="empty-state" data-i18n="reader.empty.importForChapters">Import an EPUB to see chapters.</p>
             </div>
           </section>
 
@@ -419,9 +419,9 @@
           </fieldset>
 
           <section class="vocab-preview" aria-labelledby="vocab-title">
-            <h2 id="vocab-title">Vocabulary Preview</h2>
+            <h2 id="vocab-title" data-i18n="reader.preview.title">Vocabulary Preview</h2>
             <ul id="vocabList">
-              <li>Vocabulary matches will appear after a chapter loads.</li>
+              <li data-i18n="reader.empty.previewWaiting">Vocabulary matches will appear after a chapter loads.</li>
             </ul>
           </section>
 
@@ -439,33 +439,33 @@
 
         <article class="reader-pane" tabindex="-1">
           <div id="bookMeta" class="book-meta" tabindex="-1">
-            <p class="eyebrow">No book loaded</p>
-            <h2>Choose an EPUB to begin.</h2>
+            <p class="eyebrow" data-i18n="reader.empty.noBook">No book loaded</p>
+            <h2 data-i18n="reader.empty.chooseBook">Choose an EPUB to begin.</h2>
           </div>
 
-          <div class="mobile-reader-actions" aria-label="Mobile reader tools">
-            <button id="mobileChaptersButton" type="button">Contents</button>
+          <div class="mobile-reader-actions" aria-label="Mobile reader tools" data-i18n-aria-label="reader.aria.mobileTools">
+            <button id="mobileChaptersButton" type="button" data-i18n="reader.controls.contents">Contents</button>
             <button id="mobileVocabButton" type="button">Vocabulary Preview · 0 terms</button>
             <button id="mobileModeButton" type="button">Mode · English Study</button>
           </div>
 
-          <nav class="reader-controls" aria-label="Chapter navigation">
-            <button id="prevChapterButton" type="button" disabled>Previous Chapter</button>
+          <nav class="reader-controls" aria-label="Chapter navigation" data-i18n-aria-label="reader.aria.chapterNavigation">
+            <button id="prevChapterButton" type="button" disabled data-i18n="reader.navigation.previous">Previous Chapter</button>
             <div>
-              <p id="chapterProgress" class="chapter-progress">No chapter loaded</p>
-              <p class="reader-note">Scroll normally, then continue at the bottom.</p>
+              <p id="chapterProgress" class="chapter-progress" data-i18n="reader.empty.noChapter">No chapter loaded</p>
+              <p class="reader-note" data-i18n="reader.navigation.scrollHint">Scroll normally, then continue at the bottom.</p>
             </div>
-            <button id="nextChapterButton" type="button" disabled>Next Chapter</button>
+            <button id="nextChapterButton" type="button" disabled data-i18n="reader.navigation.next">Next Chapter</button>
           </nav>
 
           <div id="chapterContent" class="chapter-content">
             <p>This skeleton will render the first loaded chapter here. Chinese and Mixed modes intentionally show placeholders for now.</p>
           </div>
 
-          <nav class="reader-controls bottom-reader-controls" aria-label="Bottom chapter navigation">
-            <button id="bottomPrevChapterButton" type="button" disabled>Previous Chapter</button>
-            <button id="backToTopButton" type="button" disabled>Back to Top</button>
-            <button id="bottomNextChapterButton" type="button" disabled>Next Chapter</button>
+          <nav class="reader-controls bottom-reader-controls" aria-label="Bottom chapter navigation" data-i18n-aria-label="reader.aria.bottomNavigation">
+            <button id="bottomPrevChapterButton" type="button" disabled data-i18n="reader.navigation.previous">Previous Chapter</button>
+            <button id="backToTopButton" type="button" disabled data-i18n="reader.navigation.backToTop">Back to Top</button>
+            <button id="bottomNextChapterButton" type="button" disabled data-i18n="reader.navigation.next">Next Chapter</button>
           </nav>
         </article>
       </section>
@@ -476,51 +476,51 @@
 
       <section id="mobileChapterSheet" class="mobile-sheet reader-contents-sheet" aria-labelledby="mobile-chapter-title" hidden>
         <div class="mobile-sheet-header">
-          <h2 id="mobile-chapter-title">Contents</h2>
-          <button type="button" class="mobile-sheet-close" data-close-mobile-sheet>Close</button>
+          <h2 id="mobile-chapter-title" data-i18n="reader.controls.contents">Contents</h2>
+          <button type="button" class="mobile-sheet-close" data-close-mobile-sheet data-i18n="reader.common.close">Close</button>
         </div>
-        <div id="mobileChapterList" class="chapter-list mobile-list" role="listbox" aria-label="Mobile chapter list">
-          <p class="empty-state compact-empty">Import an EPUB to see chapters.</p>
+        <div id="mobileChapterList" class="chapter-list mobile-list" role="listbox" aria-label="Mobile chapter list" data-i18n-aria-label="reader.aria.mobileChapterList">
+          <p class="empty-state compact-empty" data-i18n="reader.empty.importForChapters">Import an EPUB to see chapters.</p>
         </div>
       </section>
 
       <section id="mobileProgressSheet" class="mobile-sheet reader-progress-sheet" aria-labelledby="mobile-progress-title" hidden>
         <div class="mobile-sheet-header">
-          <h2 id="mobile-progress-title">Progress</h2>
-          <button type="button" class="mobile-sheet-close" data-close-mobile-sheet>Close</button>
+          <h2 id="mobile-progress-title" data-i18n="reader.controls.progress">Progress</h2>
+          <button type="button" class="mobile-sheet-close" data-close-mobile-sheet data-i18n="reader.common.close">Close</button>
         </div>
         <div class="reader-progress-summary">
-          <p id="tapChapterProgressTitle" class="reader-progress-title">No chapter loaded</p>
-          <p id="tapChapterProgress" class="reader-progress-position">No chapter loaded</p>
+          <p id="tapChapterProgressTitle" class="reader-progress-title" data-i18n="reader.empty.noChapter">No chapter loaded</p>
+          <p id="tapChapterProgress" class="reader-progress-position" data-i18n="reader.empty.noChapter">No chapter loaded</p>
         </div>
-        <div class="reader-progress-actions" aria-label="Reader chapter controls">
-          <button id="tapPrevChapterButton" type="button" disabled>Previous Chapter</button>
+        <div class="reader-progress-actions" aria-label="Reader chapter controls" data-i18n-aria-label="reader.aria.chapterControls">
+          <button id="tapPrevChapterButton" type="button" disabled data-i18n="reader.navigation.previous">Previous Chapter</button>
           <label class="reader-progress-slider-wrap" for="tapChapterSlider">
             <input id="tapChapterSlider" type="range" min="1" max="1" value="1" step="1" disabled>
           </label>
-          <button id="tapNextChapterButton" type="button" disabled>Next Chapter</button>
+          <button id="tapNextChapterButton" type="button" disabled data-i18n="reader.navigation.next">Next Chapter</button>
         </div>
       </section>
 
       <section id="mobileVocabSheet" class="mobile-sheet" aria-labelledby="mobile-vocab-title" hidden>
         <div class="mobile-sheet-header">
-          <h2 id="mobile-vocab-title">Vocabulary Preview</h2>
-          <button type="button" class="mobile-sheet-close" data-close-mobile-sheet>Close</button>
+          <h2 id="mobile-vocab-title" data-i18n="reader.preview.title">Vocabulary Preview</h2>
+          <button type="button" class="mobile-sheet-close" data-close-mobile-sheet data-i18n="reader.common.close">Close</button>
         </div>
         <ul id="mobileVocabList" class="mobile-vocab-list">
-          <li class="empty-state">Vocabulary matches will appear after a chapter loads.</li>
+          <li class="empty-state" data-i18n="reader.empty.previewWaiting">Vocabulary matches will appear after a chapter loads.</li>
         </ul>
       </section>
 
       <section id="mobileModeSheet" class="mobile-sheet" aria-labelledby="mobile-mode-title" hidden>
         <div class="mobile-sheet-header">
-          <h2 id="mobile-mode-title">Reading Mode</h2>
-          <button type="button" class="mobile-sheet-close" data-close-mobile-sheet>Close</button>
+          <h2 id="mobile-mode-title" data-i18n="reader.mode.title">Reading Mode</h2>
+          <button type="button" class="mobile-sheet-close" data-close-mobile-sheet data-i18n="reader.common.close">Close</button>
         </div>
         <div class="mobile-mode-options">
-          <button type="button" data-mobile-mode="english-study">English Study</button>
-          <button type="button" data-mobile-mode="chinese">Chinese</button>
-          <button type="button" data-mobile-mode="cloze-mixed">Mixed Mode</button>
+          <button type="button" data-mobile-mode="english-study" data-i18n="reader.mode.english">English Study</button>
+          <button type="button" data-mobile-mode="chinese" data-i18n="reader.mode.chinese">Chinese</button>
+          <button type="button" data-mobile-mode="cloze-mixed" data-i18n="reader.mode.mixed">Mixed Mode</button>
         </div>
       </section>
 

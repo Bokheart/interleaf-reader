@@ -45,6 +45,8 @@ import {
   getTranslation,
   normalizeUiLanguage
 } from "../pwa-reader/i18n.js";
+import { en } from "../pwa-reader/locales/en.js";
+import { zhCN } from "../pwa-reader/locales/zh-CN.js";
 
 const loadedBookState = {
   book: {
@@ -137,6 +139,44 @@ assert.equal(
 
 assert.equal(getTranslation("zh-CN", "home.import.title"), "\u5bfc\u5165 EPUB", "Chinese UI strings are available by key");
 assert.equal(getTranslation("en", "reader.controls.contents"), "Contents", "English UI strings are available by key");
+assert.deepEqual(
+  Object.keys(zhCN).sort(),
+  Object.keys(en).sort(),
+  "English and Chinese locale catalogs keep identical key sets"
+);
+
+for (const [key, english, chinese] of [
+  ["reader.controls.contents", "Contents", "目录"],
+  ["reader.controls.progress", "Progress", "进度"],
+  ["reader.controls.preview", "Preview", "词汇预览"],
+  ["reader.controls.mode", "Mode", "阅读模式"],
+  ["reader.mode.title", "Reading Mode", "阅读模式"],
+  ["reader.sidebar.chapters", "Chapters", "章节"],
+  ["reader.navigation.previous", "Previous Chapter", "上一章"],
+  ["reader.navigation.next", "Next Chapter", "下一章"],
+  ["reader.navigation.backToTop", "Back to Top", "回到顶部"],
+  ["reader.common.close", "Close", "关闭"],
+  ["reader.mode.english", "English Study", "英文阅读"],
+  ["reader.mode.chinese", "Chinese", "中文阅读"],
+  ["reader.mode.mixed", "Mixed Mode", "混合阅读"],
+  ["reader.empty.noBook", "No book loaded", "尚未加载书籍"],
+  ["reader.empty.noChapter", "No chapter loaded", "尚未加载章节"],
+  ["reader.empty.importForChapters", "Import an EPUB to see chapters.", "导入 EPUB 后可查看章节。"],
+  ["reader.empty.chooseBook", "Choose an EPUB to begin.", "请选择一本 EPUB 开始阅读。"]
+]) {
+  assert.equal(getTranslation("en", key), english, `${key} has the expected English Reader copy`);
+  assert.equal(getTranslation("zh-CN", key), chinese, `${key} has the expected Chinese Reader copy`);
+}
+assert.equal(
+  getTranslation("zh-CN", "reader.mobile.modeSummary", { mode: "英文阅读" }),
+  "阅读模式 · 英文阅读",
+  "Chinese mobile Mode summary localizes both the control and selected-mode labels"
+);
+assert.equal(
+  getTranslation("zh-CN", "reader.mobile.previewCount.other", { count: 2 }),
+  "词汇预览 · 2 个词",
+  "Chinese mobile Preview count resolves through the locale catalog"
+);
 assert.equal(
   createTranslator("zh-CN")("settings.title"),
   "\u8bbe\u7f6e",
@@ -1301,6 +1341,52 @@ assert.equal(emptyAction.ok, false, "Preview actions skip empty terms");
 assert.equal(emptyAction.reason, "empty-term", "Preview actions report empty terms");
 
 const homeHtml = await readFile(new URL("../pwa-reader/index.html", import.meta.url), "utf8");
+
+for (const [id, key] of [
+  ["chapter-nav-title", "reader.sidebar.chapters"],
+  ["vocab-title", "reader.preview.title"],
+  ["prevChapterButton", "reader.navigation.previous"],
+  ["nextChapterButton", "reader.navigation.next"],
+  ["bottomPrevChapterButton", "reader.navigation.previous"],
+  ["backToTopButton", "reader.navigation.backToTop"],
+  ["bottomNextChapterButton", "reader.navigation.next"],
+  ["mobile-chapter-title", "reader.controls.contents"],
+  ["mobile-progress-title", "reader.controls.progress"],
+  ["mobile-vocab-title", "reader.preview.title"],
+  ["mobile-mode-title", "reader.mode.title"]
+]) {
+  assert.match(
+    homeHtml,
+    new RegExp(`id="${id}"[^>]*data-i18n="${key}"`),
+    `${id} resolves Reader chrome copy through a semantic locale key`
+  );
+}
+
+assert.match(
+  homeHtml,
+  /class="reader-chrome-bar reader-chrome-bottom"[^>]*data-i18n-aria-label="reader\.aria\.quickControls"/,
+  "Reader quick controls expose a localized accessibility label"
+);
+assert.match(
+  homeHtml,
+  /id="chapterList"[^>]*data-i18n-aria-label="reader\.aria\.tableOfContents"/,
+  "Desktop Contents exposes a localized accessibility label"
+);
+assert.match(
+  homeHtml,
+  /class="reader-controls"[^>]*data-i18n-aria-label="reader\.aria\.chapterNavigation"/,
+  "Reader chapter navigation exposes a localized accessibility label"
+);
+assert.match(
+  appSource,
+  /function getModeLabel\(mode\)[\s\S]*t\("reader\.mode\.chinese"\)[\s\S]*t\("reader\.mode\.mixed"\)[\s\S]*t\("reader\.mode\.english"\)/,
+  "Dynamic Reading Mode labels resolve through the active Interface Language"
+);
+assert.match(
+  appSource,
+  /function updateMobileVocabButton\(count\)[\s\S]*reader\.mobile\.previewCount\.one[\s\S]*reader\.mobile\.previewCount\.other/,
+  "Dynamic mobile Preview counts resolve through the active Interface Language"
+);
 
 assert.match(
   homeHtml,
