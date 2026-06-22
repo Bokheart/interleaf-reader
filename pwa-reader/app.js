@@ -1698,6 +1698,7 @@ function refreshReaderChromeLanguage() {
   syncModeControls();
   renderBookMeta();
   renderChapterOptions();
+  renderBookGlossary();
   const previewCount = Number(elements.mobileVocabButton?.dataset.previewCount || 0);
   updateMobileVocabButton(previewCount);
 }
@@ -3402,17 +3403,17 @@ function renderBookGlossary() {
   elements.glossaryCount.textContent = String(items.length);
 
   if (!state.book) {
-    elements.glossaryList.innerHTML = "<li class=\"empty-state\">Import an EPUB to generate a Book Glossary.</li>";
+    elements.glossaryList.innerHTML = `<li class="empty-state" data-i18n="reader.glossary.empty.import">${escapeHtml(t("reader.glossary.empty.import"))}</li>`;
     return;
   }
 
   if (!state.book.chapters.some((chapter) => chapter.plainText)) {
-    elements.glossaryList.innerHTML = "<li class=\"empty-state\">Glossary candidates will appear after chapter text loads.</li>";
+    elements.glossaryList.innerHTML = `<li class="empty-state" data-i18n="reader.glossary.empty.waiting">${escapeHtml(t("reader.glossary.empty.waiting"))}</li>`;
     return;
   }
 
   if (!items.length) {
-    elements.glossaryList.innerHTML = "<li class=\"empty-state\">No glossary candidates found yet.</li>";
+    elements.glossaryList.innerHTML = `<li class="empty-state" data-i18n="reader.glossary.empty.none">${escapeHtml(t("reader.glossary.empty.none"))}</li>`;
     return;
   }
 
@@ -3427,7 +3428,7 @@ function renderBookGlossary() {
       </li>
     `)
     .join("") + (hiddenCount > 0
-      ? `<li class="empty-state">Showing 10 of ${items.length} candidates.</li>`
+      ? `<li class="empty-state">${escapeHtml(t("reader.glossary.showingCount", { visible: visibleItems.length, total: items.length }))}</li>`
       : "");
 }
 

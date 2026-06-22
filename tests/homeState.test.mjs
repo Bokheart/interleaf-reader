@@ -183,6 +183,32 @@ assert.equal(
   "translator helper reads localized Settings copy"
 );
 
+for (const [key, english, chinese] of [
+  [
+    "reader.help.body",
+    "Use Contents for chapters, Progress for chapter navigation, Preview for vocabulary support, and Mode to check reading mode status.",
+    "\u4f7f\u7528\u201c\u76ee\u5f55\u201d\u67e5\u770b\u7ae0\u8282\uff0c\u4f7f\u7528\u201c\u8fdb\u5ea6\u201d\u5207\u6362\u7ae0\u8282\uff0c\u4f7f\u7528\u201c\u8bcd\u6c47\u9884\u89c8\u201d\u83b7\u53d6\u8bcd\u6c47\u8f85\u52a9\uff0c\u5e76\u4f7f\u7528\u201c\u9605\u8bfb\u6a21\u5f0f\u201d\u67e5\u770b\u5f53\u524d\u6a21\u5f0f\u72b6\u6001\u3002"
+  ],
+  ["reader.help.progress", "Progress changes chapters, not paragraph position.", "\u201c\u8fdb\u5ea6\u201d\u7528\u4e8e\u5207\u6362\u7ae0\u8282\uff0c\u800c\u4e0d\u662f\u6bb5\u843d\u4f4d\u7f6e\u3002"],
+  ["reader.help.preview", "Preview shows current vocabulary support and remains local-first.", "\u201c\u8bcd\u6c47\u9884\u89c8\u201d\u663e\u793a\u5f53\u524d\u7684\u8bcd\u6c47\u8f85\u52a9\uff0c\u5e76\u4fdd\u6301\u672c\u5730\u4f18\u5148\u3002"],
+  ["reader.help.placeholders", "Chinese Reading Mode and Mixed Mode remain placeholders.", "\u4e2d\u6587\u9605\u8bfb\u548c\u6df7\u5408\u9605\u8bfb\u4ecd\u4e3a\u5360\u4f4d\u529f\u80fd\u3002"],
+  ["reader.help.openHelpCenter", "Open Help Center", "\u6253\u5f00\u5e2e\u52a9\u4e2d\u5fc3"],
+  ["reader.glossary.title", "Book Glossary candidates", "\u4e66\u7c4d\u672f\u8bed\u5019\u9009"],
+  ["reader.glossary.note", "For future translation protection.", "\u7528\u4e8e\u540e\u7eed\u7ffb\u8bd1\u65f6\u4fdd\u62a4\u4e13\u6709\u540d\u8bcd\u4e0e\u56fa\u5b9a\u8bd1\u540d\u3002"],
+  ["reader.glossary.empty.import", "Import an EPUB to generate a Book Glossary.", "\u5bfc\u5165 EPUB \u540e\u53ef\u751f\u6210\u4e66\u7c4d\u672f\u8bed\u5019\u9009\u3002"],
+  ["reader.glossary.empty.waiting", "Glossary candidates will appear after chapter text loads.", "\u7ae0\u8282\u6587\u672c\u52a0\u8f7d\u540e\u5c06\u663e\u793a\u672f\u8bed\u5019\u9009\u3002"],
+  ["reader.glossary.empty.none", "No glossary candidates found yet.", "\u6682\u672a\u627e\u5230\u672f\u8bed\u5019\u9009\u3002"]
+]) {
+  assert.equal(getTranslation("en", key), english, `${key} preserves meaningful English copy`);
+  assert.equal(getTranslation("zh-CN", key), chinese, `${key} provides meaningful Chinese copy`);
+}
+
+assert.equal(
+  getTranslation("zh-CN", "reader.glossary.showingCount", { visible: 10, total: 14 }),
+  "\u6b63\u5728\u663e\u793a 14 \u4e2a\u5019\u9009\u4e2d\u7684 10 \u4e2a\u3002",
+  "Glossary truncation feedback localizes parameterized counts"
+);
+
 assert.deepEqual(
   getHomeEntryState(noLoadedBookState, []),
   {
@@ -1341,6 +1367,27 @@ assert.equal(emptyAction.ok, false, "Preview actions skip empty terms");
 assert.equal(emptyAction.reason, "empty-term", "Preview actions report empty terms");
 
 const homeHtml = await readFile(new URL("../pwa-reader/index.html", import.meta.url), "utf8");
+
+assert.match(
+  homeHtml,
+  /id="glossary-title"[^>]*data-i18n="reader\.glossary\.title"/,
+  "Book Glossary heading resolves through Interface Language"
+);
+assert.match(
+  homeHtml,
+  /class="panel-note"[^>]*data-i18n="reader\.glossary\.note"/,
+  "Book Glossary explanatory note resolves through Interface Language"
+);
+assert.match(
+  homeHtml,
+  /id="glossaryList"[\s\S]*data-i18n="reader\.glossary\.empty\.waiting"/,
+  "Book Glossary initial empty state resolves through Interface Language"
+);
+assert.match(
+  appSource,
+  /function renderBookGlossary\(\)[\s\S]*reader\.glossary\.empty\.import[\s\S]*reader\.glossary\.empty\.waiting[\s\S]*reader\.glossary\.empty\.none[\s\S]*reader\.glossary\.showingCount/,
+  "Dynamic Book Glossary states resolve through semantic locale keys"
+);
 
 for (const [id, key] of [
   ["chapter-nav-title", "reader.sidebar.chapters"],
