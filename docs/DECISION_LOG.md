@@ -96,6 +96,7 @@ Current status details belong in `PROJECT_STATE.md`, not here.
 | DEC-025 | 2026-06-21 | Experiment governance    | Keep the responsive Preview prototype non-runtime            | Active     | —                         |
 | DEC-026 | 2026-06-21 | Guide testing governance | Keep Guide selection Mode-owned without exact-copy locking   | Active     | —                         |
 | DEC-027 | 2026-06-22 | Milestone governance     | Accept R0 runtime baseline and activate R1                   | Active     | —                         |
+| DEC-028 | 2026-06-23 | Localization             | Reader chrome terminology and Interface Language boundary  | Active     | —                         |
 
 ---
 
@@ -618,6 +619,46 @@ Current status details belong in `PROJECT_STATE.md`, not here.
 * **Supersedes:** None
 * **Superseded by:** None
 * **Related documents:** `docs/PROJECT_STATE.md`, `docs/MILESTONES.md`, `docs/HANDOFF.md`, `AGENTS.md`
+
+---
+
+### DEC-028 — Reader chrome localization terminology and Interface Language boundary
+
+* **Date:** 2026-06-23
+* **Status:** Active
+* **Area:** Localization
+* **Context:** `R1-L10N-01 — Reader Chrome Localization` completed at commit `74ce309` on `feature/m2-reader-toc`. Product owner approved the first Reader chrome increment, including static compact control labels **Mode** / **阅读模式**, and deferred mixed-language Reader Help and Book Glossary copy to later R1 tasks.
+* **Decision:**
+
+  * Interface Language localizes **Reader UI chrome only** — labels, navigation controls, mobile sheets, and related empty states;
+  * approved Simplified Chinese Reader chrome terminology is:
+
+    | English | 简体中文 |
+    | --- | --- |
+    | Contents | 目录 |
+    | Progress | 进度 |
+    | Preview / Vocabulary Preview | 词汇预览 |
+    | Mode / Reading Mode | 阅读模式 |
+    | Chapters | 章节 |
+    | Previous Chapter | 上一章 |
+    | Next Chapter | 下一章 |
+    | Back to Top | 回到顶部 |
+    | Close | 关闭 |
+    | English Study | 英文阅读 |
+    | Chinese | 中文阅读 |
+    | Mixed Mode | 混合阅读 |
+
+  * the compact Reader tap control uses static **Mode** / **阅读模式** rather than a mode-specific compact label;
+  * Guide metadata, Guide chapter titles, and Guide body content remain **Reading-Mode-owned** and must not be localized through Interface Language;
+  * Reading Mode selection, persisted mode values, imported book title/author/chapters/body, storage keys, and progress contracts remain unchanged by Interface Language.
+* **Consequences:**
+
+  * later R1 localization tasks may extend Reader-adjacent chrome, but must preserve the Guide and imported-book boundaries above;
+  * Reader Help explanatory copy, Book Glossary panel UI copy, and other UI-owned Reader-adjacent strings remain deferred;
+  * Home, Vocabulary Library, Guide redesign, pagination, gestures, and quick-add widget work remain out of scope for this decision.
+* **Supersedes:** None
+* **Superseded by:** None
+* **Related documents:** `docs/PROJECT_STATE.md`, `docs/HANDOFF.md`, `pwa-reader/locales/en.js`, `pwa-reader/locales/zh-CN.js`, `tests/homeState.test.mjs`
 
 ---
 

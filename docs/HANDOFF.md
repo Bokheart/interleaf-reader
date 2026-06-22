@@ -34,20 +34,21 @@ The former AI workflow protocol is superseded.
 
 ## 2. Current Control State
 
-As of `2026-06-22`:
+As of `2026-06-23`:
 
 | Field | Current state |
 | --- | --- |
 | **R0** | Closed |
-| **R1** | Active — planning and scope confirmation only |
+| **R1** | Active — implementation in progress |
 | **Accepted runtime baseline** | `99ad1e3` |
 | **Runtime baseline tag** | `r0-closure-99ad1e3` |
 | **Repository branch** | `feature/m2-reader-toc` |
-| **Repository HEAD** | Dynamic — read from Git; do not treat HEAD as the runtime baseline |
+| **Repository HEAD** | `74ce309` — `feat: localize reader chrome` (read from Git after later commits) |
+| **First R1 increment** | `R1-L10N-01 — Reader Chrome Localization` — complete at `74ce309` |
 | **Closure evidence** | Complete |
 | **Further R0 verification** | Not required unless runtime code changes |
 
-The repository working tree was clean at product-owner acceptance. No external Guide redesign patch was applied. Complete Interface Language localization and Guide redesign implementation remain R1 work and have not started.
+R0 remains closed on accepted runtime baseline `99ad1e3` with tag `r0-closure-99ad1e3`. The first R1 implementation increment localized Reader UI chrome only. Interface Language changes Reader labels and empty states; it does not change Reading Mode, Guide content, imported book content, or storage/progress contracts. English and Simplified Chinese locale catalogs now have **108 matching keys**. No external Guide redesign patch was applied.
 
 ### Tooling roles
 
@@ -57,9 +58,15 @@ The repository working tree was clean at product-owner acceptance. No external G
 
 ### Next recommended task
 
-Perform a **read-only R1 entry audit and bounded task-plan proposal**.
+**`R1-L10N-02 — Reader Help and Glossary Chrome Localization`**
 
-Do not treat localization or the external Guide redesign as implemented.
+Deferred from `R1-L10N-01`:
+
+* Reader Help explanatory copy;
+* Book Glossary panel UI copy;
+* other UI-owned Reader-adjacent strings.
+
+Do not treat Home, Vocabulary Library, Guide redesign, pagination, gestures, or quick-add widget work as started.
 
 ---
 
@@ -346,7 +353,7 @@ Use the smallest set that covers the changed risk.
 | Reader UI or navigation | Affected Reader browser flow |
 | Storage or backup | Storage tests plus browser save, refresh, restore, malformed-input, and failure checks |
 | Vocabulary logic | Relevant pure tests; browser Preview or Library when integration changes |
-| Localization | Every affected language and surface |
+| Localization | Every affected language and surface; for Reader chrome, include desktop and **393 × 852** mobile smoke when Interface Language changes |
 | Mobile UI | Appropriate mobile viewport |
 | Guide | Open, navigation, hide/restore, mode separation |
 | PWA or deployment | Official URL, assets, manifest, update behavior, offline boundary |

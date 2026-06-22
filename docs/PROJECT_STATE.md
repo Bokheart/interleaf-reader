@@ -1,6 +1,6 @@
 # Interleaf Reader — Project State
 
-**Last updated:** 2026-06-22
+**Last updated:** 2026-06-23
 **Canonical product specification:** `docs/INTERLEAF_READER_PRD.md`
 **Active control phase:** `R1 — Complete Interface Localization and Onboarding`
 
@@ -15,13 +15,14 @@
 | **Runtime baseline tag** | `r0-closure-99ad1e3` (annotated tag on `99ad1e3`) |
 | **Product-owner acceptance** | 孙书心 accepted the R0 runtime baseline on `2026-06-22` |
 | **R0 status** | **Closed** (`2026-06-22`) |
-| **R1 status** | **Active** — planning and scope confirmation; broad implementation has not started |
+| **R1 status** | **Active** — implementation in progress |
 | **R2 status** | **Following** |
+| **First R1 implementation commit** | `74ce309` — `feat: localize reader chrome` |
 | **Repository state rule** | Read the current repository HEAD from Git; do not treat HEAD as the runtime baseline |
 | **Documentation baseline** | Canonical and historical archive work is committed and reconciled; later documentation-only commits do not change the accepted runtime baseline |
-| **Localization status** | Interface-language foundation exists; complete localization is R1 work and has not started |
-| **Feature-development status** | R1 active for bounded planning only |
-| **Current priority** | Read-only R1 entry audit and bounded task-plan proposal |
+| **Localization status** | R1 implementation started; `R1-L10N-01` complete; English and Simplified Chinese locale catalogs have **108 matching keys**; broader R1 localization continues |
+| **Feature-development status** | R1 active — first bounded localization increment landed |
+| **Current priority** | `R1-L10N-02 — Reader Help and Glossary Chrome Localization` |
 
 The earlier runtime reproducibility risk is resolved. The current application no longer depends on untracked Guide or localization modules.
 
@@ -201,6 +202,51 @@ The Guide mode-label and semantic-test regression correction in `99ad1e3` receiv
 
 This evidence supported the accepted baseline correction and is part of the completed R0 closure record.
 
+### R1-L10N-01 — Reader Chrome Localization
+
+**Status: Complete — committed and pushed on `feature/m2-reader-toc` at `74ce309` (`feat: localize reader chrome`)**
+
+| Check | Result |
+| --- | --- |
+| Scope | Reader UI chrome only via Interface Language |
+| Locale catalogs | English and Simplified Chinese — **108 matching keys** |
+| Node test suites | 7 of 7 passed |
+| Desktop Reader smoke | Passed |
+| Mobile Reader smoke | Passed at **393 × 852** |
+| Interface Language boundary | Reader chrome labels and empty states only |
+| Reading Mode contract | Unchanged — mode selection and persisted values unchanged |
+| Guide content contract | Unchanged — Guide metadata, chapter titles, and body remain Reading-Mode-owned |
+| Imported book content | Unchanged — title, author, chapters, and body not localized by Interface Language |
+| Storage and progress contracts | Unchanged |
+| Product-owner approval | Static compact control label **Mode** / **阅读模式** accepted |
+
+Approved Simplified Chinese Reader chrome terminology:
+
+| English | 简体中文 |
+| --- | --- |
+| Contents | 目录 |
+| Progress | 进度 |
+| Preview / Vocabulary Preview | 词汇预览 |
+| Mode / Reading Mode | 阅读模式 |
+| Chapters | 章节 |
+| Previous Chapter | 上一章 |
+| Next Chapter | 下一章 |
+| Back to Top | 回到顶部 |
+| Close | 关闭 |
+| English Study | 英文阅读 |
+| Chinese | 中文阅读 |
+| Mixed Mode | 混合阅读 |
+
+Deferred to later R1 localization tasks (not part of `R1-L10N-01`):
+
+* Reader Help explanatory copy;
+* Book Glossary panel UI copy;
+* other UI-owned Reader-adjacent strings.
+
+Guide metadata, Guide chapter titles, and Guide body content remain **Reading-Mode-owned** and must not be localized through Interface Language.
+
+Home, Vocabulary Library, Guide redesign, pagination, gestures, and quick-add widget work remain **not started**.
+
 ---
 
 ## 5. Post-R0 Monitoring and Remaining Limits
@@ -280,14 +326,21 @@ A manifest and planning documents exist, but no service worker is implemented or
 
 ### Complete localization
 
-Interface-language infrastructure exists, but complete English and Chinese Interface Language localization is R1 work and has not started.
+Interface-language infrastructure exists. R1 implementation began with `R1-L10N-01 — Reader Chrome Localization` at commit `74ce309`. Complete English and Chinese Interface Language coverage remains R1 work in progress.
+
+Completed in the first increment:
+
+* Reader chrome labels, navigation controls, mobile sheets, and related empty states;
+* matching English and Simplified Chinese locale catalogs (**108 keys**).
 
 Known remaining areas include:
 
-* hard-coded user-facing strings;
+* Reader Help and Book Glossary chrome copy;
+* Home and Settings surfaces beyond the Reader increment;
+* Vocabulary Library UI;
+* hard-coded user-facing strings outside the completed Reader scope;
 * dynamic feedback and error messages;
-* accessibility labels;
-* complete Chinese interface coverage;
+* accessibility labels outside the completed Reader scope;
 * final Guide Mixed-content compliance.
 
 The preserved Guide redesign draft is not localization implementation and is not part of runtime candidate commit `99ad1e3`.
@@ -381,19 +434,18 @@ R0 may be reopened only for a confirmed baseline defect or governance correction
 
 ## 11. Immediate Next Action
 
-> Perform a read-only R1 entry audit and propose a bounded R1 task plan.
+> **`R1-L10N-02 — Reader Help and Glossary Chrome Localization`**
 
-The first R1 action is planning and scope confirmation, not immediate broad implementation.
+The first R1 implementation increment (`R1-L10N-01 — Reader Chrome Localization`) is complete at commit `74ce309`.
 
-The next R1 change set should:
+The next bounded R1 task should:
 
-1. audit externally preserved Guide redesign input and R1 localization scope boundaries;
-2. confirm what is in scope for Interface Language, onboarding, and Guide editorial review;
-3. propose bounded implementation tasks without restoring the external Guide patch automatically;
-4. keep Codex reserved for narrow implementation after Antigravity analysis;
-5. record the plan without implementing localization or Guide redesign yet.
+1. localize Reader Help explanatory chrome and Book Glossary panel UI copy through Interface Language;
+2. preserve the Reading-Mode-owned boundary for Guide metadata, chapter titles, and body content;
+3. keep Reading Mode, storage, and progress contracts unchanged;
+4. remain bounded to approved Reader-adjacent chrome; do not start Home, Vocabulary Library, Guide redesign, pagination, gestures, or quick-add widget work.
 
-No broad R1 feature implementation should begin without an approved bounded task plan.
+Historical R1 entry-audit and task-planning work preceded this increment and is no longer the immediate next action.
 
 ---
 
@@ -401,7 +453,7 @@ No broad R1 feature implementation should begin without an approved bounded task
 
 * whether the deployed Pages build matches accepted runtime baseline `99ad1e3`;
 * whether non-Chromium browsers pass supported flows;
-* whether complete localization satisfies the R1 contract once R1 implementation begins;
+* whether complete localization satisfies the R1 contract as later R1 increments land;
 * whether manifest and icons produce a verified installable experience;
 * whether service-worker work belongs in R2;
 * whether maintainer contact and legal review are complete;
