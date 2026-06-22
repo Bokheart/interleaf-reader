@@ -981,6 +981,47 @@ function t(key, params = {}) {
   return getTranslation(state.uiLanguage, key, params);
 }
 
+function resolveI18nParams(params = {}) {
+  if (!params.labelKey) {
+    return params;
+  }
+
+  const { labelKey, ...rest } = params;
+  return {
+    ...rest,
+    label: t(labelKey)
+  };
+}
+
+function getI18nNodeParams(node) {
+  if (!node?.dataset?.i18nParams) {
+    return {};
+  }
+
+  try {
+    return resolveI18nParams(JSON.parse(node.dataset.i18nParams));
+  } catch {
+    return {};
+  }
+}
+
+function setTranslatedText(node, key = "", params = {}) {
+  if (!node) {
+    return;
+  }
+
+  if (!key) {
+    node.textContent = "";
+    delete node.dataset.i18n;
+    delete node.dataset.i18nParams;
+    return;
+  }
+
+  node.dataset.i18n = key;
+  node.dataset.i18nParams = JSON.stringify(params);
+  node.textContent = t(key, resolveI18nParams(params));
+}
+
 function applyInterfaceLanguage() {
   const language = normalizeUiLanguage(state.uiLanguage);
   state.uiLanguage = language;
@@ -993,7 +1034,7 @@ function applyInterfaceLanguage() {
   document.title = t("app.name");
 
   document.querySelectorAll("[data-i18n]").forEach((node) => {
-    node.textContent = t(node.dataset.i18n);
+    node.textContent = t(node.dataset.i18n, getI18nNodeParams(node));
   });
 
   document.querySelectorAll("[data-i18n-placeholder]").forEach((node) => {
@@ -1388,6 +1429,9 @@ function bindEvents() {
 
   if (elements.restoreVocabularyProfileInput) {
     elements.restoreVocabularyProfileInput.addEventListener("change", handleVocabularyProfileRestore);
+    elements.restoreVocabularyProfileInput.addEventListener("cancel", () => {
+      setVocabularyBackupFeedback("vocabulary.backup.feedback.cancelled");
+    });
   }
 
   elements.dropZone.addEventListener("dragover", (event) => {
@@ -2118,7 +2162,9 @@ function renderVocabularyLibraryPageSummaryState(summary) {
   elements.vocabularyPageLearningCount.textContent = String(summary.learningCount);
   elements.vocabularyPageMasteredCount.textContent = String(summary.masteredCount);
   elements.vocabularyPageHiddenCount.textContent = String(summary.hiddenCount);
-  elements.vocabularyPageLevel.textContent = formatVocabularyLevelDisplay(summary.selectedLevel);
+  setTranslatedText(elements.vocabularyPageLevel, "vocabulary.level.current", {
+    level: String(summary.selectedLevel || "").replace(/^level/, "") || "-"
+  });
   renderVocabularyLevelSelectorState(getVocabularyLevelSelectorState(summary, {
     hasError: summary.hasError
   }));
@@ -2134,10 +2180,13 @@ function renderVocabularyLevelSelectorState(levelState) {
 
   for (const optionElement of elements.vocabularyLevelSelect.options || []) {
     optionElement.selected = optionElement.value === levelState.selectedLevel;
+    setTranslatedText(optionElement, "vocabulary.level.option", {
+      level: String(optionElement.value || "").replace(/^level/, "") || "-"
+    });
   }
 
   if (elements.vocabularyLevelHelp) {
-    elements.vocabularyLevelHelp.textContent = levelState.helpText;
+    setTranslatedText(elements.vocabularyLevelHelp, "vocabulary.level.help");
   }
 }
 
@@ -2158,8 +2207,10 @@ function renderVocabularyExportState(exportState) {
     elements.downloadVocabularyCsvButton.disabled = exportState.downloadCsvDisabled;
   }
 
-  if (exportState.message) {
-    setVocabularyExportFeedback(exportState.message, exportState.hasError ? "error" : "neutral");
+  if (exportState.hasError) {
+    setVocabularyExportFeedback("vocabulary.export.feedback.unavailable", "error");
+  } else if (exportState.totalCount === 0) {
+    setVocabularyExportFeedback("vocabulary.export.feedback.empty");
   } else {
     setVocabularyExportFeedback("");
   }
@@ -2173,13 +2224,21 @@ function renderVocabularyLibraryPanelState(detailState) {
       continue;
     }
 
-    tabButton.textContent = `${tabState.label} (${tabState.count})`;
+    const labelKey = `vocabulary.tabs.${tabState.id}`;
+    setTranslatedText(tabButton, "vocabulary.tabs.labelCount", {
+      labelKey,
+      count: tabState.count
+    });
     tabButton.setAttribute("aria-selected", tabState.isActive ? "true" : "false");
     tabButton.classList.toggle("is-active", tabState.isActive);
   }
 
   elements.vocabularyLibraryPanelStatus.hidden = !detailState.hasError;
-  elements.vocabularyLibraryPanelStatus.textContent = detailState.statusText;
+  if (detailState.hasError) {
+    setTranslatedText(elements.vocabularyLibraryPanelStatus, "vocabulary.panel.unavailable");
+  } else {
+    setTranslatedText(elements.vocabularyLibraryPanelStatus, "");
+  }
 
   if (detailState.hasError) {
     elements.vocabularyLibraryTermList.innerHTML = "";
@@ -2187,8 +2246,13 @@ function renderVocabularyLibraryPanelState(detailState) {
   }
 
   if (!detailState.terms.length) {
+    const emptyKey = {
+      learning: "vocabulary.tabs.empty.learning",
+      mastered: "vocabulary.tabs.empty.mastered",
+      hidden: "vocabulary.tabs.empty.hidden"
+    }[detailState.activeTab] || "vocabulary.tabs.empty.default";
     elements.vocabularyLibraryTermList.innerHTML = `
-      <li class="empty-state">${escapeHtml(detailState.emptyText)}</li>
+      <li class="empty-state" data-i18n="${escapeHtml(emptyKey)}">${escapeHtml(t(emptyKey))}</li>
     `;
     return;
   }
@@ -2202,46 +2266,36 @@ function renderVocabularyLibraryPanelState(detailState) {
           class="vocabulary-remove-button"
           data-vocabulary-remove
           data-vocabulary-term="${escapeHtml(term)}"
-        >Remove</button>
+          data-i18n="vocabulary.row.remove"
+        >${escapeHtml(t("vocabulary.row.remove"))}</button>
       </li>
     `)
     .join("");
 }
 
-function setVocabularyManualFeedback(message = "", tone = "neutral") {
-  if (!elements.vocabularyManualFeedback) {
+function setVocabularyFeedbackElement(element, key = "", tone = "neutral", params = {}) {
+  if (!element) {
     return;
   }
 
-  elements.vocabularyManualFeedback.textContent = message;
-  elements.vocabularyManualFeedback.dataset.tone = tone;
+  setTranslatedText(element, key, params);
+  element.dataset.tone = tone;
 }
 
-function setVocabularyExportFeedback(message = "", tone = "neutral") {
-  if (!elements.vocabularyExportFeedback) {
-    return;
-  }
-
-  elements.vocabularyExportFeedback.textContent = message;
-  elements.vocabularyExportFeedback.dataset.tone = tone;
+function setVocabularyManualFeedback(key = "", tone = "neutral", params = {}) {
+  setVocabularyFeedbackElement(elements.vocabularyManualFeedback, key, tone, params);
 }
 
-function setVocabularyBackupFeedback(message = "", tone = "neutral") {
-  if (!elements.vocabularyBackupFeedback) {
-    return;
-  }
-
-  elements.vocabularyBackupFeedback.textContent = message;
-  elements.vocabularyBackupFeedback.dataset.tone = tone;
+function setVocabularyExportFeedback(key = "", tone = "neutral", params = {}) {
+  setVocabularyFeedbackElement(elements.vocabularyExportFeedback, key, tone, params);
 }
 
-function setVocabularyLevelFeedback(message = "", tone = "neutral") {
-  if (!elements.vocabularyLevelFeedback) {
-    return;
-  }
+function setVocabularyBackupFeedback(key = "", tone = "neutral", params = {}) {
+  setVocabularyFeedbackElement(elements.vocabularyBackupFeedback, key, tone, params);
+}
 
-  elements.vocabularyLevelFeedback.textContent = message;
-  elements.vocabularyLevelFeedback.dataset.tone = tone;
+function setVocabularyLevelFeedback(key = "", tone = "neutral", params = {}) {
+  setVocabularyFeedbackElement(elements.vocabularyLevelFeedback, key, tone, params);
 }
 
 async function handleVocabularyLevelChange(event) {
@@ -2249,13 +2303,13 @@ async function handleVocabularyLevelChange(event) {
   const nextLevel = select?.value;
 
   if (!VOCABULARY_LEVEL_VALUES.has(nextLevel)) {
-    setVocabularyLevelFeedback("Choose a valid Vocabulary Level.", "error");
+    setVocabularyLevelFeedback("vocabulary.level.feedback.invalid", "error");
     await renderVocabularyLibraryView();
     return;
   }
 
   select.disabled = true;
-  setVocabularyLevelFeedback("Saving Vocabulary Level...");
+  setVocabularyLevelFeedback("vocabulary.level.feedback.saving");
 
   try {
     const setVocabularyComfortLevel = await loadVocabularyLevelSetter();
@@ -2266,10 +2320,10 @@ async function handleVocabularyLevelChange(event) {
     await renderVocabularyLibraryView();
     renderVocabularyLibrarySummary();
     refreshCurrentVocabularyPreviewPersonalization();
-    setVocabularyLevelFeedback("Vocabulary Level saved.", "success");
+    setVocabularyLevelFeedback("vocabulary.level.feedback.saved", "success");
   } catch (error) {
     console.warn("Could not update Vocabulary Level.", error);
-    setVocabularyLevelFeedback("Could not save Vocabulary Level.", "error");
+    setVocabularyLevelFeedback("vocabulary.level.feedback.error", "error");
     await renderVocabularyLibraryView();
   } finally {
     if (elements.vocabularyLevelSelect) {
@@ -2352,10 +2406,10 @@ async function handleVocabularyProfileBackup() {
       "interleaf-reader-vocabulary-profile.json",
       "application/json;charset=utf-8"
     );
-    setVocabularyBackupFeedback("Vocabulary profile backup downloaded.", "success");
+    setVocabularyBackupFeedback("vocabulary.backup.feedback.downloaded", "success");
   } catch (error) {
     console.warn("Vocabulary profile backup failed.", error);
-    setVocabularyBackupFeedback("Backup failed.", "error");
+    setVocabularyBackupFeedback("vocabulary.backup.feedback.failed", "error");
   } finally {
     if (button) {
       button.disabled = false;
@@ -2363,11 +2417,26 @@ async function handleVocabularyProfileBackup() {
   }
 }
 
+function getVocabularyRestoreFeedbackKey(error) {
+  const message = String(error?.message || "");
+
+  if (/valid JSON/i.test(message)) {
+    return "vocabulary.backup.feedback.malformed";
+  }
+
+  if (/Unsupported vocabulary profile backup (schema|field)/i.test(message)) {
+    return "vocabulary.backup.feedback.schema";
+  }
+
+  return "vocabulary.backup.feedback.restoreFailed";
+}
+
 async function handleVocabularyProfileRestore(event) {
   const input = event.currentTarget;
   const file = input?.files?.[0] || null;
 
   if (!file) {
+    setVocabularyBackupFeedback("vocabulary.backup.feedback.cancelled");
     return;
   }
 
@@ -2375,7 +2444,7 @@ async function handleVocabularyProfileRestore(event) {
     elements.restoreVocabularyProfileButton.disabled = true;
   }
 
-  setVocabularyBackupFeedback("Restoring vocabulary profile...");
+  setVocabularyBackupFeedback("vocabulary.backup.feedback.restoring");
 
   try {
     const helpers = await loadVocabularyProfileBackupHelpers();
@@ -2387,10 +2456,10 @@ async function handleVocabularyProfileRestore(event) {
     await renderVocabularyLibraryView();
     renderVocabularyLibrarySummary();
     refreshCurrentVocabularyPreviewPersonalization();
-    setVocabularyBackupFeedback("Vocabulary profile restored.", "success");
+    setVocabularyBackupFeedback("vocabulary.backup.feedback.restored", "success");
   } catch (error) {
     console.warn("Vocabulary profile restore failed.", error);
-    setVocabularyBackupFeedback(error?.message || "Restore failed.", "error");
+    setVocabularyBackupFeedback(getVocabularyRestoreFeedbackKey(error), "error");
   } finally {
     if (elements.restoreVocabularyProfileButton) {
       elements.restoreVocabularyProfileButton.disabled = false;
@@ -2427,18 +2496,18 @@ async function handleVocabularyExportAction(action) {
       (action === "copy-learning" && exportState.copyLearningDisabled) ||
       (action === "download-learning-txt" && exportState.downloadLearningTxtDisabled)
     ) {
-      setVocabularyExportFeedback("No words to export yet.");
+      setVocabularyExportFeedback("vocabulary.export.feedback.empty");
       return;
     }
 
     if ((action === "copy-all" || action === "download-csv") && exportState.totalCount === 0) {
-      setVocabularyExportFeedback("No words to export yet.");
+      setVocabularyExportFeedback("vocabulary.export.feedback.empty");
       return;
     }
 
     if (action === "copy-learning") {
       await copyTextToClipboard(formatVocabularyLearningExportText(profile));
-      setVocabularyExportFeedback("Copied Learning words.", "success");
+      setVocabularyExportFeedback("vocabulary.export.feedback.copiedLearning", "success");
       return;
     }
 
@@ -2448,13 +2517,13 @@ async function handleVocabularyExportAction(action) {
         "interleaf-reader-bbdc-learning-words.txt",
         "text/plain;charset=utf-8"
       );
-      setVocabularyExportFeedback("Learning TXT downloaded.", "success");
+      setVocabularyExportFeedback("vocabulary.export.feedback.downloadedLearningTxt", "success");
       return;
     }
 
     if (action === "copy-all") {
       await copyTextToClipboard(formatVocabularyAllExportText(profile));
-      setVocabularyExportFeedback("Copied all vocabulary.", "success");
+      setVocabularyExportFeedback("vocabulary.export.feedback.copiedAll", "success");
       return;
     }
 
@@ -2464,14 +2533,14 @@ async function handleVocabularyExportAction(action) {
         "interleaf-reader-vocabulary.csv",
         "text/csv;charset=utf-8"
       );
-      setVocabularyExportFeedback("CSV downloaded.", "success");
+      setVocabularyExportFeedback("vocabulary.export.feedback.downloadedCsv", "success");
     }
   } catch (error) {
     console.warn("Vocabulary export failed.", error);
-    const message = action === "copy-learning" || action === "copy-all"
-      ? "Copy failed. You can try again from a secure browser context."
-      : "Export failed.";
-    setVocabularyExportFeedback(message, "error");
+    const feedbackKey = action === "copy-learning" || action === "copy-all"
+      ? "vocabulary.export.feedback.copyFailed"
+      : "vocabulary.export.feedback.failed";
+    setVocabularyExportFeedback(feedbackKey, "error");
   } finally {
     if (actionButton) {
       const disabledByState = latestExportState
@@ -2494,7 +2563,7 @@ async function handleManualVocabularyAdd(event) {
   const addButton = elements.vocabularyManualAddButton;
 
   if (!input) {
-    setVocabularyManualFeedback("Vocabulary input is unavailable.", "error");
+    setVocabularyManualFeedback("vocabulary.manual.feedback.inputUnavailable", "error");
     return;
   }
 
@@ -2508,7 +2577,16 @@ async function handleManualVocabularyAdd(event) {
     const addState = getManualVocabularyAddState(profile, input.value);
 
     if (!addState.shouldSave) {
-      setVocabularyManualFeedback(addState.message, addState.reason === "already-learning" ? "neutral" : "error");
+      const feedbackKey = {
+        empty: "vocabulary.manual.feedback.empty",
+        "too-long": "vocabulary.manual.feedback.tooLong",
+        "already-learning": "vocabulary.manual.feedback.alreadyLearning"
+      }[addState.reason] || "vocabulary.manual.feedback.error";
+      setVocabularyManualFeedback(
+        feedbackKey,
+        addState.reason === "already-learning" ? "neutral" : "error",
+        { maxLength: MANUAL_VOCABULARY_MAX_LENGTH }
+      );
       return;
     }
 
@@ -2518,10 +2596,15 @@ async function handleManualVocabularyAdd(event) {
     input.value = "";
     await renderVocabularyLibraryView();
     renderVocabularyLibrarySummary();
-    setVocabularyManualFeedback(addState.message, "success");
+    const feedbackKey = {
+      "move-from-mastered": "vocabulary.manual.feedback.movedFromMastered",
+      "move-from-hidden": "vocabulary.manual.feedback.movedFromHidden",
+      new: "vocabulary.manual.feedback.added"
+    }[addState.reason] || "vocabulary.manual.feedback.added";
+    setVocabularyManualFeedback(feedbackKey, "success");
   } catch (error) {
     console.warn("Could not add manual vocabulary word.", error);
-    setVocabularyManualFeedback("Could not update Vocabulary Library.", "error");
+    setVocabularyManualFeedback("vocabulary.manual.feedback.error", "error");
   } finally {
     if (addButton) {
       addButton.disabled = false;
@@ -2550,7 +2633,9 @@ async function handleVocabularyLibraryTermListClick(event) {
 
     if (!removeState.shouldRemove) {
       setVocabularyManualFeedback(
-        removeState.message,
+        removeState.reason === "not-in-current-list"
+          ? "vocabulary.remove.feedback.notInList"
+          : "vocabulary.remove.feedback.error",
         removeState.reason === "not-in-current-list" ? "neutral" : "error"
       );
       await renderVocabularyLibraryView();
@@ -2562,10 +2647,15 @@ async function handleVocabularyLibraryTermListClick(event) {
     resetVocabularyPersonalizationCache();
     await renderVocabularyLibraryView();
     renderVocabularyLibrarySummary();
-    setVocabularyManualFeedback(removeState.message, "success");
+    const feedbackKey = {
+      "remove-learning": "vocabulary.remove.feedback.removedLearning",
+      "remove-mastered": "vocabulary.remove.feedback.removedMastered",
+      "remove-hidden": "vocabulary.remove.feedback.removedHidden"
+    }[removeState.reason] || "vocabulary.remove.feedback.error";
+    setVocabularyManualFeedback(feedbackKey, "success");
   } catch (error) {
     console.warn("Could not remove vocabulary word.", error);
-    setVocabularyManualFeedback("Could not update Vocabulary Library.", "error");
+    setVocabularyManualFeedback("vocabulary.remove.feedback.error", "error");
   } finally {
     removeButton.disabled = false;
   }

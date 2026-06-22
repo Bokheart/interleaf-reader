@@ -250,44 +250,44 @@
     <div id="vocabularyLibraryView" class="app-view" hidden>
       <header class="app-header vocabulary-page-header">
         <div>
-          <p class="eyebrow">Vocabulary Library</p>
-          <h1>Saved word lists</h1>
+          <p class="eyebrow" data-i18n="vocabulary.page.title">Vocabulary Library</p>
+          <h1 data-i18n="vocabulary.page.subtitle">Saved word lists</h1>
         </div>
-        <button id="vocabularyBackHomeButton" type="button" class="page-back-button">Back to Home</button>
+        <button id="vocabularyBackHomeButton" type="button" class="page-back-button" data-i18n="vocabulary.page.backHome">Back to Home</button>
       </header>
 
       <main class="app-shell vocabulary-library-page">
         <section class="vocabulary-library-panel" aria-labelledby="vocabularyLibraryPanelTitle">
           <div class="vocabulary-panel-header">
             <div>
-              <h2 id="vocabularyLibraryPanelTitle">Vocabulary Library</h2>
-              <p>Saved word lists on this device.</p>
-              <p class="vocabulary-local-note">Your word lists are saved locally in this browser on this device. They are not synced or exported yet.</p>
+              <h2 id="vocabularyLibraryPanelTitle" data-i18n="vocabulary.panel.title">Vocabulary Library</h2>
+              <p data-i18n="vocabulary.panel.subtitle">Saved word lists on this device.</p>
+              <p class="vocabulary-local-note" data-i18n="vocabulary.panel.localNote">Your word lists are saved locally in this browser on this device. They are not synced or exported yet.</p>
             </div>
           </div>
 
-          <dl class="vocabulary-counts vocabulary-page-counts" aria-label="Vocabulary Library page counts">
+          <dl class="vocabulary-counts vocabulary-page-counts" aria-label="Vocabulary Library page counts" data-i18n-aria-label="vocabulary.counts.aria">
             <div>
-              <dt>Learning</dt>
+              <dt data-i18n="vocabulary.tabs.learning">Learning</dt>
               <dd id="vocabularyPageLearningCount">0</dd>
             </div>
             <div>
-              <dt>Mastered</dt>
+              <dt data-i18n="vocabulary.tabs.mastered">Mastered</dt>
               <dd id="vocabularyPageMasteredCount">0</dd>
             </div>
             <div>
-              <dt>Hidden</dt>
+              <dt data-i18n="vocabulary.tabs.hidden">Hidden</dt>
               <dd id="vocabularyPageHiddenCount">0</dd>
             </div>
           </dl>
-          <p id="vocabularyPageLevel" class="vocabulary-page-level">Level -</p>
+          <p id="vocabularyPageLevel" class="vocabulary-page-level" data-i18n="vocabulary.level.current" data-i18n-params='{"level":"-"}'>Vocabulary Level: -</p>
 
           <section class="vocabulary-level-panel" aria-labelledby="vocabularyLevelTitle">
             <div class="vocabulary-level-header">
-              <label id="vocabularyLevelTitle" for="vocabularyLevelSelect">Vocabulary Level</label>
+              <label id="vocabularyLevelTitle" for="vocabularyLevelSelect" data-i18n="vocabulary.level.title">Vocabulary Level</label>
               <details class="vocabulary-level-help">
-                <summary aria-label="Vocabulary Level help">?</summary>
-                <p id="vocabularyLevelHelp">
+                <summary aria-label="Vocabulary Level help" data-i18n-aria-label="vocabulary.level.helpAria">?</summary>
+                <p id="vocabularyLevelHelp" data-i18n="vocabulary.level.help">
                   Vocabulary Level controls which basic words are treated as already known. Changing the level changes which words may be filtered from Vocabulary Preview. It is not a test score, not a full dictionary completeness level, and can be changed anytime.
                 </p>
               </details>
@@ -296,61 +296,62 @@
               id="vocabularyLevelSelect"
               aria-describedby="vocabularyLevelHelp vocabularyLevelFeedback"
             >
-              <option value="level1">Level 1</option>
-              <option value="level2">Level 2</option>
-              <option value="level3">Level 3</option>
-              <option value="level4">Level 4</option>
-              <option value="level5">Level 5</option>
+              <option value="level1" data-i18n="vocabulary.level.option" data-i18n-params='{"level":1}'>Level 1</option>
+              <option value="level2" data-i18n="vocabulary.level.option" data-i18n-params='{"level":2}'>Level 2</option>
+              <option value="level3" data-i18n="vocabulary.level.option" data-i18n-params='{"level":3}'>Level 3</option>
+              <option value="level4" data-i18n="vocabulary.level.option" data-i18n-params='{"level":4}'>Level 4</option>
+              <option value="level5" data-i18n="vocabulary.level.option" data-i18n-params='{"level":5}'>Level 5</option>
             </select>
             <p id="vocabularyLevelFeedback" class="vocabulary-level-feedback" role="status" aria-live="polite"></p>
           </section>
 
           <form id="vocabularyManualAddForm" class="vocabulary-add-form" autocomplete="off">
-            <label for="vocabularyManualAddInput">Add a word to Learning</label>
+            <label for="vocabularyManualAddInput" data-i18n="vocabulary.manual.label">Add a word to Learning</label>
             <div class="vocabulary-add-row">
               <input
                 id="vocabularyManualAddInput"
                 type="text"
                 maxlength="80"
                 placeholder="Add a word manually"
+                data-i18n-placeholder="vocabulary.manual.placeholder"
                 aria-describedby="vocabularyManualFeedback"
               >
-              <button id="vocabularyManualAddButton" type="submit">Add to Learning</button>
+              <button id="vocabularyManualAddButton" type="submit" data-i18n="vocabulary.manual.add">Add to Learning</button>
             </div>
             <p id="vocabularyManualFeedback" class="vocabulary-manual-feedback" role="status" aria-live="polite"></p>
           </form>
 
           <section class="vocabulary-export-panel" aria-labelledby="vocabularyExportTitle">
             <div>
-              <h3 id="vocabularyExportTitle">Export</h3>
-              <p>Export your local word lists for review or use in other apps later. Learning TXT for 不背单词 uses one word or phrase per line. No definitions, examples, source sentences, book text, or copyrighted context are included. They are not synced or uploaded.</p>
+              <h3 id="vocabularyExportTitle" data-i18n="vocabulary.export.title">Export</h3>
+              <p data-i18n="vocabulary.export.description">Export your local word lists for review or use in other apps later. Learning TXT for 不背单词 uses one word or phrase per line. No definitions, examples, source sentences, book text, or copyrighted context are included. They are not synced or uploaded.</p>
             </div>
             <div class="vocabulary-export-actions">
-              <button id="copyLearningButton" type="button">Copy Learning</button>
-              <button id="downloadLearningTxtButton" type="button">Download 不背单词 TXT</button>
-              <button id="copyAllVocabularyButton" type="button">Copy All</button>
-              <button id="downloadVocabularyCsvButton" type="button">Download CSV</button>
+              <button id="copyLearningButton" type="button" data-i18n="vocabulary.export.copyLearning">Copy Learning</button>
+              <button id="downloadLearningTxtButton" type="button" data-i18n="vocabulary.export.downloadLearningTxt">Download 不背单词 TXT</button>
+              <button id="copyAllVocabularyButton" type="button" data-i18n="vocabulary.export.copyAll">Copy All</button>
+              <button id="downloadVocabularyCsvButton" type="button" data-i18n="vocabulary.export.downloadCsv">Download CSV</button>
             </div>
-            <p id="vocabularyExportFeedback" class="vocabulary-export-feedback" role="status" aria-live="polite">No words to export yet.</p>
+            <p id="vocabularyExportFeedback" class="vocabulary-export-feedback" role="status" aria-live="polite" data-i18n="vocabulary.export.feedback.empty">No words to export yet.</p>
           </section>
 
           <section class="vocabulary-export-panel" aria-labelledby="vocabularyBackupTitle">
             <div>
-              <h3 id="vocabularyBackupTitle">Backup / Restore</h3>
-              <p>Backup / Restore is vocabulary profile only. It includes Vocabulary Level and local word lists, and does not include EPUB files, book text, Local Library files, or reading progress.</p>
+              <h3 id="vocabularyBackupTitle" data-i18n="vocabulary.backup.title">Backup / Restore</h3>
+              <p data-i18n="vocabulary.backup.description">Backup / Restore is vocabulary profile only. It includes Vocabulary Level and local word lists, and does not include EPUB files, book text, Local Library files, or reading progress.</p>
             </div>
             <div class="vocabulary-export-actions">
-              <button id="backupVocabularyProfileButton" type="button">Backup profile JSON</button>
+              <button id="backupVocabularyProfileButton" type="button" data-i18n="vocabulary.backup.download">Backup profile JSON</button>
               <input id="restoreVocabularyProfileInput" type="file" accept="application/json,.json" hidden>
-              <button id="restoreVocabularyProfileButton" type="button">Restore profile JSON</button>
+              <button id="restoreVocabularyProfileButton" type="button" data-i18n="vocabulary.backup.restore">Restore profile JSON</button>
             </div>
             <p id="vocabularyBackupFeedback" class="vocabulary-export-feedback" role="status" aria-live="polite"></p>
           </section>
 
-          <div class="vocabulary-tabs" role="tablist" aria-label="Vocabulary Library lists">
-            <button id="vocabularyTabLearning" type="button" role="tab" data-vocabulary-tab="learning" aria-selected="true">Learning (0)</button>
-            <button id="vocabularyTabMastered" type="button" role="tab" data-vocabulary-tab="mastered" aria-selected="false">Mastered (0)</button>
-            <button id="vocabularyTabHidden" type="button" role="tab" data-vocabulary-tab="hidden" aria-selected="false">Hidden (0)</button>
+          <div class="vocabulary-tabs" role="tablist" aria-label="Vocabulary Library lists" data-i18n-aria-label="vocabulary.tabs.aria">
+            <button id="vocabularyTabLearning" type="button" role="tab" data-vocabulary-tab="learning" aria-selected="true" data-i18n="vocabulary.tabs.labelCount" data-i18n-params='{"labelKey":"vocabulary.tabs.learning","count":0}'>Learning (0)</button>
+            <button id="vocabularyTabMastered" type="button" role="tab" data-vocabulary-tab="mastered" aria-selected="false" data-i18n="vocabulary.tabs.labelCount" data-i18n-params='{"labelKey":"vocabulary.tabs.mastered","count":0}'>Mastered (0)</button>
+            <button id="vocabularyTabHidden" type="button" role="tab" data-vocabulary-tab="hidden" aria-selected="false" data-i18n="vocabulary.tabs.labelCount" data-i18n-params='{"labelKey":"vocabulary.tabs.hidden","count":0}'>Hidden (0)</button>
           </div>
 
           <div id="vocabularyLibraryPanelStatus" class="vocabulary-panel-status" hidden></div>

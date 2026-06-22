@@ -224,6 +224,95 @@ for (const [key, english, chinese] of [
   assert.equal(getTranslation("zh-CN", key), chinese, `${key} uses the exact approved Chinese copy`);
 }
 
+for (const [key, english, chinese] of [
+  ["vocabulary.page.title", "Vocabulary Library", "\u751f\u8bcd\u672c"],
+  ["vocabulary.page.subtitle", "Saved word lists", "\u5df2\u4fdd\u5b58\u7684\u5355\u8bcd\u5217\u8868"],
+  ["vocabulary.page.backHome", "Back to Home", "\u8fd4\u56de\u4e3b\u9875"],
+  ["vocabulary.level.title", "Vocabulary Level", "\u8bcd\u6c47\u7b49\u7ea7"],
+  ["vocabulary.tabs.learning", "Learning", "\u5b66\u4e60\u4e2d"],
+  ["vocabulary.tabs.mastered", "Mastered", "\u5df2\u638c\u63e1"],
+  ["vocabulary.tabs.hidden", "Hidden", "\u5df2\u9690\u85cf"],
+  ["vocabulary.manual.label", "Add a word to Learning", "\u6dfb\u52a0\u5230\u201c\u5b66\u4e60\u4e2d\u201d"],
+  ["vocabulary.manual.placeholder", "Add a word manually", "\u624b\u52a8\u8f93\u5165\u5355\u8bcd\u6216\u77ed\u8bed"],
+  ["vocabulary.manual.add", "Add to Learning", "\u6dfb\u52a0\u5230\u5b66\u4e60\u4e2d"],
+  ["vocabulary.export.title", "Export", "\u5bfc\u51fa"],
+  ["vocabulary.export.copyLearning", "Copy Learning", "\u590d\u5236\u201c\u5b66\u4e60\u4e2d\u201d"],
+  ["vocabulary.export.copyAll", "Copy All", "\u590d\u5236\u5168\u90e8"],
+  ["vocabulary.export.downloadCsv", "Download CSV", "\u4e0b\u8f7d CSV"],
+  ["vocabulary.backup.title", "Backup / Restore", "\u5907\u4efd / \u6062\u590d"],
+  ["vocabulary.backup.download", "Backup profile JSON", "\u5907\u4efd\u4e2a\u4eba\u6570\u636e JSON"],
+  ["vocabulary.backup.restore", "Restore profile JSON", "\u6062\u590d\u4e2a\u4eba\u6570\u636e JSON"],
+  ["vocabulary.export.feedback.empty", "No words to export yet.", "\u6682\u65e0\u53ef\u5bfc\u51fa\u7684\u5355\u8bcd\u3002"]
+]) {
+  assert.equal(getTranslation("en", key), english, `${key} preserves approved English copy`);
+  assert.equal(getTranslation("zh-CN", key), chinese, `${key} uses approved Chinese terminology`);
+}
+
+const requiredVocabularyKeys = [
+  "vocabulary.panel.title",
+  "vocabulary.panel.subtitle",
+  "vocabulary.panel.localNote",
+  "vocabulary.panel.unavailable",
+  "vocabulary.counts.aria",
+  "vocabulary.level.current",
+  "vocabulary.level.helpAria",
+  "vocabulary.level.help",
+  "vocabulary.level.option",
+  "vocabulary.level.feedback.invalid",
+  "vocabulary.level.feedback.saving",
+  "vocabulary.level.feedback.saved",
+  "vocabulary.level.feedback.error",
+  "vocabulary.manual.feedback.inputUnavailable",
+  "vocabulary.manual.feedback.empty",
+  "vocabulary.manual.feedback.tooLong",
+  "vocabulary.manual.feedback.alreadyLearning",
+  "vocabulary.manual.feedback.movedFromMastered",
+  "vocabulary.manual.feedback.movedFromHidden",
+  "vocabulary.manual.feedback.added",
+  "vocabulary.manual.feedback.error",
+  "vocabulary.export.description",
+  "vocabulary.export.downloadLearningTxt",
+  "vocabulary.export.feedback.unavailable",
+  "vocabulary.export.feedback.copiedLearning",
+  "vocabulary.export.feedback.downloadedLearningTxt",
+  "vocabulary.export.feedback.copiedAll",
+  "vocabulary.export.feedback.downloadedCsv",
+  "vocabulary.export.feedback.copyFailed",
+  "vocabulary.export.feedback.failed",
+  "vocabulary.backup.description",
+  "vocabulary.backup.feedback.downloaded",
+  "vocabulary.backup.feedback.failed",
+  "vocabulary.backup.feedback.cancelled",
+  "vocabulary.backup.feedback.restoring",
+  "vocabulary.backup.feedback.restored",
+  "vocabulary.backup.feedback.malformed",
+  "vocabulary.backup.feedback.schema",
+  "vocabulary.backup.feedback.restoreFailed",
+  "vocabulary.tabs.aria",
+  "vocabulary.tabs.labelCount",
+  "vocabulary.tabs.empty.learning",
+  "vocabulary.tabs.empty.mastered",
+  "vocabulary.tabs.empty.hidden",
+  "vocabulary.tabs.empty.default",
+  "vocabulary.row.remove",
+  "vocabulary.remove.feedback.notInList",
+  "vocabulary.remove.feedback.removedLearning",
+  "vocabulary.remove.feedback.removedMastered",
+  "vocabulary.remove.feedback.removedHidden",
+  "vocabulary.remove.feedback.error"
+];
+
+for (const key of requiredVocabularyKeys) {
+  const english = getTranslation("en", key, { level: 3, maxLength: 80, label: "Learning", count: 2 });
+  const chinese = getTranslation("zh-CN", key, { level: 3, maxLength: 80, label: "\u5b66\u4e60\u4e2d", count: 2 });
+  assert.notEqual(english, key, `${key} exists in the English catalog`);
+  assert.notEqual(chinese, key, `${key} exists in the Chinese catalog`);
+  const chineseWithoutAllowedTokens = chinese
+    .replace(/\{[^}]+\}/g, "")
+    .replace(/EPUB|TXT|CSV|JSON|\u4e0d\u80cc\u5355\u8bcd/g, "");
+  assert.doesNotMatch(chineseWithoutAllowedTokens, /[A-Za-z]{2,}/, `${key} has no English-only Chinese UI value`);
+}
+
 assert.deepEqual(
   getHomeEntryState(noLoadedBookState, []),
   {
@@ -1382,6 +1471,61 @@ assert.equal(emptyAction.ok, false, "Preview actions skip empty terms");
 assert.equal(emptyAction.reason, "empty-term", "Preview actions report empty terms");
 
 const homeHtml = await readFile(new URL("../pwa-reader/index.html", import.meta.url), "utf8");
+
+for (const [pattern, description] of [
+  [/id="vocabularyLibraryView"[\s\S]*data-i18n="vocabulary\.page\.title"/, "Vocabulary page title"],
+  [/id="vocabularyBackHomeButton"[^>]*data-i18n="vocabulary\.page\.backHome"/, "Vocabulary Back to Home"],
+  [/id="vocabularyLibraryPanelTitle"[^>]*data-i18n="vocabulary\.panel\.title"/, "Vocabulary panel title"],
+  [/id="vocabularyLevelTitle"[^>]*data-i18n="vocabulary\.level\.title"/, "Vocabulary Level label"],
+  [/id="vocabularyManualAddInput"[\s\S]*data-i18n-placeholder="vocabulary\.manual\.placeholder"/, "Manual Add placeholder"],
+  [/id="vocabularyExportTitle"[^>]*data-i18n="vocabulary\.export\.title"/, "Export heading"],
+  [/id="vocabularyBackupTitle"[^>]*data-i18n="vocabulary\.backup\.title"/, "Backup heading"],
+  [/class="vocabulary-tabs"[^>]*data-i18n-aria-label="vocabulary\.tabs\.aria"/, "Vocabulary tablist accessibility label"]
+]) {
+  assert.match(homeHtml, pattern, `${description} resolves through Interface Language`);
+}
+
+assert.match(
+  homeHtml,
+  /id="vocabularyPageLevel"[^>]*data-i18n="vocabulary\.level\.current"[^>]*data-i18n-params=/,
+  "Initial Vocabulary Level summary has a parameterized locale binding"
+);
+assert.match(
+  homeHtml,
+  /value="level1"[^>]*data-i18n="vocabulary\.level\.option"[^>]*data-i18n-params=/,
+  "Initial Vocabulary Level options have parameterized locale bindings"
+);
+assert.match(
+  homeHtml,
+  /id="vocabularyTabLearning"[^>]*data-i18n="vocabulary\.tabs\.labelCount"[^>]*data-i18n-params=/,
+  "Initial Vocabulary tab counts have parameterized locale bindings"
+);
+
+assert.match(
+  appSource,
+  /function renderVocabularyLibraryPanelState\([\s\S]*vocabulary\.tabs\.labelCount[\s\S]*vocabulary\.row\.remove/,
+  "Dynamic tabs, counts, empty states, and row actions use semantic locale keys"
+);
+assert.match(
+  appSource,
+  /function applyInterfaceLanguage\([\s\S]*getI18nNodeParams\(/,
+  "Interface Language switching refreshes parameterized Vocabulary Library copy without reloading data"
+);
+assert.match(
+  appSource,
+  /function setTranslatedText\([\s\S]*dataset\.i18n[\s\S]*dataset\.i18nParams/,
+  "Dynamic Vocabulary feedback retains semantic translation state for live language refresh"
+);
+assert.match(
+  appSource,
+  /function setVocabularyFeedbackElement\([\s\S]*setTranslatedText\(element, key, params\)/,
+  "Vocabulary feedback uses the live-refresh translation boundary"
+);
+assert.match(
+  appSource,
+  /restoreVocabularyProfileInput\.addEventListener\("cancel"[\s\S]*vocabulary\.backup\.feedback\.cancelled/,
+  "Cancelling the vocabulary restore picker produces localized feedback"
+);
 
 for (const [pattern, description] of [
   [/class="return-reader-title"[^>]*data-i18n="home\.returnToReader\.title"/, "Return-to-Reader title"],
