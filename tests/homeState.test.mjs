@@ -225,6 +225,100 @@ for (const [key, english, chinese] of [
 }
 
 for (const [key, english, chinese] of [
+  ["home.vocabulary.title", "Vocabulary Library", "\u751f\u8bcd\u672c"],
+  ["home.library.title", "Local Library", "\u672c\u5730\u4e66\u5e93"],
+  ["home.library.forget", "Remove", "\u79fb\u9664"],
+  ["settings.backHome", "Back to Home", "\u8fd4\u56de\u4e3b\u9875"],
+  ["settings.help.openHelpCenter", "Help Center", "\u5e2e\u52a9\u4e2d\u5fc3"],
+  ["settings.helpCenter.title", "Help Center", "\u5e2e\u52a9\u4e2d\u5fc3"],
+  ["settings.helpCenter.gettingStarted", "Getting Started", "\u5f00\u59cb\u4f7f\u7528"],
+  ["settings.helpCenter.reading", "Reading", "\u9605\u8bfb"],
+  ["settings.helpCenter.vocabulary", "Vocabulary", "\u8bcd\u6c47"],
+  ["settings.helpCenter.storage", "Storage", "\u5b58\u50a8"],
+  ["settings.helpCenter.featureStatus", "Feature Status", "\u529f\u80fd\u72b6\u6001"]
+]) {
+  assert.equal(getTranslation("en", key), english, `${key} preserves meaningful English UI copy`);
+  assert.equal(getTranslation("zh-CN", key), chinese, `${key} uses the approved Chinese terminology`);
+}
+
+const remainingApplicationUiKeys = [
+  "languageGate.aria",
+  "home.continue.savedBook",
+  "home.continue.chapterCount",
+  "home.returnToReader.currentBook",
+  "home.vocabulary.level",
+  "home.vocabulary.countsAria",
+  "home.vocabulary.note.unavailable",
+  "home.vocabulary.note.empty",
+  "home.vocabulary.note.saved",
+  "home.library.lastRead",
+  "home.library.untitled",
+  "home.library.unavailable",
+  "home.library.opening",
+  "home.library.opened",
+  "home.library.openMissing",
+  "home.library.openFailed",
+  "home.library.removed",
+  "home.library.removeFailed",
+  "home.library.restoreMissing",
+  "home.library.restoreFailed",
+  "home.library.noSavedData",
+  "home.library.cleared",
+  "home.library.clearFailed",
+  "home.import.status.vocabularyLoaded",
+  "home.import.status.vocabularyUnavailable",
+  "home.import.status.noFile",
+  "home.import.status.emptyFile",
+  "home.import.status.invalidFile",
+  "home.import.status.loading",
+  "home.import.status.saveFailed",
+  "home.import.status.noReadableChapters",
+  "home.import.status.loaded",
+  "home.import.status.failed",
+  "settings.helpCenter.categoriesAria",
+  "settings.helpCenter.gettingStartedBody",
+  "settings.helpCenter.readingBody",
+  "settings.helpCenter.vocabularyBody",
+  "settings.helpCenter.storageBody",
+  "settings.helpCenter.featureStatusBody",
+  "reader.empty.description",
+  "reader.vocabularyNote.aria",
+  "reader.vocabularyNote.close",
+  "reader.vocabularyNote.actionsAria",
+  "reader.vocabularyNote.known",
+  "reader.vocabularyNote.save",
+  "reader.vocabularyNote.saved",
+  "reader.vocabularyNote.hide",
+  "reader.vocabularyNote.alreadySaved",
+  "reader.vocabularyNote.chineseLabel",
+  "reader.vocabularyNote.englishLabel",
+  "reader.vocabularyNote.ieltsLabel"
+];
+
+for (const key of remainingApplicationUiKeys) {
+  const english = getTranslation("en", key, {
+    count: 3,
+    level: 3,
+    date: "2026-06-23",
+    fileName: "sample.epub",
+    title: "Sample Book",
+    term: "sample"
+  });
+  const chinese = getTranslation("zh-CN", key, {
+    count: 3,
+    level: 3,
+    date: "2026-06-23",
+    fileName: "\u793a\u4f8b.epub",
+    title: "\u793a\u4f8b\u4e66",
+    term: "\u793a\u4f8b"
+  });
+  assert.notEqual(english, key, `${key} exists in the English locale`);
+  assert.notEqual(chinese, key, `${key} exists in the Chinese locale`);
+  const chineseWithoutAllowedTokens = chinese.replace(/EPUB|epub|IELTS|Interleaf Reader|JSON|CSV|TXT/g, "");
+  assert.doesNotMatch(chineseWithoutAllowedTokens, /[A-Za-z]{2,}/, `${key} has no English-only Chinese UI prose`);
+}
+
+for (const [key, english, chinese] of [
   ["vocabulary.page.title", "Vocabulary Library", "\u751f\u8bcd\u672c"],
   ["vocabulary.page.subtitle", "Saved word lists", "\u5df2\u4fdd\u5b58\u7684\u5355\u8bcd\u5217\u8868"],
   ["vocabulary.page.backHome", "Back to Home", "\u8fd4\u56de\u4e3b\u9875"],
@@ -644,6 +738,17 @@ assert.equal(
   formatContinueReadingSubtext({}),
   "Saved locally in this browser.",
   "Continue Reading metadata has a local-storage fallback"
+);
+
+assert.match(
+  formatContinueReadingSubtext(savedBook, createTranslator("zh-CN")),
+  /9 \u7ae0/,
+  "Continue Reading chapter counts follow Interface Language without translating book metadata"
+);
+assert.equal(
+  formatContinueReadingSubtext({}, createTranslator("zh-CN")),
+  "\u5df2\u4fdd\u5b58\u5728\u6b64\u6d4f\u89c8\u5668\u4e2d\u3002",
+  "Continue Reading fallback follows Interface Language"
 );
 
 assert.equal(
@@ -1471,6 +1576,60 @@ assert.equal(emptyAction.ok, false, "Preview actions skip empty terms");
 assert.equal(emptyAction.reason, "empty-term", "Preview actions report empty terms");
 
 const homeHtml = await readFile(new URL("../pwa-reader/index.html", import.meta.url), "utf8");
+
+for (const [pattern, description] of [
+  [/class="language-gate-actions"[^>]*data-i18n-aria-label="languageGate\.aria"/, "language chooser accessibility label"],
+  [/id="restoreTitle"[^>]*data-i18n="home\.continue\.savedBook"/, "Continue Reading fallback title"],
+  [/id="restoreText"[^>]*data-i18n="reader\.saved\.status"/, "Continue Reading fallback status"],
+  [/id="vocabularyLibraryLevel"[^>]*data-i18n="home\.vocabulary\.level"/, "Home vocabulary level"],
+  [/class="vocabulary-counts"[^>]*data-i18n-aria-label="home\.vocabulary\.countsAria"/, "Home vocabulary counts accessibility label"],
+  [/id="vocabularyLibraryEmpty"[^>]*data-i18n="home\.vocabulary\.note\.empty"/, "Home vocabulary empty state"],
+  [/class="help-center-categories"[^>]*data-i18n-aria-label="settings\.helpCenter\.categoriesAria"/, "Help Center category accessibility label"],
+  [/data-i18n="settings\.helpCenter\.gettingStartedBody"/, "Getting Started body"],
+  [/data-i18n="settings\.helpCenter\.readingBody"/, "Reading body"],
+  [/data-i18n="settings\.helpCenter\.vocabularyBody"/, "Vocabulary body"],
+  [/data-i18n="settings\.helpCenter\.storageBody"/, "Storage body"],
+  [/data-i18n="settings\.helpCenter\.featureStatusBody"/, "Feature Status body"],
+  [/id="vocabBubble"[^>]*data-i18n-aria-label="reader\.vocabularyNote\.aria"/, "Vocabulary note accessibility label"],
+  [/id="chapterContent"[\s\S]*data-i18n="reader\.empty\.description"/, "Reader placeholder explanation"]
+]) {
+  assert.match(homeHtml, pattern, `${description} resolves through Interface Language`);
+}
+
+for (const [pattern, description] of [
+  [/function setLocalizedStatus\([\s\S]*setTranslatedText\(elements\.statusText, key, params\)/, "dynamic application status translation boundary"],
+  [/function renderVocabularyLibrarySummaryState\([\s\S]*home\.vocabulary\.note\.unavailable[\s\S]*home\.vocabulary\.note\.empty[\s\S]*home\.vocabulary\.note\.saved/, "Home vocabulary summary states"],
+  [/function renderLibraryCard\([\s\S]*home\.library\.lastRead[\s\S]*home\.library\.open[\s\S]*home\.library\.forget/, "Local Library row chrome"],
+  [/function deleteSavedBookFromLibrary\([\s\S]*home\.library\.removed[\s\S]*home\.library\.removeFailed/, "Local Library removal feedback"],
+  [/function renderVocabularyPreviewListItem\([\s\S]*reader\.vocabularyNote\.actionsAria[\s\S]*reader\.vocabularyNote\.known[\s\S]*reader\.vocabularyNote\.save[\s\S]*reader\.vocabularyNote\.hide/, "Reader vocabulary action chrome"],
+  [/function showBubble\([\s\S]*reader\.vocabularyNote\.close[\s\S]*reader\.vocabularyNote\.englishLabel[\s\S]*reader\.vocabularyNote\.ieltsLabel/, "Vocabulary note labels and Close accessibility text"]
+]) {
+  assert.match(appSource, pattern, `${description} uses semantic locale keys`);
+}
+
+const interfaceLanguageHandlerSource = appSource.match(
+  /function handleUiLanguageChoice\([\s\S]*?\r?\n}\r?\n\r?\nfunction handleSettingsUiLanguageChange/
+)?.[0] || "";
+assert.match(
+  interfaceLanguageHandlerSource,
+  /applyInterfaceLanguage\(\)[\s\S]*renderLocalLibrary\(\)[\s\S]*renderVocabularyLibrarySummary\(\)[\s\S]*refreshReaderChromeLanguage\(\)/,
+  "Interface Language switching refreshes UI-owned dynamic surfaces"
+);
+assert.doesNotMatch(
+  interfaceLanguageHandlerSource,
+  /state\.(?:book|currentChapterId|currentMode)\s*=|syncGuideBookForReadingMode|saveReadingProgress|saveStoredBook|deleteStoredBook/,
+  "Interface Language switching does not alter book, chapter, Reading Mode, Guide, progress, or stored-book state"
+);
+assert.match(
+  appSource,
+  /function refreshReaderChromeLanguage\([\s\S]*const chapter = getCurrentChapter\(\)[\s\S]*renderVocabularyPreview\(chapter\?\.vocabularyPreview \|\| \[\], chapter\)/,
+  "Interface Language switching rerenders Preview chrome from the active chapter without clearing its data"
+);
+assert.match(
+  appSource,
+  /function showRestorePrompt\([\s\S]*setTranslatedText\(elements\.restoreTitle, ""\)[\s\S]*savedBook\.title \|\| savedBook\.fileName[\s\S]*setTranslatedText\(elements\.restoreText, ""\)[\s\S]*formatContinueReadingSubtext\(savedBook, t\)/,
+  "Continue Reading refresh preserves imported title and metadata instead of treating them as UI copy"
+);
 
 for (const [pattern, description] of [
   [/id="vocabularyLibraryView"[\s\S]*data-i18n="vocabulary\.page\.title"/, "Vocabulary page title"],

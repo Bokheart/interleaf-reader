@@ -33,7 +33,7 @@
         <p class="eyebrow">Interleaf Reader</p>
         <h1 id="languageGateTitle" data-i18n="languageGate.title">Choose interface language</h1>
         <p id="languageGateSubtitle" data-i18n="languageGate.subtitle">选择界面语言</p>
-        <div class="language-gate-actions" role="group" aria-label="Choose interface language">
+        <div class="language-gate-actions" role="group" aria-label="Choose interface language" data-i18n-aria-label="languageGate.aria">
           <button type="button" data-ui-language-choice="zh-CN">中文</button>
           <button type="button" data-ui-language-choice="en">English</button>
         </div>
@@ -108,8 +108,8 @@
           <div>
             <h2 id="continue-title" data-i18n="home.continue.title">Continue Reading</h2>
             <p class="entry-hint" data-i18n="home.continue.hint">Restore your most recently saved local book.</p>
-            <strong id="restoreTitle">Saved book</strong>
-            <p id="restoreText">Saved locally in this browser.</p>
+            <strong id="restoreTitle" data-i18n="home.continue.savedBook">Saved book</strong>
+            <p id="restoreText" data-i18n="reader.saved.status">Saved locally in this browser.</p>
           </div>
           <div class="restore-actions">
             <button id="restoreBookButton" type="button" data-i18n="home.continue.action">Continue Reading</button>
@@ -124,25 +124,25 @@
               <p class="section-hint" data-i18n="home.vocabulary.hint">Saved on this device.</p>
             </div>
             <div class="summary-heading-actions">
-              <span id="vocabularyLibraryLevel" class="summary-level">Level -</span>
+              <span id="vocabularyLibraryLevel" class="summary-level" data-i18n="home.vocabulary.level" data-i18n-params='{"level":"-"}'>Level -</span>
               <button id="openVocabularyLibraryButton" type="button" class="summary-open-button" data-i18n="home.vocabulary.viewWords">View words</button>
             </div>
           </div>
-          <dl class="vocabulary-counts" aria-label="Vocabulary Library counts">
+          <dl class="vocabulary-counts" aria-label="Vocabulary Library counts" data-i18n-aria-label="home.vocabulary.countsAria">
             <div>
-              <dt>Learning</dt>
+              <dt data-i18n="vocabulary.tabs.learning">Learning</dt>
               <dd id="vocabularyLearningCount">0</dd>
             </div>
             <div>
-              <dt>Mastered</dt>
+              <dt data-i18n="vocabulary.tabs.mastered">Mastered</dt>
               <dd id="vocabularyMasteredCount">0</dd>
             </div>
             <div>
-              <dt>Hidden</dt>
+              <dt data-i18n="vocabulary.tabs.hidden">Hidden</dt>
               <dd id="vocabularyHiddenCount">0</dd>
             </div>
           </dl>
-          <p id="vocabularyLibraryEmpty" class="vocabulary-summary-note">Save words from Vocabulary Preview to build your library.</p>
+          <p id="vocabularyLibraryEmpty" class="vocabulary-summary-note" data-i18n="home.vocabulary.note.empty">Save words from Vocabulary Preview to build your library.</p>
         </section>
 
         <section class="local-library" aria-labelledby="library-title">
@@ -203,26 +203,26 @@
         <section id="helpCenterPanel" class="settings-panel help-center-panel" aria-labelledby="helpCenterTitle" hidden>
           <h2 id="helpCenterTitle" data-i18n="settings.helpCenter.title">Help Center</h2>
           <p data-i18n="settings.helpCenter.note">Use the full Guide Book for detailed walkthroughs.</p>
-          <div class="help-center-categories" aria-label="Help Center categories">
+          <div class="help-center-categories" aria-label="Help Center categories" data-i18n-aria-label="settings.helpCenter.categoriesAria">
             <section>
               <h3 data-i18n="settings.helpCenter.gettingStarted">Getting Started</h3>
-              <p>Open the Guide Book to try the Reader flow before importing an EPUB.</p>
+              <p data-i18n="settings.helpCenter.gettingStartedBody">Open the Guide Book to try the Reader flow before importing an EPUB.</p>
             </section>
             <section>
               <h3 data-i18n="settings.helpCenter.reading">Reading</h3>
-              <p>Use Contents, Progress, Preview, and Mode from the Reader.</p>
+              <p data-i18n="settings.helpCenter.readingBody">Use Contents, Progress, Preview, and Mode from the Reader.</p>
             </section>
             <section>
               <h3 data-i18n="settings.helpCenter.vocabulary">Vocabulary</h3>
-              <p>Known, Save, and Hide shape local word lists for reading support.</p>
+              <p data-i18n="settings.helpCenter.vocabularyBody">Known, Save, and Hide shape local word lists for reading support.</p>
             </section>
             <section>
               <h3 data-i18n="settings.helpCenter.storage">Storage</h3>
-              <p>Books, progress, and vocabulary stay local to this browser and device.</p>
+              <p data-i18n="settings.helpCenter.storageBody">Books, progress, and vocabulary stay local to this browser and device.</p>
             </section>
             <section>
               <h3 data-i18n="settings.helpCenter.featureStatus">Feature Status</h3>
-              <p>English Study works now. Chinese Reading Mode, Mixed Mode, and translation providers remain planned placeholders.</p>
+              <p data-i18n="settings.helpCenter.featureStatusBody">English Study works now. Chinese Reading Mode, Mixed Mode, and translation providers remain planned placeholders.</p>
             </section>
           </div>
           <div class="settings-actions">
@@ -460,7 +460,7 @@
           </nav>
 
           <div id="chapterContent" class="chapter-content">
-            <p>This skeleton will render the first loaded chapter here. Chinese and Mixed modes intentionally show placeholders for now.</p>
+            <p data-i18n="reader.empty.description">This area shows the loaded chapter. Chinese Reading Mode and Mixed Mode remain placeholders for imported books.</p>
           </div>
 
           <nav class="reader-controls bottom-reader-controls" aria-label="Bottom chapter navigation" data-i18n-aria-label="reader.aria.bottomNavigation">
@@ -471,7 +471,7 @@
         </article>
       </section>
 
-      <div id="vocabBubble" class="vocab-bubble" role="dialog" aria-label="Vocabulary note" hidden></div>
+      <div id="vocabBubble" class="vocab-bubble" role="dialog" aria-label="Vocabulary note" data-i18n-aria-label="reader.vocabularyNote.aria" hidden></div>
 
       <div id="mobileSheetBackdrop" class="mobile-sheet-backdrop" hidden></div>
 

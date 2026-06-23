@@ -136,16 +136,26 @@ export function getHomeEntryState(appState = {}, savedBooks = [], options = {}) 
   };
 }
 
-export function formatReturnToReaderSubtext(book, progressText = "No chapter loaded") {
-  return `${book?.title || "Current book"} · ${progressText || "No chapter loaded"}`;
+export function formatReturnToReaderSubtext(book, progressText = "No chapter loaded", translate = null) {
+  const translateText = typeof translate === "function" ? translate : null;
+  const fallbackTitle = translateText ? translateText("home.returnToReader.currentBook") : "Current book";
+  const fallbackProgress = translateText ? translateText("reader.empty.noChapter") : "No chapter loaded";
+  return `${book?.title || fallbackTitle} · ${progressText || fallbackProgress}`;
 }
 
-export function formatContinueReadingSubtext(savedBook = {}) {
+export function formatContinueReadingSubtext(savedBook = {}, translate = null) {
+  const translateText = typeof translate === "function" ? translate : null;
   return [
     savedBook.author && savedBook.author !== "Unknown author" ? savedBook.author : "",
-    savedBook.chapterCount ? `${savedBook.chapterCount} chapters` : "",
+    savedBook.chapterCount
+      ? translateText
+        ? translateText("home.continue.chapterCount", { count: savedBook.chapterCount })
+        : `${savedBook.chapterCount} chapters`
+      : "",
     savedBook.fileSize ? formatBytes(savedBook.fileSize) : ""
-  ].filter(Boolean).join(" · ") || "Saved locally in this browser.";
+  ].filter(Boolean).join(" · ") || (translateText
+    ? translateText("reader.saved.status")
+    : "Saved locally in this browser.");
 }
 
 export function getVocabularyLibrarySummaryState(profile = {}, options = {}) {
@@ -1076,12 +1086,16 @@ function handleUiLanguageChoice(language) {
   renderSettingsView();
   renderLocalLibrary();
   renderVocabularyLibrarySummary();
+  updateReturnToReaderPanel();
+  if (!state.book && state.restoreCandidate && !elements.continueReadingPanel?.hidden) {
+    showRestorePrompt(state.restoreCandidate);
+  }
   refreshReaderChromeLanguage();
 }
 
 function handleSettingsUiLanguageChange(event) {
   handleUiLanguageChoice(event.target.value);
-  setSettingsFeedback(t("settings.language.feedback"), "success");
+  setLocalizedSettingsFeedback("settings.language.feedback", "success");
 }
 
 function renderSettingsView() {
@@ -1107,7 +1121,17 @@ function setSettingsFeedback(message = "", tone = "info") {
     return;
   }
 
+  setTranslatedText(elements.settingsFeedback, "");
   elements.settingsFeedback.textContent = message;
+  elements.settingsFeedback.dataset.tone = tone;
+}
+
+function setLocalizedSettingsFeedback(key = "", tone = "info", params = {}) {
+  if (!elements.settingsFeedback) {
+    return;
+  }
+
+  setTranslatedText(elements.settingsFeedback, key, params);
   elements.settingsFeedback.dataset.tone = tone;
 }
 
@@ -1136,16 +1160,16 @@ function hideGuideFromLibrary() {
   state.appPreferences = setGuideVisibilityPreference(false);
   renderLocalLibrary();
   renderSettingsView();
-  setStatus(t("guide.hide.done"), "success");
-  setSettingsFeedback(t("guide.hide.done"), "success");
+  setLocalizedStatus("guide.hide.done", "success");
+  setLocalizedSettingsFeedback("guide.hide.done", "success");
 }
 
 function showGuideInLibrary() {
   state.appPreferences = setGuideVisibilityPreference(true);
   renderLocalLibrary();
   renderSettingsView();
-  setSettingsFeedback(t("guide.restore.done"), "success");
-  setStatus(t("guide.restore.done"), "success");
+  setLocalizedSettingsFeedback("guide.restore.done", "success");
+  setLocalizedStatus("guide.restore.done", "success");
 }
 
 function cacheElements() {
@@ -1679,13 +1703,15 @@ async function loadSeedData() {
     state.vocabularyItems = [...coreVocabulary, ...slangAndIdioms];
     state.vocabularyIndex = createVocabularyIndex(state.vocabularyItems);
     state.vocabularyLoadError = null;
-    setStatus(`Loaded ${state.vocabularyItems.length} vocabulary items.`);
+    setLocalizedStatus("home.import.status.vocabularyLoaded", "info", {
+      count: state.vocabularyItems.length
+    });
   } catch (error) {
     console.warn(error);
     state.vocabularyItems = [];
     state.vocabularyIndex = new Map();
     state.vocabularyLoadError = error;
-    setStatus("Vocabulary JSON failed to load. English Study Mode will still render chapters, but underlines are disabled.", "error");
+    setLocalizedStatus("home.import.status.vocabularyUnavailable", "error");
   }
 
   try {
@@ -1743,6 +1769,8 @@ function refreshReaderChromeLanguage() {
   renderBookMeta();
   renderChapterOptions();
   renderBookGlossary();
+  const chapter = getCurrentChapter();
+  renderVocabularyPreview(chapter?.vocabularyPreview || [], chapter);
   const previewCount = Number(elements.mobileVocabButton?.dataset.previewCount || 0);
   updateMobileVocabButton(previewCount);
 }
@@ -1960,7 +1988,7 @@ async function handleSelectedFile(file) {
   renderImportDiagnostics();
 
   if (!file) {
-    setStatus("No file was selected.", "error");
+    setLocalizedStatus("home.import.status.noFile", "error");
     updateImportDiagnostics({
       currentStep: "No file selected",
       lastErrorName: "NoFileSelected",
@@ -1971,7 +1999,7 @@ async function handleSelectedFile(file) {
   }
 
   if (file.size === 0) {
-    setStatus("This EPUB file is empty. Please choose a different file.", "error");
+    setLocalizedStatus("home.import.status.emptyFile", "error");
     updateImportDiagnostics({
       currentStep: "Rejected empty file",
       lastErrorName: "EmptyFile",
@@ -1982,7 +2010,7 @@ async function handleSelectedFile(file) {
   }
 
   if (!file.name.toLowerCase().endsWith(".epub")) {
-    setStatus("Please choose a valid .epub file.", "error");
+    setLocalizedStatus("home.import.status.invalidFile", "error");
     updateImportDiagnostics({
       currentStep: "Rejected file extension",
       lastErrorName: "InvalidExtension",
@@ -1992,7 +2020,7 @@ async function handleSelectedFile(file) {
     return;
   }
 
-  setStatus(`Loading ${file.name}...`, "info");
+  setLocalizedStatus("home.import.status.loading", "info", { fileName: file.name });
   hideBubble();
 
   await loadAndOpenEpubFile(file, {
@@ -2033,14 +2061,14 @@ async function loadAndOpenEpubFile(file, options = {}) {
         showSavedBookControls(savedMetadata);
       } catch (error) {
         console.warn("Could not save EPUB locally.", error);
-        setStatus("EPUB loaded, but this browser could not save it for restore.", "error");
+        setLocalizedStatus("home.import.status.saveFailed", "error");
       }
     } else if (options.bookKey) {
       state.currentBookKey = options.bookKey;
     }
 
     if (!state.book.chapters.length) {
-      setStatus("This EPUB loaded, but no readable chapters were found.", "error");
+      setLocalizedStatus("home.import.status.noReadableChapters", "error");
       renderCurrentChapter();
       return;
     }
@@ -2063,7 +2091,10 @@ async function loadAndOpenEpubFile(file, options = {}) {
     const currentChapter = getCurrentChapter();
 
     if (!currentChapter?.renderError) {
-      setStatus(`Loaded ${state.book.title} with ${state.book.chapters.length} chapter entries.`, "success");
+      setLocalizedStatus("home.import.status.loaded", "success", {
+        title: state.book.title,
+        count: state.book.chapters.length
+      });
     }
 
     showView("reader");
@@ -2083,7 +2114,7 @@ async function loadAndOpenEpubFile(file, options = {}) {
       lastErrorMessage: error.message || "EPUB failed to load."
     });
     revealDebugPanel();
-    setStatus(getUserFacingImportError(error), "error");
+    setLocalizedStatus("home.import.status.failed", "error");
   }
 }
 
@@ -2665,8 +2696,15 @@ function renderVocabularyLibrarySummaryState(summary) {
   elements.vocabularyLearningCount.textContent = String(summary.learningCount);
   elements.vocabularyMasteredCount.textContent = String(summary.masteredCount);
   elements.vocabularyHiddenCount.textContent = String(summary.hiddenCount);
-  elements.vocabularyLibraryLevel.textContent = formatVocabularyLevelDisplay(summary.selectedLevel);
-  elements.vocabularyLibraryEmpty.textContent = summary.note;
+  setTranslatedText(elements.vocabularyLibraryLevel, "home.vocabulary.level", {
+    level: String(summary.selectedLevel || "").replace(/^level/, "") || "-"
+  });
+  const noteKey = summary.hasError
+    ? "home.vocabulary.note.unavailable"
+    : summary.isEmpty
+      ? "home.vocabulary.note.empty"
+      : "home.vocabulary.note.saved";
+  setTranslatedText(elements.vocabularyLibraryEmpty, noteKey);
   elements.vocabularyLibraryEmpty.dataset.state = summary.hasError
     ? "error"
     : summary.isEmpty
@@ -2722,7 +2760,7 @@ async function renderLocalLibrary() {
     elements.libraryList.hidden = !libraryState.hasVisibleItems;
 
     if (!libraryState.hasVisibleItems) {
-      elements.libraryEmpty.textContent = libraryState.emptyText;
+      setTranslatedText(elements.libraryEmpty, "home.library.empty");
       elements.libraryList.innerHTML = "";
       return;
     }
@@ -2734,7 +2772,7 @@ async function renderLocalLibrary() {
     console.warn("Could not render local library.", error);
     elements.libraryEmpty.hidden = false;
     elements.libraryList.hidden = true;
-    elements.libraryEmpty.textContent = "Could not load saved books from this browser.";
+    setTranslatedText(elements.libraryEmpty, "home.library.unavailable");
     elements.libraryList.innerHTML = "";
   }
 }
@@ -2762,7 +2800,7 @@ function renderGuideLibraryCard(book) {
 }
 
 function renderLibraryCard(book) {
-  const title = book.title || book.fileName || "Untitled book";
+  const title = book.title || book.fileName || t("home.library.untitled");
   const author = book.author && book.author !== "Unknown author" ? book.author : "";
   const showFileName = !book.title && book.fileName;
   const progress = formatSavedBookProgressLabel(book);
@@ -2775,7 +2813,7 @@ function renderLibraryCard(book) {
         ${author ? `<p class="library-card-author">${escapeHtml(author)}</p>` : ""}
         ${showFileName ? `<p class="library-card-filename">${escapeHtml(book.fileName)}</p>` : ""}
         <p class="library-card-progress">${escapeHtml(progress)}</p>
-        ${updated ? `<p class="library-card-updated">Last read ${escapeHtml(updated)}</p>` : ""}
+        ${updated ? `<p class="library-card-updated">${escapeHtml(t("home.library.lastRead", { date: updated }))}</p>` : ""}
       </div>
       <div class="library-card-actions">
         <button type="button" class="library-open-button" data-open-book>${escapeHtml(t("home.library.open"))}</button>
@@ -2798,7 +2836,9 @@ async function openStoredBookRecord(savedBook, progress) {
     throw new Error("Saved EPUB file data is missing.");
   }
 
-  setStatus(`Opening ${savedBook.title || savedBook.fileName}...`, "info");
+  setLocalizedStatus("home.library.opening", "info", {
+    title: savedBook.title || savedBook.fileName || t("home.library.untitled")
+  });
   hideBubble();
 
   const file = new File([savedBook.fileBlob], savedBook.fileName || "saved-book.epub", {
@@ -2825,7 +2865,7 @@ async function openSavedBookFromLibrary(bookKey) {
     const savedBook = await getStoredBook(bookKey);
 
     if (!savedBook?.fileBlob) {
-      setStatus("Could not open this saved book.", "error");
+      setLocalizedStatus("home.library.openMissing", "error");
       await refreshHomeLibraryState();
       return;
     }
@@ -2834,7 +2874,7 @@ async function openSavedBookFromLibrary(bookKey) {
     await openStoredBookRecord(savedBook, progress);
   } catch (error) {
     console.error("Saved EPUB open failed.", error);
-    setStatus("Could not open the saved EPUB. Please try importing it again.", "error");
+    setLocalizedStatus("home.library.openFailed", "error");
     revealDebugPanel();
   }
 }
@@ -2847,7 +2887,7 @@ async function openBuiltInGuide(options = {}) {
     ? Math.min(Math.max(requestedChapterIndex, 0), guideBook.chapters.length - 1)
     : -1;
 
-  setStatus(`Opening ${guideBook.title}...`, "info");
+  setLocalizedStatus("home.library.opening", "info", { title: guideBook.title });
   hideBubble();
   closeMobileSheets();
   hideReaderTapControls();
@@ -2880,7 +2920,7 @@ async function openBuiltInGuide(options = {}) {
   }
 
   showView("reader");
-  setStatus(`Opened ${guideBook.title}.`, "success");
+  setLocalizedStatus("home.library.opened", "success", { title: guideBook.title });
 }
 
 function openForgetBookModal(bookKey, displayTitle = "this book") {
@@ -2940,11 +2980,11 @@ async function deleteSavedBookFromLibrary(bookKey, displayTitle) {
       state.restoreCandidate = null;
     }
 
-    setStatus(`Removed ${displayTitle} from local library.`, "success");
+    setLocalizedStatus("home.library.removed", "success", { title: displayTitle });
     await refreshHomeLibraryState();
   } catch (error) {
     console.error("Could not delete saved book.", error);
-    setStatus("Could not delete saved book from this browser.", "error");
+    setLocalizedStatus("home.library.removeFailed", "error");
     await refreshHomeLibraryState();
   }
 }
@@ -2996,7 +3036,7 @@ function updateReturnToReaderPanel() {
   const currentIndex = getCurrentChapterIndex();
   const progressText = formatChapterProgress(state.book.chapters, currentIndex);
 
-  elements.returnToReaderSubtext.textContent = formatReturnToReaderSubtext(state.book, progressText);
+  elements.returnToReaderSubtext.textContent = formatReturnToReaderSubtext(state.book, progressText, t);
   elements.returnToReaderPanel.hidden = false;
   hideRestorePrompt();
 }
@@ -3006,8 +3046,15 @@ function showRestorePrompt(savedBook) {
     return;
   }
 
-  elements.restoreTitle.textContent = savedBook.title || savedBook.fileName || "Saved book";
-  elements.restoreText.textContent = formatContinueReadingSubtext(savedBook);
+  setTranslatedText(elements.restoreTitle, "");
+  const savedTitle = savedBook.title || savedBook.fileName;
+  if (savedTitle) {
+    elements.restoreTitle.textContent = savedTitle;
+  } else {
+    setTranslatedText(elements.restoreTitle, "home.continue.savedBook");
+  }
+  setTranslatedText(elements.restoreText, "");
+  elements.restoreText.textContent = formatContinueReadingSubtext(savedBook, t);
   elements.continueReadingPanel.hidden = false;
 }
 
@@ -3041,7 +3088,7 @@ async function restoreSavedBook() {
   const savedBook = state.restoreCandidate;
 
   if (!savedBook?.fileBlob) {
-    setStatus("No saved book is available. Please import an EPUB.", "error");
+    setLocalizedStatus("home.library.restoreMissing", "error");
     hideRestorePrompt();
     return;
   }
@@ -3051,7 +3098,7 @@ async function restoreSavedBook() {
     await openStoredBookRecord(savedBook, progress);
   } catch (error) {
     console.error("Saved EPUB restore failed.", error);
-    setStatus("Could not restore the saved EPUB. Please re-import the file.", "error");
+    setLocalizedStatus("home.library.restoreFailed", "error");
     revealDebugPanel();
   }
 }
@@ -3061,7 +3108,7 @@ async function clearSavedBook() {
 
   if (!bookKey) {
     hideRestorePrompt();
-    setStatus("No saved book data was found.", "info");
+    setLocalizedStatus("home.library.noSavedData", "info");
     return;
   }
 
@@ -3071,11 +3118,11 @@ async function clearSavedBook() {
     state.restoreCandidate = null;
     hideRestorePrompt();
     hideReaderSavedPanel();
-    setStatus("Saved book data was cleared from this browser.", "success");
+    setLocalizedStatus("home.library.cleared", "success");
     await refreshHomeLibraryState();
   } catch (error) {
     console.error("Could not clear saved book data.", error);
-    setStatus("Could not clear saved book data from this browser.", "error");
+    setLocalizedStatus("home.library.clearFailed", "error");
   }
 }
 
@@ -3370,16 +3417,18 @@ function renderVocabularyPreviewListItem(item, personalizationState = state.voca
   const term = getVocabularyPreviewItemTerm(item);
   const normalizedTerm = normalizeTerm(term);
   const isSaved = isVocabularyPreviewItemSaved(item, personalizationState);
-  const savedBadgeHtml = isSaved ? `<span class="vocab-saved-badge">Saved</span>` : "";
+  const savedBadgeHtml = isSaved
+    ? `<span class="vocab-saved-badge">${escapeHtml(t("reader.vocabularyNote.saved"))}</span>`
+    : "";
   const saveButtonAttributes = isSaved
-    ? ` class="vocab-action-save is-saved" disabled aria-disabled="true" title="Already saved to vocabulary"`
+    ? ` class="vocab-action-save is-saved" disabled aria-disabled="true" title="${escapeHtml(t("reader.vocabularyNote.alreadySaved"))}"`
     : ` class="vocab-action-save"`;
   const actionsHtml = normalizedTerm
     ? `
-      <div class="vocab-actions" aria-label="Vocabulary actions for ${escapeHtml(term)}">
-        <button type="button" data-vocab-action="known" data-vocab-term="${escapeHtml(normalizedTerm)}">Known</button>
-        <button type="button" data-vocab-action="add" data-vocab-term="${escapeHtml(normalizedTerm)}"${saveButtonAttributes}>${isSaved ? "Saved" : "Save"}</button>
-        <button type="button" data-vocab-action="ignore" data-vocab-term="${escapeHtml(normalizedTerm)}">Hide</button>
+      <div class="vocab-actions" aria-label="${escapeHtml(t("reader.vocabularyNote.actionsAria", { term }))}">
+        <button type="button" data-vocab-action="known" data-vocab-term="${escapeHtml(normalizedTerm)}">${escapeHtml(t("reader.vocabularyNote.known"))}</button>
+        <button type="button" data-vocab-action="add" data-vocab-term="${escapeHtml(normalizedTerm)}"${saveButtonAttributes}>${escapeHtml(t(isSaved ? "reader.vocabularyNote.saved" : "reader.vocabularyNote.save"))}</button>
+        <button type="button" data-vocab-action="ignore" data-vocab-term="${escapeHtml(normalizedTerm)}">${escapeHtml(t("reader.vocabularyNote.hide"))}</button>
         ${savedBadgeHtml}
       </div>
     `
@@ -3845,11 +3894,11 @@ function showBubble(normalizedTerm, x, y) {
   const chineseMeaning = item.chineseMeaning || "暂无中文释义";
 
   elements.vocabBubble.innerHTML = `
-    <button type="button" class="bubble-close" data-close-bubble aria-label="Close vocabulary note">x</button>
+    <button type="button" class="bubble-close" data-close-bubble aria-label="${escapeHtml(t("reader.vocabularyNote.close"))}">x</button>
     <h3>${escapeHtml(item.term)}</h3>
-    <p><span class="bubble-label">中文</span><br>${escapeHtml(chineseMeaning)}</p>
-    ${item.englishDefinition ? `<p><span class="bubble-label">English</span><br>${escapeHtml(item.englishDefinition)}</p>` : ""}
-    ${item.ieltsUsage ? `<p><span class="bubble-label">IELTS usage</span><br>${escapeHtml(item.ieltsUsage)}</p>` : ""}
+    <p><span class="bubble-label">${escapeHtml(t("reader.vocabularyNote.chineseLabel"))}</span><br>${escapeHtml(chineseMeaning)}</p>
+    ${item.englishDefinition ? `<p><span class="bubble-label">${escapeHtml(t("reader.vocabularyNote.englishLabel"))}</span><br>${escapeHtml(item.englishDefinition)}</p>` : ""}
+    ${item.ieltsUsage ? `<p><span class="bubble-label">${escapeHtml(t("reader.vocabularyNote.ieltsLabel"))}</span><br>${escapeHtml(item.ieltsUsage)}</p>` : ""}
   `;
 
   elements.vocabBubble.hidden = false;
@@ -3921,7 +3970,13 @@ function positionBubble(x, y) {
 }
 
 function setStatus(message, tone = "info") {
+  setTranslatedText(elements.statusText, "");
   elements.statusText.textContent = message;
+  elements.statusText.dataset.tone = tone;
+}
+
+function setLocalizedStatus(key = "", tone = "info", params = {}) {
+  setTranslatedText(elements.statusText, key, params);
   elements.statusText.dataset.tone = tone;
 }
 
@@ -4048,23 +4103,6 @@ function revealDebugPanel() {
   if (elements.debugPanel) {
     elements.debugPanel.open = true;
   }
-}
-
-function getUserFacingImportError(error) {
-  if (error?.cause?.message) {
-    const causeName = error.cause.name || "Error";
-    return `${error.userMessage || "EPUB failed to load."} Details: ${causeName}: ${error.cause.message}`;
-  }
-
-  if (error?.userMessage) {
-    return error.userMessage;
-  }
-
-  if (error?.message) {
-    return error.message;
-  }
-
-  return "EPUB failed to load. Please try another file.";
 }
 
 function getFileExtension(fileName) {
