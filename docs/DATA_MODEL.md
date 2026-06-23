@@ -313,6 +313,8 @@ The stored `last-mode` value is read without validation.
 
 ## 9. Vocabulary Profile
 
+The vocabulary profile is one global singleton across all books and chapters. Current records do not contain a book key, chapter key, Book Project key, version key, or other vocabulary-scope field.
+
 The IndexedDB singleton record is:
 
 ```json
@@ -378,9 +380,32 @@ Unknown profile fields are discarded during normalization and save.
 | `learningWords` | User wants to retain or export the term |
 | `ignoredWords` | User hides the term from ordinary assistance |
 
-`Mastered` is a UI label derived from `knownWords`.
+Approved product terminology is **Known / 已认识**. The current internal UI/export identifier `mastered` remains temporarily as a compatibility alias derived from `knownWords`.
 
 There is no `masteredWords` field.
+
+Current storage uses `ignoredWords` for the product's global Hidden outcome. Hidden is semantically separate from Known even though the current personalization helper may combine both for filtering.
+
+### Approved target mapping
+
+The following is a future conceptual mapping, not an implemented schema:
+
+| Current compatibility field | Approved target concept |
+| --- | --- |
+| `selectedLevel` | `baseLevel` |
+| `knownWords` | `knownAdditions` |
+| `learningWords` | `learningWords` |
+| `ignoredWords` | `hiddenWords` |
+
+The target calculation is:
+
+```text
+EffectiveKnown = BaseWhitelist + KnownAdditions - LearningWords
+```
+
+Preview eligibility additionally excludes global Hidden. No book-specific vocabulary state and no default persistent Unknown Exceptions collection are part of the target model.
+
+Renaming any current field requires an explicit versioned migration, rollback behavior, compatibility tests, and real-browser verification. No such migration is authorized.
 
 ### Action transitions
 
@@ -400,6 +425,8 @@ Action helpers enforce exclusive transitions.
 Generic normalization and `saveVocabularyProfile()` do not resolve cross-list conflicts.
 
 A supplied profile may contain the same normalized term in multiple collections.
+
+Backup restore may therefore recreate a term in more than one current collection. The future precedence or rejection rule is unresolved and must not be inferred. Known, Learning, and Hidden remain mutually exclusive approved user outcomes even though generic current save/restore does not enforce that target invariant.
 
 ---
 
@@ -438,6 +465,8 @@ learningWords
 ignoredWords
 preferredCategories
 ```
+
+Schema version 1 contains neither a baseline asset version nor a Base Whitelist snapshot. It also has no per-term timestamps, phrase identity/state structure, or chapter-analysis/artifact provenance.
 
 ### Validation
 
@@ -494,6 +523,18 @@ The wrapper awaits the `put` request success but does not explicitly await `IDBT
 Restore is not serialized against concurrent vocabulary writes.
 
 Overlapping operations remain last-writer-wins.
+
+### Exact-restoration limitation and future options
+
+`selectedLevel` alone cannot reproduce the original EffectiveKnown set if the corresponding level baseline asset changes. The current `data/levels/*.json` assets have no persisted version identifier, and schema version 1 does not embed their word lists.
+
+A future backup that claims exact restoration must choose one of the following without silently changing schema version 1:
+
+* an immutable historical baseline registry referenced by version;
+* an embedded Base Whitelist snapshot with integrity metadata;
+* an approved hybrid that uses a version reference with snapshot fallback.
+
+The choice remains open. A future format must also define cross-list conflict handling, phrase identity, and any per-term timestamps before a backup schema migration is authorized.
 
 ---
 
@@ -647,6 +688,7 @@ Compatibility-sensitive identifiers:
 | Reading Modes | `english-study`, `chinese`, `cloze-mixed` |
 | Backup version field | `schemaVersion` |
 | Backup version | `1` |
+| Internal UI/export vocabulary identifier | `mastered` (compatibility alias for `knownWords`) |
 | Runtime compatibility field | `clozeHtml` |
 | Debug global | `window.__slashReaderDebug` |
 | Script-status global | `window.slashReaderScriptStatus` |
@@ -654,6 +696,8 @@ Compatibility-sensitive identifiers:
 The book-key generation format and all persisted field names are also compatibility-sensitive.
 
 `clozeHtml` and runtime globals are not persisted by `storage.js`, but remain compatibility-sensitive.
+
+R1 localization implementation through `R1-L10N-06` and starting baseline `b2f1ab1` did not change this IndexedDB or backup schema.
 
 ---
 
@@ -717,7 +761,21 @@ The following are not part of the current persisted contract:
 * provider provenance;
 * translation state;
 * alignment repair data;
-* Book Project migration metadata.
+* Book Project migration metadata;
+* `baseLevel`, `baseWhitelistVersion`, or a Base Whitelist snapshot;
+* `knownAdditions` or `hiddenWords` fields;
+* structured `phraseStates`;
+* per-term timestamps;
+* `ChapterVocabularyAnalysis`;
+* Preview or Mixed candidate-set artifacts;
+* `GeneratedMixedArtifact` input fingerprints or staleness records;
+* a canonical cross-view position anchor.
+
+Possible future phrase handling remains undecided. Phrases may continue to use the ordinary global Known, Learning, and Hidden term collections, or a future schema may add structured phrase identity/state when alignment or reproducibility requires it. The current schema does not decide that question.
+
+A future `ChapterVocabularyAnalysis` would be a reproducible derived record, not a book-specific vocabulary profile. It would need source/chapter identity and content fingerprint, a global-profile snapshot/reference, baseline identity, dataset and phrase-policy versions, and candidate-policy inputs. It would expose relatively broad Preview candidates and a smaller prioritized Mixed subset.
+
+A future `GeneratedMixedArtifact` would need reproducibility inputs including source and Translation Version identity, alignment revision, chapter-analysis identity, global-profile/baseline input, phrase/candidate policy versions, generation settings, and staleness state. No Translation Version, Alignment Map, `ChapterVocabularyAnalysis`, or `GeneratedMixedArtifact` is currently persisted.
 
 Future design documents do not authorize changing IndexedDB or migrating current records.
 
@@ -729,6 +787,18 @@ A future migration requires:
 * migration and rollback behavior;
 * compatibility tests;
 * real-browser verification.
+
+The following remain open and must not be resolved by implication:
+
+* Hide cancellation restoration behavior;
+* same-chapter reopening or regeneration policy;
+* legacy cross-list conflict precedence;
+* baseline registry versus embedded snapshot versus hybrid;
+* ordinary phrase terms versus structured `phraseStates`;
+* per-term timestamp requirements;
+* Mixed thresholds and caps;
+* stale-artifact regeneration policy;
+* the canonical cross-view position anchor.
 
 ---
 

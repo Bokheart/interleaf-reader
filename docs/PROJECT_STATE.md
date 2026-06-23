@@ -15,20 +15,25 @@
 | **Runtime baseline tag** | `r0-closure-99ad1e3` (annotated tag on `99ad1e3`) |
 | **Product-owner acceptance** | 孙书心 accepted the R0 runtime baseline on `2026-06-22` |
 | **R0 status** | **Closed** (`2026-06-22`) |
-| **R1 status** | **Active** — implementation in progress |
+| **R1 status** | **Active** — localization and canonical reconciliation complete; closure-readiness review next |
 | **R2 status** | **Following** |
 | **First R1 implementation commit** | `74ce309` — `feat: localize reader chrome` |
+| **R1-GOV-02 starting baseline** | `b2f1ab1` — `feat: close application localization gaps` |
 | **Repository state rule** | Read the current repository HEAD from Git; do not treat HEAD as the runtime baseline |
 | **Documentation baseline** | Canonical and historical archive work is committed and reconciled; later documentation-only commits do not change the accepted runtime baseline |
-| **Localization status** | R1 implementation started; `R1-L10N-01` complete; English and Simplified Chinese locale catalogs have **108 matching keys**; broader R1 localization continues |
-| **Feature-development status** | R1 active — first bounded localization increment landed |
-| **Current priority** | `R1-L10N-02 — Reader Help and Glossary Chrome Localization` |
+| **Localization status** | **Complete through `R1-L10N-06`**; English and Simplified Chinese locale catalogs have **253 / 253 matching keys** |
+| **Verification status** | Seven Node suites passed at the `b2f1ab1` localization baseline |
+| **Governance status** | `R1-GOV-01` audit complete; `R1-GOV-02` canonical reconciliation complete; `R1-GOV-03` closure-readiness review is the current L2 |
+| **Feature-development status** | R1 remains Active; no vocabulary schema, Preview-behavior, UI-redesign, or Mixed implementation has started through governance work |
+| **Current priority** | `R1-GOV-03 — R1 Closure Readiness and Product-Owner Acceptance Review` |
 
 The earlier runtime reproducibility risk is resolved. The current application no longer depends on untracked Guide or localization modules.
 
 R0 closure evidence is complete. No verified R0 P0 blocker remains. The product owner explicitly accepted runtime baseline `99ad1e3` on `2026-06-22`.
 
 The exact repository HEAD is intentionally not hard-coded in this document because documentation-only commits may advance it. Git is the source of truth for the current HEAD; `99ad1e3` remains the fixed accepted runtime baseline regardless of later documentation commits.
+
+`b2f1ab1` is the verified starting baseline for `R1-GOV-02`, not a replacement for the accepted R0 runtime baseline.
 
 ---
 
@@ -53,7 +58,11 @@ The current supported baseline includes:
 * vocabulary profile backup and restore;
 * a built-in virtual Guide;
 * Settings and Help surfaces;
-* interface-language foundations.
+* complete English and Simplified Chinese Interface Language coverage through `R1-L10N-06`.
+
+R1 localization implementation is complete through `R1-L10N-06` with 253 matching English and Simplified Chinese locale keys. Vocabulary and Mixed canonical reconciliation is also complete. R1 remains Active because closure-readiness review, closure evidence, and product-owner acceptance are not complete.
+
+The approved target vocabulary model is one global profile across all books and chapters with mutually exclusive Known, Learning, and Hidden outcomes. Current storage and runtime behavior have not been migrated to a new schema or chapter-analysis model.
 
 The canonical user, product, and vocabulary boundaries are defined in:
 
@@ -202,50 +211,38 @@ The Guide mode-label and semantic-test regression correction in `99ad1e3` receiv
 
 This evidence supported the accepted baseline correction and is part of the completed R0 closure record.
 
-### R1-L10N-01 — Reader Chrome Localization
+### R1-L10N-01 through R1-L10N-06 — Interface Localization
 
-**Status: Complete — committed and pushed on `feature/m2-reader-toc` at `74ce309` (`feat: localize reader chrome`)**
+**Status: Complete through the `b2f1ab1` localization baseline**
 
 | Check | Result |
 | --- | --- |
-| Scope | Reader UI chrome only via Interface Language |
-| Locale catalogs | English and Simplified Chinese — **108 matching keys** |
+| Scope | Approved application Interface Language surfaces through `R1-L10N-06` |
+| Locale catalogs | English and Simplified Chinese — **253 / 253 matching keys** |
 | Node test suites | 7 of 7 passed |
-| Desktop Reader smoke | Passed |
-| Mobile Reader smoke | Passed at **393 × 852** |
-| Interface Language boundary | Reader chrome labels and empty states only |
+| Commit sequence after `R1-L10N-01` | `c3d64c7`, `e49acd1`, `3ad0009`, `4f9e1eb`, `b2f1ab1` |
+| Completed surfaces | Reader Help and glossary chrome, resume/saved-book UI, Vocabulary Library, application UI sweep, and final localization-gap closure |
+| Interface Language boundary | Application UI chrome and feedback only |
 | Reading Mode contract | Unchanged — mode selection and persisted values unchanged |
 | Guide content contract | Unchanged — Guide metadata, chapter titles, and body remain Reading-Mode-owned |
 | Imported book content | Unchanged — title, author, chapters, and body not localized by Interface Language |
 | Storage and progress contracts | Unchanged |
-| Product-owner approval | Static compact control label **Mode** / **阅读模式** accepted |
-
-Approved Simplified Chinese Reader chrome terminology:
-
-| English | 简体中文 |
-| --- | --- |
-| Contents | 目录 |
-| Progress | 进度 |
-| Preview / Vocabulary Preview | 词汇预览 |
-| Mode / Reading Mode | 阅读模式 |
-| Chapters | 章节 |
-| Previous Chapter | 上一章 |
-| Next Chapter | 下一章 |
-| Back to Top | 回到顶部 |
-| Close | 关闭 |
-| English Study | 英文阅读 |
-| Chinese | 中文阅读 |
-| Mixed Mode | 混合阅读 |
-
-Deferred to later R1 localization tasks (not part of `R1-L10N-01`):
-
-* Reader Help explanatory copy;
-* Book Glossary panel UI copy;
-* other UI-owned Reader-adjacent strings.
 
 Guide metadata, Guide chapter titles, and Guide body content remain **Reading-Mode-owned** and must not be localized through Interface Language.
 
-Home, Vocabulary Library, Guide redesign, pagination, gestures, and quick-add widget work remain **not started**.
+Localization completion does not implement real imported-book Chinese or Mixed content, change vocabulary persistence, approve a Guide redesign, add gestures, or authorize UI redesign.
+
+### R1-GOV-01 — Global Vocabulary Profile and Mixed-Mode Repository Audit
+
+**Status: Complete — read-only audit against `b2f1ab1`**
+
+The audit confirmed the current singleton profile, curated-only Preview, backup schema-v1 limitations, internal `mastered` compatibility surfaces, and missing future `ChapterVocabularyAnalysis`, alignment, and generated-artifact contracts. It made no repository changes.
+
+### R1-GOV-02 — Canonical Vocabulary and Mixed Semantics Reconciliation
+
+**Status: Complete — documentation-only canonicalization**
+
+This task records approved global vocabulary, explicit-action, stable-snapshot, Preview/Mixed, phrase-integrity, backup, and artifact-reproducibility semantics in the six canonical control documents. It does not implement the future runtime or schema.
 
 ---
 
@@ -256,14 +253,14 @@ R0 closure verification is complete for baseline `99ad1e3`. No further R0 verifi
 The following remain outside the accepted R0 baseline or are deferred to later milestones:
 
 * non-Chromium browser behavior;
-* complete interface-localization coverage;
 * complete accessibility coverage;
 * deliberate overlapping vocabulary writes and restore operations beyond the accepted smoke scope;
 * deployed behavior matching the accepted baseline on Pages;
 * installability and offline application-shell behavior;
 * real imported-book Chinese Reading Mode;
 * real imported-book Mixed Mode;
-* translation-provider behavior.
+* translation-provider behavior;
+* R1 closure acceptance and final closure evidence.
 
 These limits must not be represented as completed functionality.
 
@@ -320,30 +317,31 @@ The application does not currently provide a complete workflow for:
 
 The current persisted book model has not been migrated to the proposed Book Project, Book Version, Translation Version, or Alignment Map model.
 
+### Vocabulary profile, Preview, and backup limitations
+
+The current runtime still uses IndexedDB database `slash-reader-v2-books`, database version `2`, the `vocabularyProfile` singleton key `local`, and the fields `selectedLevel`, `knownWords`, `learningWords`, `ignoredWords`, `preferredCategories`, and `updatedAt`.
+
+Current limitations include:
+
+* internal UI/export identifier `mastered` and compatibility-era visible wording;
+* curated-only Preview generation;
+* personalization applied after candidate generation;
+* immediate current-Preview refiltering, which does not match the approved future stable-snapshot contract;
+* no baseline asset version or snapshot;
+* backup schema version `1` only;
+* possible cross-list conflicts through generic save/restore;
+* no persisted `ChapterVocabularyAnalysis`;
+* no persisted Translation Version, Alignment Map, or `GeneratedMixedArtifact`.
+
+No Profile migration, backup v2, Preview behavior change, dictionary enrichment, long-press Save, or UI redesign is implemented or authorized by the governance documents.
+
 ### Service worker and offline application shell
 
 A manifest and planning documents exist, but no service worker is implemented or registered.
 
-### Complete localization
+### Governance reconciliation
 
-Interface-language infrastructure exists. R1 implementation began with `R1-L10N-01 — Reader Chrome Localization` at commit `74ce309`. Complete English and Chinese Interface Language coverage remains R1 work in progress.
-
-Completed in the first increment:
-
-* Reader chrome labels, navigation controls, mobile sheets, and related empty states;
-* matching English and Simplified Chinese locale catalogs (**108 keys**).
-
-Known remaining areas include:
-
-* Reader Help and Book Glossary chrome copy;
-* Home and Settings surfaces beyond the Reader increment;
-* Vocabulary Library UI;
-* hard-coded user-facing strings outside the completed Reader scope;
-* dynamic feedback and error messages;
-* accessibility labels outside the completed Reader scope;
-* final Guide Mixed-content compliance.
-
-The preserved Guide redesign draft is not localization implementation and is not part of runtime candidate commit `99ad1e3`.
+Localization implementation is complete through `R1-L10N-06`, and `R1-GOV-02` completed the canonical vocabulary and Mixed reconciliation without changing runtime behavior. `R1-GOV-03` closure-readiness review is next. R1 closure still requires current acceptance evidence and explicit product-owner acceptance; completion of localization and canonical reconciliation does not close the milestone.
 
 ---
 
@@ -434,18 +432,9 @@ R0 may be reopened only for a confirmed baseline defect or governance correction
 
 ## 11. Immediate Next Action
 
-> **`R1-L10N-02 — Reader Help and Glossary Chrome Localization`**
+> **`R1-GOV-03 — R1 Closure Readiness and Product-Owner Acceptance Review`**
 
-The first R1 implementation increment (`R1-L10N-01 — Reader Chrome Localization`) is complete at commit `74ce309`.
-
-The next bounded R1 task should:
-
-1. localize Reader Help explanatory chrome and Book Glossary panel UI copy through Interface Language;
-2. preserve the Reading-Mode-owned boundary for Guide metadata, chapter titles, and body content;
-3. keep Reading Mode, storage, and progress contracts unchanged;
-4. remain bounded to approved Reader-adjacent chrome; do not start Home, Vocabulary Library, Guide redesign, pagination, gestures, or quick-add widget work.
-
-Historical R1 entry-audit and task-planning work preceded this increment and is no longer the immediate next action.
+After `R1-GOV-02`, the next bounded task is a read-only closure-readiness review. It should verify localization and onboarding exit evidence against the current Git baseline, identify any remaining R1 blockers, and request product-owner acceptance without implementing Profile migration, Preview changes, UI redesign, dictionary enrichment, alignment, or real Mixed Mode.
 
 ---
 
@@ -453,11 +442,20 @@ Historical R1 entry-audit and task-planning work preceded this increment and is 
 
 * whether the deployed Pages build matches accepted runtime baseline `99ad1e3`;
 * whether non-Chromium browsers pass supported flows;
-* whether complete localization satisfies the R1 contract as later R1 increments land;
+* whether current localization and onboarding evidence satisfies every R1 exit criterion;
 * whether manifest and icons produce a verified installable experience;
 * whether service-worker work belongs in R2;
 * whether maintainer contact and legal review are complete;
-* how the externally preserved Guide redesign should be reviewed and sequenced within R1.
+* how the externally preserved Guide redesign should be reviewed and sequenced within R1;
+* Hide cancellation restoration behavior;
+* same-chapter Preview reopening or regeneration policy;
+* legacy cross-list conflict precedence;
+* historical baseline registry versus embedded snapshot versus hybrid;
+* ordinary phrase terms versus structured `phraseStates`;
+* per-term timestamp requirements;
+* Mixed thresholds and caps;
+* stale-artifact regeneration policy;
+* the canonical cross-view position anchor.
 
 ---
 

@@ -61,7 +61,7 @@ When sources disagree:
 
 ## 2. Product Summary
 
-Interleaf Reader is a **mobile-first, local-first, reading-first long-form English reader** for non-native English readers who have some English ability but experience resistance, fatigue, or anxiety when facing long English texts.
+Interleaf Reader is a **mobile-first, local-first, reading-first multilingual long-form reader** for non-native English readers who have some English ability but experience resistance, fatigue, or anxiety when facing long English texts. Its current supported imported-book experience remains centered on English Study Mode; Chinese Reading Mode and Mixed Mode remain future capabilities for imported books.
 
 Many target users have an ongoing English-learning goal, such as IELTS preparation, academic reading improvement, or long-term language development. They may still lack sustained English-language exposure and struggle to remain inside a long English text.
 
@@ -98,6 +98,10 @@ It does not replace a dedicated dictionary, translation platform, exam-training 
 > **Import → Read → Receive lightweight in-context vocabulary assistance → Save useful words → Continue reading → Restore progress**
 
 The user should not need to repeatedly switch among a reader, translator, dictionary, notes app, and vocabulary app for routine reading support.
+
+English Study Mode, future Chinese Reading Mode, future Mixed Mode, Vocabulary Preview, the vocabulary bubble, and Vocabulary Library belong to one reading-support loop rather than separate products. Preview prepares the reader for a chapter, English or a future multilingual representation carries the long-form reading session, the bubble resolves local friction, explicit vocabulary actions update the global profile, and Vocabulary Library preserves the user's choices without interrupting reading.
+
+The current runtime implements the English Study path, Preview, bubbles, and Vocabulary Library. Imported-book Chinese and Mixed remain explicit placeholders until their data and architecture prerequisites are implemented and verified.
 
 ### 3.3 External vocabulary-capture loop
 
@@ -289,7 +293,7 @@ Vocabulary support should provide enough information to continue, not every poss
 
 ### User-controlled vocabulary
 
-The user decides whether a word is Known, worth saving, irrelevant, worth manually recording, or ready to export.
+The user decides whether a term is Known, belongs in Learning, should be Hidden, is worth manually recording, or is ready to export. These decisions are global across every book and chapter.
 
 ### Local-first by default
 
@@ -328,6 +332,8 @@ Optional support features must not unnecessarily block startup, import, first ch
 
 **Boundary:** This is not arbitrary dictionary search.
 
+Opening or clicking a vocabulary bubble is a non-persistent soft signal. It must not classify the term or mutate the vocabulary profile. Only an explicit Known, Save, or Hide action may do so.
+
 ### Journey C — Preview chapter vocabulary
 
 1. Open Vocabulary Preview.
@@ -336,6 +342,8 @@ Optional support features must not unnecessarily block startup, import, first ch
 4. Return to the chapter.
 
 **Outcome:** Preview reduces future interruption without becoming mandatory study.
+
+The generated Preview for the current chapter should remain a stable snapshot. Profile changes primarily affect later chapter analyses and future books rather than silently rebuilding or reordering the active chapter snapshot.
 
 ### Journey D — Save a reading-context term
 
@@ -414,22 +422,45 @@ It is not responsible for:
 
 | Action | Product meaning | Expected effect |
 | --- | --- | --- |
-| **Known** | User already knows the term | Exclude it from future recommendations where applicable and preserve the choice |
-| **Save** | User wants to keep or study it later | Add it to Learning |
-| **Hide** | Not a useful learning target | Exclude it while preserving the choice |
+| **Known** | User already knows the term | Add it to the global Known / Whitelist pool and remove it from Learning and Hidden |
+| **Save** | User wants to keep or study it later | Move it into global Learning and remove it from Known and Hidden |
+| **Hide** | Not a useful learning target | Move it into global Hidden and suppress it from future Preview and Mixed candidates |
 | **Manual Add** | Capture a term encountered elsewhere | Add the normalized term without promising enrichment |
 | **Remove** | User no longer wants the entry | Remove or update the local entry |
 | **Export** | Transfer collected vocabulary elsewhere | Produce a supported term list or backup representation |
 
-### 9.4 Known and Mastered
+Known, Learning, and Hidden are mutually exclusive explicit user outcomes. Bubble opens, bubble clicks, row focus, navigation, and other implicit interaction signals must not mutate persistent vocabulary state.
 
-The current product may display a **Mastered** tab for words recorded as Known.
+### 9.4 Global profile and knowledge pools
 
-This does not mean Interleaf taught, tested, measured, or confirmed mastery.
+Vocabulary behavior is global across all books and chapters. The target model has two knowledge pools:
 
-A true mastery lifecycle requires a separate product decision.
+* **Known / Whitelist** — the selected Base Whitelist plus explicit Known additions;
+* **Learning** — terms the user explicitly saves for future exposure or export.
 
-### 9.5 Vocabulary level
+**Hidden** is a separate global suppression state. Hidden is not a synonym for Known and must not be represented as knowledge.
+
+The conceptual known-set calculation is:
+
+```text
+EffectiveKnown = BaseWhitelist + KnownAdditions - LearningWords
+```
+
+Preview eligibility additionally excludes global Hidden. A Learning term overrides the Base Whitelist: when it occurs in a chapter, it becomes eligible for future Preview coverage and should receive priority appropriate to the chapter candidate policy.
+
+No book-specific or chapter-specific vocabulary state and no default persistent Unknown Exceptions collection are part of the target model. Chapter analysis may record reproducible candidate results, but it must reference the global profile rather than own a separate vocabulary profile.
+
+Words and phrases share these outcomes. Phrases, idioms, phrasal verbs, and fixed expressions must remain intact target units through detection, storage, analysis, alignment, and presentation.
+
+### 9.5 Product terminology and compatibility
+
+The approved product terminology is **Known / 已认识**, not **Mastered / 已掌握**.
+
+Existing internal identifiers such as `mastered` may remain temporarily for compatibility. They do not define product meaning, create a tested mastery lifecycle, or authorize renaming persisted fields without migration analysis.
+
+The current runtime may still expose compatibility-era wording. Current implementation status and remediation scope belong in `docs/PROJECT_STATE.md`.
+
+### 9.6 Vocabulary level
 
 A vocabulary-level preference may help filter Preview terms.
 
@@ -503,9 +534,16 @@ Preview should:
 * show a limited prioritized chapter list;
 * avoid every unknown token;
 * support Known, Save, and Hide;
-* reflect saved and filtered state;
+* use the global vocabulary profile rather than book- or chapter-specific vocabulary state;
+* exclude EffectiveKnown and global Hidden terms;
+* restore eligibility and appropriate priority for Learning terms that occur in the chapter;
+* preserve phrases and fixed expressions as intact candidates;
+* provide relatively broad chapter candidate coverage while remaining ranked and bounded;
+* preserve the current chapter as a stable generated snapshot unless the user enters a separately approved regeneration flow;
 * fail safely when data is unavailable;
 * never block chapter rendering.
+
+Preview is not every non-whitelisted token. Candidate extraction, filtering, and ranking must remain explicit and reproducible. The current runtime remains curated-only and does not yet implement the complete future chapter-analysis contract.
 
 ### 10.6 In-text vocabulary bubble
 
@@ -519,6 +557,8 @@ The bubble should:
 * support mobile positioning;
 * return attention to reading.
 
+Opening, clicking, locating, or closing the bubble must not persist vocabulary state. Only explicit Known, Save, or Hide controls may mutate the profile.
+
 It may include the term, a short Chinese meaning, brief English definition, and limited usage label.
 
 It must not become a full dictionary page.
@@ -528,7 +568,7 @@ It must not become a full dictionary page.
 Vocabulary Library should support:
 
 * Learning;
-* Known or Mastered archive;
+* Known;
 * Hidden;
 * manual capture;
 * removal or status change;
@@ -550,6 +590,10 @@ Supported outputs may include:
 Documentation must distinguish an external-study export from a restorable Interleaf backup.
 
 Compatibility with every external application is not guaranteed.
+
+A backup that claims exact profile restoration must preserve or resolve the Base Whitelist used when the backup was created. A level label alone is insufficient when baseline assets can change. A future restorable format therefore requires a baseline version, an embedded baseline snapshot, or a documented hybrid. Backup and restore must also preserve phrase identity and reject or repair mutually conflicting vocabulary outcomes.
+
+The current backup remains schema version 1 and does not contain a baseline asset version or snapshot. That limitation must remain visible until an explicit migration is approved and implemented.
 
 ### 10.9 Built-in Guide
 
@@ -597,12 +641,26 @@ For imported books, remains a placeholder until:
 
 ### 11.5 Mixed Mode
 
-For imported books, remains a placeholder until:
+For imported books, remains a placeholder. Future Mixed Mode is a controlled reading representation that uses a smaller prioritized subset of chapter candidates for context-supported English re-exposure inside a valid multilingual reading path. It is not a cloze test.
 
+Mixed is not:
+
+* fixed-ratio or fixed-percentage replacement;
+* random replacement;
+* POS-only replacement;
+* an attempt to imitate natural code switching;
+* every non-whitelisted token;
+* a workflow that requires users to label every chapter.
+
+Phrases, idioms, phrasal verbs, and fixed expressions must remain intact. Real Mixed remains blocked until:
+
+* the global profile and phrase identity contracts are approved;
+* reproducible `ChapterVocabularyAnalysis` can distinguish broad Preview candidates from the narrower Mixed subset;
+* backup and baseline-version behavior are approved;
 * a real Chinese or aligned Translation Version exists;
-* English-retention rules are defined;
-* output is traceable to source;
-* users can understand what was generated and how.
+* alignment and position-continuity contracts exist;
+* artifact inputs, fingerprints, staleness, and regeneration behavior are defined;
+* output remains traceable to source and users can understand what was generated and how.
 
 ### 11.6 Guide exception
 
@@ -742,9 +800,11 @@ May become available when a valid Translation Version exists and book identity, 
 
 ### Real Mixed Mode
 
-May use a Chinese Translation Version as base, selected English targets, explicit retention rules, alignment, and reproducible settings.
+May use a Chinese Translation Version as base, a smaller prioritized set of context-supported English targets, explicit retention rules, intact phrase units, alignment, a global-profile snapshot or reference, and reproducible settings.
 
-It remains a reading mode, not a cloze test.
+Its generated artifacts must identify the source and translation versions, alignment input, chapter-analysis input, profile and baseline inputs, candidate policy, and generation settings needed to detect staleness or reproduce output.
+
+It remains a reading mode, not a cloze test, a random replacement system, or natural-code-switching simulation.
 
 ### PWA and offline resilience
 
@@ -808,7 +868,7 @@ Product review is required when a proposal would:
 * add cloud accounts or synchronization;
 * send book content to an external service;
 * add a real translation provider;
-* change Known, Save, Hide, Learning, or Mastered semantics;
+* change Known, Save, Hide, Learning, Hidden, global-profile, or stable-snapshot semantics;
 * alter local-storage compatibility;
 * claim real Chinese or Mixed support;
 * host, scrape, or redistribute third-party content.
@@ -835,17 +895,20 @@ New ideas do not automatically enter the Active milestone.
 | **Interest-driven reading** | Personally engaging texts used to encourage sustained English exposure |
 | **English Study Mode** | Original English text with optional vocabulary assistance |
 | **Chinese Reading Mode** | Future mode based on a real Chinese Translation Version; placeholder for imported books |
-| **Mixed Mode** | Future Chinese-base mode retaining selected English terms; placeholder for imported books |
+| **Mixed Mode** | Future multilingual reading representation using a smaller prioritized set of context-supported English targets; placeholder for imported books |
 | **Interface Language** | Language of application controls and messages |
 | **Reading Mode** | Presentation mode used for book or Guide content |
-| **Vocabulary Preview** | Limited chapter-level prioritized vocabulary list |
-| **Vocabulary bubble** | Lightweight in-context assistance |
+| **Vocabulary Preview** | Relatively broad, bounded chapter-level candidate snapshot for reading support |
+| **Vocabulary bubble** | Lightweight non-persistent in-context assistance |
 | **Vocabulary Library** | Local collection, organization, backup, and export layer |
 | **Manual Add** | Capture of a term without promised enrichment |
-| **Known** | User reports already knowing the term |
-| **Save** | Keep the term in Learning |
-| **Hide** | Exclude the term as a learning target |
-| **Mastered** | Current archive label for Known terms; not tested mastery |
+| **Known / 已认识** | Global explicit outcome meaning the user already knows the term |
+| **Learning** | Global knowledge pool for terms explicitly saved for future exposure or export |
+| **Save** | Move the term into Learning |
+| **Hidden** | Separate global suppression state; not equivalent to Known |
+| **Hide** | Move the term into Hidden |
+| **Base Whitelist** | Level-selected baseline of terms treated as known before personal overrides |
+| **ChapterVocabularyAnalysis** | Future reproducible chapter candidate analysis; not currently persisted or implemented |
 | **Local Library** | User-imported books stored in the current browser or device |
 | **Translation Version** | Distinct imported or generated translation with provenance |
 | **Protected term** | Name, proper noun, fandom term, or expression translation should preserve |

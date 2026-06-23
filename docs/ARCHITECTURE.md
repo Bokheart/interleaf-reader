@@ -304,6 +304,21 @@ R0 must not become a broad controller rewrite.
 
 ## 9. Vocabulary Architecture
 
+### Global profile scope
+
+The current `vocabularyProfile` record is one singleton with key `local`. It applies across every imported book and chapter. There is no book-specific or chapter-specific vocabulary profile.
+
+Current persisted collections are `knownWords`, `learningWords`, and `ignoredWords`. The current runtime uses internal `mastered` UI/export identifiers for `knownWords`; approved product terminology is Known / 已认识. Those compatibility identifiers do not create a separate Mastered state.
+
+The approved target semantics remain global:
+
+```text
+EffectiveKnown = BaseWhitelist + KnownAdditions - LearningWords
+Preview eligibility additionally excludes global Hidden
+```
+
+Hidden is a separate suppression state, not part of Known. No default persistent Unknown Exceptions collection is required.
+
 ### Reading-context assistance
 
 ```text
@@ -325,6 +340,32 @@ Primary modules:
 
 If optional profile or level data cannot load, the preferred fallback is a simpler non-personalized reading experience rather than blocked chapter rendering.
 
+### Current post-generation personalization pipeline
+
+The current runtime performs personalization after curated candidate generation:
+
+```text
+chapter plain text
+→ curated dataset matching and 20-item cap
+→ chapter annotation from the unfiltered candidates
+→ initial Preview render
+→ asynchronous load of the global profile and selected level baseline
+→ filter the visible Preview using the effective-known set
+→ explicit Known / Save / Hide action
+→ save the singleton profile, invalidate personalization cache, and refilter the active Preview
+```
+
+Current limitations:
+
+* generation is curated-only;
+* Learning metadata does not provide a pre-cap ranking or reserved slot;
+* profile filtering does not rebuild body annotations;
+* the visible current Preview is refiltered immediately after an action, level change, or restore;
+* baseline assets have no persisted version;
+* the current pipeline does not create a reproducible chapter-analysis artifact.
+
+Immediate active-Preview refiltering is a known mismatch with the approved future contract that the current chapter should remain a stable generated snapshot. This document records the mismatch; it does not change runtime behavior.
+
 ### External manual capture
 
 ```text
@@ -342,6 +383,26 @@ Manual capture does not perform general dictionary search and does not inherentl
 Vocabulary Library owns collection, organization, local persistence, status changes, removal, export, backup, and restore.
 
 It does not own flashcards, quizzes, drills, or spaced repetition.
+
+### Future chapter analysis boundary
+
+A future `ChapterVocabularyAnalysis` is an architecture concept only. No such module, store, or persisted record currently exists.
+
+It should reference:
+
+* source version and chapter identity plus a content fingerprint;
+* the global Vocabulary Profile through a reproducible snapshot or reference;
+* Base Whitelist identity;
+* vocabulary and phrase dataset versions;
+* normalization, phrase-matching, and candidate-policy versions;
+* analysis time and input fingerprints.
+
+It should expose two distinct projections:
+
+* a relatively broad, bounded Preview candidate set;
+* a smaller prioritized Mixed candidate set for context-supported re-exposure.
+
+Phrases, idioms, phrasal verbs, and fixed expressions must remain intact candidate units. The global Vocabulary Profile must not belong to a `BookProject`, `BookVersion`, chapter, analysis record, or `UserProgress`; those records may reference a profile snapshot for provenance only.
 
 ---
 
@@ -430,6 +491,10 @@ For imported books, remains a placeholder.
 The internal value `cloze-mixed` may remain for compatibility.
 
 This does not make the product a cloze-testing application.
+
+Future Mixed Mode requires a smaller prioritized candidate subset than Preview. It is not fixed-ratio, random, POS-only, every-non-whitelist replacement, natural-code-switching simulation, or a workflow that requires user labeling for each chapter.
+
+Real generation remains blocked on the global profile, phrase identity, `ChapterVocabularyAnalysis`, backup/baseline reproducibility, Translation Version, alignment, artifact-staleness, and cross-view position-continuity contracts.
 
 ### Guide exception
 
@@ -570,7 +635,7 @@ Critical behavior depends on DOM structure, event binding, IndexedDB, downloads,
 
 ### Localization coverage
 
-The localization boundary exists, but hard-coded user-facing strings may remain.
+The Interface Language boundary exists, and R1 localization implementation is complete through `R1-L10N-06` at the `b2f1ab1` starting baseline with 253 / 253 locale-key parity. Closure and acceptance status remain owned by `docs/PROJECT_STATE.md`.
 
 ### Current/future model separation
 
@@ -599,6 +664,8 @@ These are architectural risks, not an automatic refactoring backlog.
 * no real provider;
 * no alignment system.
 
+The current profile is global, uses compatibility-era fields, and has no baseline asset version, `ChapterVocabularyAnalysis`, or generated-artifact relationship.
+
 ### Future proposals
 
 May include:
@@ -609,9 +676,16 @@ May include:
 * Alignment Map;
 * generated or paired-version Mixed artifacts;
 * provenance;
-* chapter-first alignment.
+* chapter-first alignment;
+* a reproducible global-profile snapshot/reference;
+* `ChapterVocabularyAnalysis` with broad Preview and narrower Mixed outputs;
+* intact phrase identity;
+* generated-artifact input fingerprints and staleness state;
+* a canonical cross-view position anchor.
 
 These remain proposals until `docs/PROJECT_STATE.md` records implementation and `docs/DATA_MODEL.md` records the real persisted contract.
+
+A future `GeneratedMixedArtifact` would need to fingerprint at least the source and Translation Version inputs, alignment revision, chapter-analysis input, global-profile/baseline input, phrase and candidate policies, and generation settings. None of those artifact records is currently persisted.
 
 ---
 

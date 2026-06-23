@@ -74,7 +74,7 @@ Current status details belong in `PROJECT_STATE.md`, not here.
 | DEC-003 | 2026-06-16 | Product terminology      | Use Mixed Mode in user-facing copy                           | Active     | —                         |
 | DEC-004 | 2026-06-16 | Product scope            | Original English Study MVP scope                             | Superseded | DEC-019, DEC-020, DEC-022 |
 | DEC-005 | 2026-06-16 | Vocabulary               | Original Known / Save / Hide and reading-derived-only model  | Superseded | DEC-020, DEC-022          |
-| DEC-006 | 2026-06-16 | Vocabulary               | Mastered is the Known archive in the current model           | Active     | —                         |
+| DEC-006 | 2026-06-16 | Vocabulary               | Mastered is the Known archive in the current model           | Superseded | DEC-029                   |
 | DEC-007 | 2026-06-16 | Reading modes            | Imported-book Chinese and Mixed modes remain placeholders    | Active     | —                         |
 | DEC-008 | 2026-06-16 | Translation architecture | Translation boundary must be provider-agnostic               | Active     | —                         |
 | DEC-009 | 2026-06-16 | Security                 | No provider credentials in public frontend code              | Active     | —                         |
@@ -97,6 +97,10 @@ Current status details belong in `PROJECT_STATE.md`, not here.
 | DEC-026 | 2026-06-21 | Guide testing governance | Keep Guide selection Mode-owned without exact-copy locking   | Active     | —                         |
 | DEC-027 | 2026-06-22 | Milestone governance     | Accept R0 runtime baseline and activate R1                   | Active     | —                         |
 | DEC-028 | 2026-06-23 | Localization             | Reader chrome terminology and Interface Language boundary  | Active     | —                         |
+| DEC-029 | 2026-06-23 | Vocabulary               | Adopt one global Known, Learning, and Hidden profile          | Active     | —                         |
+| DEC-030 | 2026-06-23 | Vocabulary interaction   | Keep persistence explicit and current chapter snapshots stable | Active   | —                         |
+| DEC-031 | 2026-06-23 | Mixed architecture       | Separate Preview and Mixed candidate contracts               | Active     | —                         |
+| DEC-032 | 2026-06-23 | Reproducibility          | Gate exact backup and generated artifacts on reproducible inputs | Active | —                         |
 
 ---
 
@@ -195,7 +199,7 @@ Current status details belong in `PROJECT_STATE.md`, not here.
 ### DEC-006 — Mastered is the Known archive in the current model
 
 * **Date:** 2026-06-16
-* **Status:** Active
+* **Status:** Superseded
 * **Area:** Vocabulary
 * **Decision:** The current **Mastered** tab may display terms stored in `knownWords`.
 * **Context:** The application had a Mastered label without a true learning-to-mastered assessment lifecycle.
@@ -205,7 +209,7 @@ Current status details belong in `PROJECT_STATE.md`, not here.
   * It does not prove that Interleaf taught, tested, or verified mastery.
   * A true learning-to-mastered lifecycle requires a separate product decision.
 * **Supersedes:** None
-* **Superseded by:** None
+* **Superseded by:** DEC-029
 * **Related documents:** `docs/INTERLEAF_READER_PRD.md`, `docs/DATA_MODEL.md`
 
 ---
@@ -662,6 +666,106 @@ Current status details belong in `PROJECT_STATE.md`, not here.
 
 ---
 
+### DEC-029 — Adopt one global Known, Learning, and Hidden profile
+
+* **Date:** 2026-06-23
+* **Status:** Active
+* **Area:** Vocabulary
+* **Context:** R1-GOV-01 confirmed that the current runtime already stores one singleton vocabulary profile, while product documents still mixed Known with visible Mastered terminology and sometimes treated Hidden as equivalent to known for filtering.
+* **Decision:**
+
+  * Vocabulary behavior is global across every book and chapter.
+  * The two knowledge pools are **Known / Whitelist** and **Learning**.
+  * **Hidden** is a separate global suppression state and is not equivalent to Known.
+  * Known, Learning, and Hidden are mutually exclusive explicit user outcomes.
+  * Saving a term moves it into Learning.
+  * Learning overrides the Base Whitelist and restores future Preview eligibility when the term occurs in a chapter.
+  * The conceptual calculation is `EffectiveKnown = BaseWhitelist + KnownAdditions - LearningWords`; Preview eligibility additionally excludes global Hidden.
+  * Product terminology is **Known / 已认识**, replacing visible **Mastered / 已掌握**.
+  * Existing internal `mastered` identifiers may remain temporarily for compatibility and must not be renamed without migration analysis.
+  * No book-specific or chapter-specific vocabulary state and no default persistent Unknown Exceptions collection belong to the target model.
+* **Consequences:**
+
+  * The global profile must not belong to a `BookProject`, version, chapter, or `UserProgress` record.
+  * Current persisted names such as `knownWords` and `ignoredWords` remain unchanged until an explicit migration is approved.
+  * Current visible Mastered wording is an implementation mismatch, not controlling product semantics.
+  * A separate tested mastery lifecycle is not part of this decision.
+* **Supersedes:** The visible terminology and product-meaning portion of DEC-006; resolves PDQ-010
+* **Superseded by:** None
+* **Related documents:** `docs/INTERLEAF_READER_PRD.md`, `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`
+
+---
+
+### DEC-030 — Keep persistence explicit and current chapter snapshots stable
+
+* **Date:** 2026-06-23
+* **Status:** Active
+* **Area:** Vocabulary interaction
+* **Context:** Bubble clicks and other lightweight reading interactions must not silently classify terms, and the current Preview should not shift underneath the reader after a profile action.
+* **Decision:**
+
+  * Opening, clicking, locating, or closing a vocabulary bubble is a non-persistent soft signal.
+  * Within reading surfaces, only explicit Known, Save, or Hide actions may mutate persistent vocabulary outcomes.
+  * Separate Vocabulary Library management, Manual Add/Save, removal, backup, and restore remain explicit management operations rather than inferred reading signals.
+  * The generated Preview for the current chapter should remain a stable snapshot.
+  * Profile changes primarily affect later chapter analyses and future books.
+* **Consequences:**
+
+  * A future long-press Save, if approved, must enter the existing Save-to-Learning transition rather than create another state.
+  * Current immediate refiltering of the active Preview is a known implementation mismatch and is not changed by this decision.
+  * Same-chapter reopening or explicit regeneration behavior remains an open decision.
+* **Supersedes:** None
+* **Superseded by:** None
+* **Related documents:** `docs/INTERLEAF_READER_PRD.md`, `docs/ARCHITECTURE.md`, `docs/PROJECT_STATE.md`
+
+---
+
+### DEC-031 — Separate Preview and Mixed candidate contracts
+
+* **Date:** 2026-06-23
+* **Status:** Active
+* **Area:** Mixed architecture
+* **Context:** Preview and future Mixed Mode serve different reading-support purposes and must not be reduced to one whitelist or one replacement rule.
+* **Decision:**
+
+  * Preview provides relatively broad, bounded chapter candidate coverage.
+  * Mixed selects a smaller prioritized subset for context-supported English re-exposure.
+  * Phrases, idioms, phrasal verbs, and fixed expressions remain intact target units through detection, analysis, alignment, and rendering.
+  * Mixed is not fixed-ratio or fixed-percentage replacement, random replacement, POS-only replacement, every non-whitelisted token, natural-code-switching simulation, or a workflow that requires chapter-by-chapter user labeling.
+  * Real Mixed remains blocked on the global profile, phrase identity, reproducible chapter analysis, backup, Translation Version, alignment, artifact reproducibility, staleness, and position-continuity contracts.
+* **Consequences:**
+
+  * A future `ChapterVocabularyAnalysis` must be able to expose a broad Preview candidate set and a narrower Mixed candidate set without owning a book-specific profile.
+  * The current curated-only Preview and imported-book Mixed placeholder remain current truth.
+  * Mixed thresholds and caps remain open decisions.
+* **Supersedes:** None
+* **Superseded by:** None
+* **Related documents:** `docs/INTERLEAF_READER_PRD.md`, `docs/ARCHITECTURE.md`, `docs/MILESTONES.md`
+
+---
+
+### DEC-032 — Gate exact backup and generated artifacts on reproducible inputs
+
+* **Date:** 2026-06-23
+* **Status:** Active
+* **Area:** Reproducibility
+* **Context:** Backup schema version 1 stores `selectedLevel` but no baseline asset version or snapshot, and future Mixed artifacts cannot be reproduced or invalidated without explicit input identity.
+* **Decision:**
+
+  * A backup that claims exact profile restoration must resolve the Base Whitelist used at export through an immutable baseline version, an embedded snapshot, or an approved hybrid.
+  * A future generated Mixed artifact must identify the source and Translation Version inputs, alignment revision, chapter-analysis input, profile snapshot or reference, baseline input, phrase/candidate policy versions, and generation settings required for reproduction and staleness detection.
+  * Cross-view position continuity must be defined before real Chinese or Mixed generation is implemented.
+  * Current backup schema version 1, current IndexedDB schema, and current compatibility identifiers remain unchanged by this decision.
+* **Consequences:**
+
+  * No Profile v2, backup v2, `ChapterVocabularyAnalysis`, Translation Version, Alignment Map, or generated artifact is created by this decision.
+  * Historical baseline retention, phrase-state shape, timestamps, stale-artifact regeneration, and canonical position anchors remain open decisions.
+* **Supersedes:** None
+* **Superseded by:** None
+* **Related documents:** `docs/INTERLEAF_READER_PRD.md`, `docs/DATA_MODEL.md`, `docs/ARCHITECTURE.md`
+
+---
+
 ## 5. Pending Decision Questions
 
 Pending questions are not approved features or delivery commitments.
@@ -713,7 +817,7 @@ After R0 repository reconciliation, decide whether M2 should be:
 
 ### PDQ-010 — Mastered terminology
 
-Decide whether the current Known archive should continue to be labeled Mastered or be renamed to reduce learning-lifecycle ambiguity.
+**Resolved by DEC-029.** Approved product terminology is Known / 已认识. Current internal `mastered` identifiers may remain temporarily for compatibility.
 
 ### PDQ-011 — General dictionary or manual enrichment boundary
 
@@ -726,6 +830,22 @@ Any future proposal must define:
 * offline and privacy behavior;
 * relationship to reading-first scope;
 * whether the capability applies to manually captured terms.
+
+### PDQ-012 — Vocabulary snapshot, migration, artifact, and position details
+
+The approved target semantics do not decide:
+
+* Hide cancellation restoration behavior;
+* same-chapter reopening or regeneration policy;
+* legacy cross-list conflict precedence;
+* historical baseline registry versus embedded snapshot versus hybrid;
+* ordinary phrase terms versus structured `phraseStates`;
+* per-term timestamp requirements;
+* Mixed thresholds and caps;
+* stale-artifact regeneration policy;
+* the canonical cross-view position anchor.
+
+These questions must remain open until a separately approved architecture or implementation task resolves them.
 
 ---
 

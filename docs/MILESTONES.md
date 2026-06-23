@@ -183,7 +183,9 @@ Commit `91d6914` is an ancestor of accepted runtime baseline `99ad1e3`. The base
 
 The responsive Vocabulary Preview prototype retained under `design-lab/` is version-controlled non-runtime experimental material. It is not imported by production, is not approved implementation, and does not count as milestone-completion evidence.
 
-A separate six-file Guide redesign and interaction draft was preserved externally and removed from the R0 working tree. It remains deferred R1 input and was not applied to the accepted baseline. Complete Interface Language localization is R1 work and has not started.
+A separate six-file Guide redesign and interaction draft was preserved externally and removed from the R0 working tree. It remains deferred input and was not applied to the accepted baseline.
+
+R1 Interface Language implementation is complete through `R1-L10N-06` at starting baseline `b2f1ab1`. English and Simplified Chinese locale catalogs have 253 / 253 matching keys, and seven Node suites passed at that baseline. `R1-GOV-01` completed the read-only vocabulary/Mixed repository audit; `R1-GOV-02` is the current documentation-only governance reconciliation.
 
 Current verification evidence and closure status are maintained in `docs/PROJECT_STATE.md`.
 
@@ -191,7 +193,7 @@ Chinese Reading Mode and imported-book Mixed Mode remain placeholders.
 
 R0 is **Closed** as of `2026-06-22`.
 
-R1 is **Active**. Entry conditions are satisfied. The first R1 action is planning and scope confirmation, not immediate broad implementation.
+R1 is **Active**. Localization implementation is complete, but governance reconciliation, closure evidence, and explicit product-owner acceptance remain outstanding. R1 must not be marked Closed merely because locale parity is complete.
 
 R2 remains **Following** and has not started.
 
@@ -338,7 +340,7 @@ R0 may close only when all of the following are true:
 
 R1 entry conditions are satisfied. R0 closed on `2026-06-22` with accepted runtime baseline `99ad1e3` and tag `r0-closure-99ad1e3`.
 
-R1 implementation has not started. The first R1 action is read-only entry audit and bounded task-plan proposal. The externally preserved Guide draft is deferred review input, not accepted implementation or milestone evidence, and must not be restored automatically.
+R1 localization implementation is complete through `R1-L10N-06` at `b2f1ab1`, with 253 / 253 locale-key parity and seven passing Node suites. `R1-GOV-01` is complete, and `R1-GOV-02 — Canonical Vocabulary and Mixed Semantics Reconciliation` is the current Active L2 documentation task. The externally preserved Guide draft remains deferred review input, not accepted implementation or milestone evidence, and must not be restored automatically.
 
 ### User Outcome
 
@@ -393,7 +395,8 @@ R1 includes:
 * a deliberate Guide Mixed-content contract;
 * preservation of imported titles, authors, chapter labels, and body text;
 * verification that Interface Language and Reading Mode remain independent;
-* desktop and mobile-sized localization verification.
+* desktop and mobile-sized localization verification;
+* bounded canonical governance reconciliation required to keep current UI wording, future vocabulary semantics, and placeholder boundaries honest.
 
 ### Excluded
 
@@ -405,11 +408,16 @@ R1 does not include:
 * real Mixed Mode for imported books;
 * Book Project migration;
 * source-to-translation alignment;
+* Vocabulary Profile schema migration;
+* backup schema version 2;
+* persisted `ChapterVocabularyAnalysis`;
 * vocabulary dictionary enrichment;
 * general dictionary search;
 * cloud localization services;
 * automatic translation of user content;
 * service-worker or release-platform implementation;
+* vocabulary or Reader UI redesign;
+* long-press Save or other new gestures;
 * unrelated UI redesign.
 
 ### Exit Criteria
@@ -429,6 +437,7 @@ R1 may close only when:
 * desktop and mobile-sized verification pass;
 * no P0 regression is introduced into English Study Mode;
 * R1 evidence is recorded in the current-state source;
+* the canonical product, architecture, and persisted-data documents agree on current versus future vocabulary and Mixed boundaries;
 * the product owner explicitly accepts R1 closure.
 
 ---
@@ -548,15 +557,21 @@ They have no delivery date and must not be implemented as part of R0, R1, or R2 
 * source and translation provenance;
 * chapter alignment;
 * paragraph or sentence alignment;
-* alignment-repair workflows.
+* alignment-repair workflows;
+* generated-artifact fingerprints, staleness, regeneration, and cross-view position continuity.
 
 ### Vocabulary depth
 
+* a future global Vocabulary Profile migration from current compatibility fields;
+* baseline asset versioning or restorable snapshots;
+* reproducible `ChapterVocabularyAnalysis` records;
+* broad Preview and narrower Mixed candidate projections;
+* intact phrase identity across analysis and future alignment;
 * richer reading-context vocabulary enrichment;
 * pronunciation and morphology;
 * collocations and richer usage data;
-* source-book and source-chapter metadata;
-* a true learning-to-mastered lifecycle;
+* contextual source references that do not create book- or chapter-specific vocabulary state;
+* any future assessed mastery lifecycle, only after a separate product decision;
 * additional external export formats.
 
 General dictionary search is not part of the current product direction.
@@ -564,6 +579,21 @@ General dictionary search is not part of the current product direction.
 Automatically enriching every manually entered word is also not an assumed extension.
 
 Either change would require a deliberate product decision.
+
+### Entry gates for a future vocabulary or multilingual milestone
+
+No future milestone may implement Profile migration, backup v2, chapter analysis, alignment, or real Mixed Mode until its entry conditions include:
+
+* the approved global Known / Learning / Hidden semantics and compatibility mapping;
+* a phrase-identity contract;
+* a baseline version, snapshot, or approved hybrid restoration policy;
+* reproducible chapter-analysis inputs and broad Preview versus narrower Mixed outputs;
+* Translation Version and alignment identity where multilingual output is required;
+* generated-artifact fingerprints, staleness, and regeneration policy;
+* a canonical cross-view position-continuity contract;
+* migration, rollback, compatibility, and real-browser verification plans.
+
+These gates are architecture prerequisites, not evidence that the corresponding runtime or schema exists.
 
 ### Reading and platform expansion
 
