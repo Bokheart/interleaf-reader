@@ -319,6 +319,24 @@ for (const key of remainingApplicationUiKeys) {
 }
 
 for (const [key, english, chinese] of [
+  ["reader.status.chapterMissing", "Could not find the selected chapter.", "\u627e\u4e0d\u5230\u6240\u9009\u7ae0\u8282\u3002"],
+  ["reader.status.chapterLoading", "Loading Sample Chapter...", "\u6b63\u5728\u52a0\u8f7d\u300a\u793a\u4f8b\u7ae0\u8282\u300b\u2026"],
+  ["reader.status.chapterRendered", "Rendered Sample Chapter.", "\u5df2\u663e\u793a\u300a\u793a\u4f8b\u7ae0\u8282\u300b\u3002"],
+  ["reader.status.chapterFailed", "Chapter failed to render. Please try another chapter.", "\u7ae0\u8282\u6e32\u67d3\u5931\u8d25\u3002\u8bf7\u5c1d\u8bd5\u5176\u4ed6\u7ae0\u8282\u3002"],
+  ["reader.chapter.emptyTitle", "Chapter content is not loaded yet.", "\u5c1a\u672a\u52a0\u8f7d\u7ae0\u8282\u5185\u5bb9\u3002"],
+  ["reader.chapter.emptyBody", "Import an EPUB and choose a chapter to render it here.", "\u5bfc\u5165 EPUB \u5e76\u9009\u62e9\u7ae0\u8282\u540e\uff0c\u5373\u53ef\u5728\u6b64\u9605\u8bfb\u3002"],
+  ["reader.chapter.errorTitle", "Sample Chapter could not be rendered.", "\u65e0\u6cd5\u663e\u793a\u300a\u793a\u4f8b\u7ae0\u8282\u300b\u3002"],
+  ["reader.chapter.errorFallbackTitle", "Chapter", "\u7ae0\u8282"],
+  ["reader.chapter.errorBody", "Please try another chapter or EPUB file.", "\u8bf7\u5c1d\u8bd5\u5176\u4ed6\u7ae0\u8282\u6216 EPUB \u6587\u4ef6\u3002"],
+  ["reader.mobile.modeInitial", "Mode \u00b7 English Study", "\u9605\u8bfb\u6a21\u5f0f \u00b7 \u82f1\u6587\u9605\u8bfb"]
+]) {
+  const englishParams = { title: "Sample Chapter" };
+  const chineseParams = { title: "\u793a\u4f8b\u7ae0\u8282" };
+  assert.equal(getTranslation("en", key, englishParams), english, `${key} provides English Reader feedback`);
+  assert.equal(getTranslation("zh-CN", key, chineseParams), chinese, `${key} provides Chinese Reader feedback`);
+}
+
+for (const [key, english, chinese] of [
   ["vocabulary.page.title", "Vocabulary Library", "\u751f\u8bcd\u672c"],
   ["vocabulary.page.subtitle", "Saved word lists", "\u5df2\u4fdd\u5b58\u7684\u5355\u8bcd\u5217\u8868"],
   ["vocabulary.page.backHome", "Back to Home", "\u8fd4\u56de\u4e3b\u9875"],
@@ -1596,13 +1614,24 @@ for (const [pattern, description] of [
   assert.match(homeHtml, pattern, `${description} resolves through Interface Language`);
 }
 
+assert.match(
+  homeHtml,
+  /id="mobileVocabButton"[^>]*data-i18n="reader\.mobile\.previewCount\.other"[^>]*data-i18n-params=/,
+  "Initial mobile Preview count resolves through Interface Language before dynamic rendering"
+);
+assert.match(
+  homeHtml,
+  /id="mobileModeButton"[^>]*data-i18n="reader\.mobile\.modeInitial"/,
+  "Initial mobile Mode summary resolves through Interface Language before dynamic rendering"
+);
+
 for (const [pattern, description] of [
   [/function setLocalizedStatus\([\s\S]*setTranslatedText\(elements\.statusText, key, params\)/, "dynamic application status translation boundary"],
   [/function renderVocabularyLibrarySummaryState\([\s\S]*home\.vocabulary\.note\.unavailable[\s\S]*home\.vocabulary\.note\.empty[\s\S]*home\.vocabulary\.note\.saved/, "Home vocabulary summary states"],
   [/function renderLibraryCard\([\s\S]*home\.library\.lastRead[\s\S]*home\.library\.open[\s\S]*home\.library\.forget/, "Local Library row chrome"],
   [/function deleteSavedBookFromLibrary\([\s\S]*home\.library\.removed[\s\S]*home\.library\.removeFailed/, "Local Library removal feedback"],
   [/function renderVocabularyPreviewListItem\([\s\S]*reader\.vocabularyNote\.actionsAria[\s\S]*reader\.vocabularyNote\.known[\s\S]*reader\.vocabularyNote\.save[\s\S]*reader\.vocabularyNote\.hide/, "Reader vocabulary action chrome"],
-  [/function showBubble\([\s\S]*reader\.vocabularyNote\.close[\s\S]*reader\.vocabularyNote\.englishLabel[\s\S]*reader\.vocabularyNote\.ieltsLabel/, "Vocabulary note labels and Close accessibility text"]
+  [/function renderVocabularyBubbleContent\([\s\S]*reader\.vocabularyNote\.close[\s\S]*reader\.vocabularyNote\.englishLabel[\s\S]*reader\.vocabularyNote\.ieltsLabel/, "Vocabulary note labels and Close accessibility text"]
 ]) {
   assert.match(appSource, pattern, `${description} uses semantic locale keys`);
 }
@@ -1622,13 +1651,74 @@ assert.doesNotMatch(
 );
 assert.match(
   appSource,
-  /function refreshReaderChromeLanguage\([\s\S]*const chapter = getCurrentChapter\(\)[\s\S]*renderVocabularyPreview\(chapter\?\.vocabularyPreview \|\| \[\], chapter\)/,
-  "Interface Language switching rerenders Preview chrome from the active chapter without clearing its data"
+  /function refreshReaderChromeLanguage\([\s\S]*const chapter = getCurrentChapter\(\)[\s\S]*if \(!chapter \|\| chapter\.renderError\)[\s\S]*renderCurrentChapter\(\)[\s\S]*renderVocabularyPreview\(chapter\.vocabularyPreview \|\| \[\], chapter\)/,
+  "Interface Language switching refreshes localized placeholders and otherwise rerenders Preview chrome without clearing chapter data"
 );
 assert.match(
   appSource,
-  /function showRestorePrompt\([\s\S]*setTranslatedText\(elements\.restoreTitle, ""\)[\s\S]*savedBook\.title \|\| savedBook\.fileName[\s\S]*setTranslatedText\(elements\.restoreText, ""\)[\s\S]*formatContinueReadingSubtext\(savedBook, t\)/,
+  /function renderRestorePromptCopy\([\s\S]*setTranslatedText\(elements\.restoreTitle, ""\)[\s\S]*savedBook\?\.title \|\| savedBook\?\.fileName[\s\S]*setTranslatedText\(elements\.restoreText, ""\)[\s\S]*formatContinueReadingSubtext\(savedBook, t\)/,
   "Continue Reading refresh preserves imported title and metadata instead of treating them as UI copy"
+);
+
+const selectChapterSource = appSource.match(
+  /async function selectChapter\([\s\S]*?\r?\n}\r?\n\r?\nfunction renderCurrentChapter/
+)?.[0] || "";
+for (const key of [
+  "reader.status.chapterMissing",
+  "reader.status.chapterLoading",
+  "reader.status.chapterRendered",
+  "reader.status.chapterFailed"
+]) {
+  assert.match(selectChapterSource, new RegExp(key.replaceAll(".", "\\.")), `${key} is used by Reader chapter status feedback`);
+}
+assert.doesNotMatch(
+  selectChapterSource,
+  /setStatus\(|setLocalizedStatus\(error\.message|setStatus\(error\.message/,
+  "Reader chapter status feedback does not display raw internal exception text"
+);
+
+assert.match(
+  appSource,
+  /function renderCurrentChapter\([\s\S]*reader\.chapter\.emptyTitle[\s\S]*reader\.chapter\.emptyBody/,
+  "Reader empty panel resolves through Interface Language"
+);
+assert.match(
+  appSource,
+  /function renderCurrentChapter\([\s\S]*reader\.chapter\.errorTitle[\s\S]*reader\.chapter\.errorBody/,
+  "Reader failure panel resolves through Interface Language"
+);
+
+const bubbleRefreshSource = appSource.match(
+  /function refreshOpenVocabularyBubbleLanguage\([\s\S]*?\r?\n}\r?\n/
+)?.[0] || "";
+assert.match(
+  bubbleRefreshSource,
+  /state\.activeBubbleTerm[\s\S]*renderVocabularyBubbleContent\(item\)/,
+  "An open vocabulary bubble rerenders its UI chrome from the active term"
+);
+assert.doesNotMatch(
+  bubbleRefreshSource,
+  /hideBubble\(|showBubble\(|\.hidden\s*=|state\.activeBubbleTerm\s*=/,
+  "Vocabulary bubble language refresh preserves visibility and active-term state"
+);
+assert.match(
+  appSource,
+  /function refreshReaderChromeLanguage\([\s\S]*refreshOpenVocabularyBubbleLanguage\(\)/,
+  "Reader language refresh includes the visibly open vocabulary bubble"
+);
+
+const continueRefreshSource = appSource.match(
+  /function refreshContinueReadingLanguage\([\s\S]*?\r?\n}\r?\n/
+)?.[0] || "";
+assert.match(
+  continueRefreshSource,
+  /const wasHidden = elements\.continueReadingPanel\.hidden[\s\S]*renderRestorePromptCopy\(state\.restoreCandidate\)[\s\S]*elements\.continueReadingPanel\.hidden = wasHidden/,
+  "Hidden Continue Reading copy refreshes without changing visibility"
+);
+assert.doesNotMatch(
+  continueRefreshSource,
+  /state\.(?:book|currentChapterId|currentMode|restoreCandidate)\s*=|saveReadingProgress|saveStoredBook|deleteStoredBook/,
+  "Continue Reading language refresh does not mutate session or stored data"
 );
 
 for (const [pattern, description] of [

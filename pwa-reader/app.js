@@ -1087,9 +1087,7 @@ function handleUiLanguageChoice(language) {
   renderLocalLibrary();
   renderVocabularyLibrarySummary();
   updateReturnToReaderPanel();
-  if (!state.book && state.restoreCandidate && !elements.continueReadingPanel?.hidden) {
-    showRestorePrompt(state.restoreCandidate);
-  }
+  refreshContinueReadingLanguage();
   refreshReaderChromeLanguage();
 }
 
@@ -1770,9 +1768,14 @@ function refreshReaderChromeLanguage() {
   renderChapterOptions();
   renderBookGlossary();
   const chapter = getCurrentChapter();
-  renderVocabularyPreview(chapter?.vocabularyPreview || [], chapter);
+  if (!chapter || chapter.renderError) {
+    renderCurrentChapter();
+  } else {
+    renderVocabularyPreview(chapter.vocabularyPreview || [], chapter);
+  }
   const previewCount = Number(elements.mobileVocabButton?.dataset.previewCount || 0);
   updateMobileVocabButton(previewCount);
+  refreshOpenVocabularyBubbleLanguage();
 }
 
 function switchReadingMode(nextMode) {
@@ -3041,21 +3044,40 @@ function updateReturnToReaderPanel() {
   hideRestorePrompt();
 }
 
-function showRestorePrompt(savedBook) {
-  if (!elements.continueReadingPanel) {
-    return;
-  }
-
+function renderRestorePromptCopy(savedBook = null) {
   setTranslatedText(elements.restoreTitle, "");
-  const savedTitle = savedBook.title || savedBook.fileName;
+  const savedTitle = savedBook?.title || savedBook?.fileName;
   if (savedTitle) {
     elements.restoreTitle.textContent = savedTitle;
   } else {
     setTranslatedText(elements.restoreTitle, "home.continue.savedBook");
   }
-  setTranslatedText(elements.restoreText, "");
-  elements.restoreText.textContent = formatContinueReadingSubtext(savedBook, t);
+
+  if (savedBook) {
+    setTranslatedText(elements.restoreText, "");
+    elements.restoreText.textContent = formatContinueReadingSubtext(savedBook, t);
+  } else {
+    setTranslatedText(elements.restoreText, "reader.saved.status");
+  }
+}
+
+function showRestorePrompt(savedBook) {
+  if (!elements.continueReadingPanel) {
+    return;
+  }
+
+  renderRestorePromptCopy(savedBook);
   elements.continueReadingPanel.hidden = false;
+}
+
+function refreshContinueReadingLanguage() {
+  if (!elements.continueReadingPanel) {
+    return;
+  }
+
+  const wasHidden = elements.continueReadingPanel.hidden;
+  renderRestorePromptCopy(state.restoreCandidate);
+  elements.continueReadingPanel.hidden = wasHidden;
 }
 
 function showSavedBookControls(savedBook) {
@@ -3232,7 +3254,7 @@ async function selectChapter(chapterId, options = {}) {
   const chapterIndex = getChapterIndex(state.book.chapters, chapterId);
 
   if (chapterIndex === -1) {
-    setStatus("Could not find the selected chapter.", "error");
+    setLocalizedStatus("reader.status.chapterMissing", "error");
     return;
   }
 
@@ -3252,12 +3274,12 @@ async function selectChapter(chapterId, options = {}) {
 
   try {
     if (chapter && !chapter.originalHtml && !chapter.renderError) {
-      setStatus(`Loading ${chapter.title}...`, "info");
+      setLocalizedStatus("reader.status.chapterLoading", "info", { title: chapter.title });
 
       chapter = await loadChapterContent(state.epubHandle, chapter);
       replaceChapter(chapter);
       refreshBookGlossary();
-      setStatus(`Rendered ${chapter.title}.`, "success");
+      setLocalizedStatus("reader.status.chapterRendered", "success", { title: chapter.title });
     }
   } catch (error) {
       console.error(error);
@@ -3267,7 +3289,7 @@ async function selectChapter(chapterId, options = {}) {
         originalHtml: "",
         plainText: ""
       });
-      setStatus(error.message || "Chapter failed to render.", "error");
+      setLocalizedStatus("reader.status.chapterFailed", "error");
   } finally {
     state.isLoadingChapter = false;
     renderChapterOptions();
@@ -3285,25 +3307,43 @@ async function selectChapter(chapterId, options = {}) {
 function renderCurrentChapter() {
   const chapter = getCurrentChapter();
   let rendered;
-
-  try {
-    rendered = renderChapterForMode(chapter, state.currentMode, {
-      vocabularyItems: state.vocabularyItems,
-      protectedTerms: state.protectedTerms,
-      isBuiltInGuide: Boolean(state.book?.isBuiltInGuide)
-    });
-  } catch (error) {
-    console.error(error);
-    rendered = {
+  const renderErrorPanel = () => {
+    const title = chapter?.title || t("reader.chapter.errorFallbackTitle");
+    return {
       html: `
         <section class="placeholder-panel">
-          <h2>Chapter failed to render.</h2>
-          <p>${escapeHtml(error.message || "Please try another chapter.")}</p>
+          <h2>${escapeHtml(t("reader.chapter.errorTitle", { title }))}</h2>
+          <p>${escapeHtml(t("reader.chapter.errorBody"))}</p>
         </section>
       `,
       vocabularyPreview: []
     };
-    setStatus("Chapter failed to render. Please try another chapter.", "error");
+  };
+
+  if (!chapter) {
+    rendered = {
+      html: `
+        <section class="placeholder-panel">
+          <h2>${escapeHtml(t("reader.chapter.emptyTitle"))}</h2>
+          <p>${escapeHtml(t("reader.chapter.emptyBody"))}</p>
+        </section>
+      `,
+      vocabularyPreview: []
+    };
+  } else if (chapter.renderError) {
+    rendered = renderErrorPanel();
+  } else {
+    try {
+      rendered = renderChapterForMode(chapter, state.currentMode, {
+        vocabularyItems: state.vocabularyItems,
+        protectedTerms: state.protectedTerms,
+        isBuiltInGuide: Boolean(state.book?.isBuiltInGuide)
+      });
+    } catch (error) {
+      console.error(error);
+      rendered = renderErrorPanel();
+      setLocalizedStatus("reader.status.chapterFailed", "error");
+    }
   }
 
   if (chapter) {
@@ -3881,13 +3921,15 @@ function replaceChapter(updatedChapter) {
   });
 }
 
-function showBubble(normalizedTerm, x, y) {
+function getVocabularyBubbleItem(normalizedTerm) {
   const chapterItem = getCurrentChapter()?.vocabularyPreview?.find((item) => {
     return normalizeTerm(item.term) === normalizedTerm;
   });
-  const item = chapterItem || state.vocabularyIndex.get(normalizedTerm);
+  return chapterItem || state.vocabularyIndex.get(normalizedTerm) || null;
+}
 
-  if (!item) {
+function renderVocabularyBubbleContent(item) {
+  if (!item || !elements.vocabBubble) {
     return;
   }
 
@@ -3900,6 +3942,27 @@ function showBubble(normalizedTerm, x, y) {
     ${item.englishDefinition ? `<p><span class="bubble-label">${escapeHtml(t("reader.vocabularyNote.englishLabel"))}</span><br>${escapeHtml(item.englishDefinition)}</p>` : ""}
     ${item.ieltsUsage ? `<p><span class="bubble-label">${escapeHtml(t("reader.vocabularyNote.ieltsLabel"))}</span><br>${escapeHtml(item.ieltsUsage)}</p>` : ""}
   `;
+}
+
+function refreshOpenVocabularyBubbleLanguage() {
+  if (!elements.vocabBubble || elements.vocabBubble.hidden || !state.activeBubbleTerm) {
+    return;
+  }
+
+  const item = getVocabularyBubbleItem(state.activeBubbleTerm);
+  if (item) {
+    renderVocabularyBubbleContent(item);
+  }
+}
+
+function showBubble(normalizedTerm, x, y) {
+  const item = getVocabularyBubbleItem(normalizedTerm);
+
+  if (!item) {
+    return;
+  }
+
+  renderVocabularyBubbleContent(item);
 
   elements.vocabBubble.hidden = false;
   state.activeBubbleTerm = normalizedTerm;
