@@ -185,7 +185,7 @@ The responsive Vocabulary Preview prototype retained under `design-lab/` is vers
 
 A separate six-file Guide redesign and interaction draft was preserved externally and removed from the R0 working tree. It remains deferred input and was not applied to the accepted baseline.
 
-R1 Interface Language implementation is complete through `R1-L10N-06` at starting baseline `b2f1ab1`. English and Simplified Chinese locale catalogs have 253 / 253 matching keys, and seven Node suites passed at that baseline. `R1-GOV-01` completed the read-only vocabulary/Mixed repository audit; `R1-GOV-02` is the current documentation-only governance reconciliation.
+R1 Interface Language implementation is complete through `R1-L10N-06` at starting baseline `b2f1ab1`. English and Simplified Chinese locale catalogs have 253 / 253 matching keys, and seven Node suites passed at that baseline. `R1-GOV-01` completed the read-only vocabulary/Mixed repository audit; `R1-GOV-02` completed the canonical vocabulary and Mixed semantics reconciliation; `R1-GOV-03 — R1 Closure Readiness and Product-Owner Acceptance Review` is the current L2 documentation task—a read-only closure-readiness and product-owner acceptance review, not runtime implementation.
 
 Current verification evidence and closure status are maintained in `docs/PROJECT_STATE.md`.
 
@@ -193,7 +193,7 @@ Chinese Reading Mode and imported-book Mixed Mode remain placeholders.
 
 R0 is **Closed** as of `2026-06-22`.
 
-R1 is **Active**. Localization implementation is complete, but governance reconciliation, closure evidence, and explicit product-owner acceptance remain outstanding. R1 must not be marked Closed merely because locale parity is complete.
+R1 is **Active**. Localization and canonical governance reconciliation are complete, but closure-readiness review, closure evidence, and explicit product-owner acceptance remain outstanding. R1 must not be marked Closed merely because locale parity and canonical reconciliation are complete.
 
 R2 remains **Following** and has not started.
 
@@ -340,7 +340,7 @@ R0 may close only when all of the following are true:
 
 R1 entry conditions are satisfied. R0 closed on `2026-06-22` with accepted runtime baseline `99ad1e3` and tag `r0-closure-99ad1e3`.
 
-R1 localization implementation is complete through `R1-L10N-06` at `b2f1ab1`, with 253 / 253 locale-key parity and seven passing Node suites. `R1-GOV-01` is complete, and `R1-GOV-02 — Canonical Vocabulary and Mixed Semantics Reconciliation` is the current Active L2 documentation task. The externally preserved Guide draft remains deferred review input, not accepted implementation or milestone evidence, and must not be restored automatically.
+R1 localization implementation is complete through `R1-L10N-06` at `b2f1ab1`, with 253 / 253 locale-key parity and seven passing Node suites. `R1-GOV-01` and `R1-GOV-02 — Canonical Vocabulary and Mixed Semantics Reconciliation` are complete; `R1-GOV-03 — R1 Closure Readiness and Product-Owner Acceptance Review` is the current Active L2 documentation task—a read-only closure-readiness and product-owner acceptance review, not runtime implementation. Profile migration, backup schema version 2, Preview redesign, UI redesign, dictionary enrichment, and real Mixed Mode remain outside current R1 implementation unless formally rebaselined. The externally preserved Guide draft remains deferred review input, not accepted implementation or milestone evidence, and must not be restored automatically.
 
 ### User Outcome
 
