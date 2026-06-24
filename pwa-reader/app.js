@@ -204,7 +204,7 @@ const VOCABULARY_LIBRARY_TABS = Object.freeze({
     emptyText: "Saved words will appear here."
   },
   mastered: {
-    label: "Mastered",
+    label: "Known",
     profileKey: "knownWords",
     emptyText: "Words marked Known will appear here."
   },
@@ -385,7 +385,7 @@ export function getVocabularyRemoveState(profile = {}, term = "", activeTab = "l
   };
   const tabLabel = {
     learning: "Learning",
-    mastered: "Mastered",
+    mastered: "Known",
     hidden: "Hidden"
   };
   const expectedStatus = tabStatus[activeTab] || "learning";
@@ -429,7 +429,7 @@ const VOCABULARY_EXPORT_SECTIONS = Object.freeze([
   },
   {
     key: "knownWords",
-    label: "Mastered",
+    label: "Known",
     status: "mastered"
   },
   {

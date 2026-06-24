@@ -342,7 +342,7 @@ for (const [key, english, chinese] of [
   ["vocabulary.page.backHome", "Back to Home", "\u8fd4\u56de\u4e3b\u9875"],
   ["vocabulary.level.title", "Vocabulary Level", "\u8bcd\u6c47\u7b49\u7ea7"],
   ["vocabulary.tabs.learning", "Learning", "\u5b66\u4e60\u4e2d"],
-  ["vocabulary.tabs.mastered", "Mastered", "\u5df2\u638c\u63e1"],
+  ["vocabulary.tabs.mastered", "Known", "\u5df2\u8ba4\u8bc6"],
   ["vocabulary.tabs.hidden", "Hidden", "\u5df2\u9690\u85cf"],
   ["vocabulary.manual.label", "Add a word to Learning", "\u6dfb\u52a0\u5230\u201c\u5b66\u4e60\u4e2d\u201d"],
   ["vocabulary.manual.placeholder", "Add a word manually", "\u624b\u52a8\u8f93\u5165\u5355\u8bcd\u6216\u77ed\u8bed"],
@@ -567,7 +567,19 @@ assert.equal(guideBook.title, "Interleaf Reader Guide", "Guide book title is sta
 assert.equal(guideBook.author, "BookHeart", "Guide book author is stable");
 assert.equal(guideBook.isBuiltInGuide, true, "Guide book is explicitly marked as built-in");
 assert.equal("fileBlob" in guideBook, false, "Guide book is not modeled as an imported EPUB blob");
-assert.equal(guideBook.chapters.length >= 6, true, "Guide book has at least six instructional reader chapters");
+assert.equal(guideBook.chapters.length, 6, "Guide book retains exactly six stable instructional chapters");
+assert.deepEqual(
+  guideBook.chapters.map((chapter) => chapter.id),
+  [
+    "guide-welcome",
+    "guide-first-book",
+    "guide-reader-tools",
+    "guide-vocabulary",
+    "guide-level-export-backup",
+    "guide-local-first"
+  ],
+  "Guide redesign preserves the existing chapter IDs and order"
+);
 assert.equal(
   guideBook.chapters.every((chapter) => chapter.contentVariants?.english && chapter.contentVariants?.chinese && chapter.contentVariants?.bilingual),
   true,
@@ -668,6 +680,69 @@ for (const [mode, expectedContentKey] of [
   guideSnapshotsByMode.set(mode, freshSnapshot);
 }
 
+for (const mode of [MODES.ENGLISH_STUDY, MODES.CHINESE, MODES.CLOZE_MIXED]) {
+  const guideText = createGuideBook(mode).plainText;
+
+  assert.doesNotMatch(
+    guideText,
+    /M2 adds|M2 also adds|M2 \u4f1a\u52a0\u5165|until a translation provider exists|\u76f4\u5230\u63a5\u5165\u7ffb\u8bd1\u670d\u52a1/i,
+    `${mode} Guide does not describe current export, backup, or placeholder gates as future provider-only work`
+  );
+  assert.match(guideText, /TXT/, `${mode} Guide describes the current TXT export`);
+  assert.match(guideText, /Backup \/ Restore/, `${mode} Guide describes current profile backup and restore`);
+  assert.match(
+    guideText,
+    /Translation Version/i,
+    `${mode} Guide names the future Translation Version prerequisite`
+  );
+  assert.match(guideText, /alignment/i, `${mode} Guide names the future alignment prerequisite`);
+  assert.match(guideText, /candidate analysis/i, `${mode} Guide names the future candidate-analysis prerequisite`);
+  assert.match(guideText, /generation contracts/i, `${mode} Guide names future generation contracts`);
+}
+
+const redesignedEnglishGuide = createGuideBook(MODES.ENGLISH_STUDY);
+const redesignedChineseGuide = createGuideBook(MODES.CHINESE);
+const redesignedMixedGuide = createGuideBook(MODES.CLOZE_MIXED);
+
+assert.match(
+  redesignedEnglishGuide.chapters[0].originalHtml,
+  /Start in Three Minutes/,
+  "English Guide restores the approved redesigned opening"
+);
+assert.match(
+  redesignedChineseGuide.chapters[0].originalHtml,
+  /三分钟开始使用[\s\S]*核心阅读流程|核心阅读流程[\s\S]*三分钟开始使用/,
+  "Chinese Guide restores the authored Chinese opening and core reading flow"
+);
+assert.match(
+  redesignedMixedGuide.chapters[0].originalHtml,
+  /三分钟开始使用[\s\S]*核心阅读流程|核心阅读流程[\s\S]*三分钟开始使用/,
+  "Mixed Guide restores the approved opening structure"
+);
+
+for (const book of [redesignedEnglishGuide, redesignedChineseGuide, redesignedMixedGuide]) {
+  assert.doesNotMatch(book.plainText, /Welcome\s*\/\s*欢迎使用|阅读第一本书/i, "Old Guide opening is removed");
+  assert.doesNotMatch(book.plainText, /Mastered|已掌握/, "Guide uses current Known terminology");
+}
+
+assert.match(
+  redesignedChineseGuide.plainText,
+  /导入与继续阅读[\s\S]*阅读与导航[\s\S]*词汇/,
+  "Chinese Guide is authored Chinese content"
+);
+assert.match(
+  redesignedMixedGuide.plainText,
+  /Reading Mode|Vocabulary Preview|Known|Save|Hide/,
+  "Mixed Guide intentionally retains English reading-support terms inside authored Chinese context"
+);
+for (const chapter of redesignedMixedGuide.chapters) {
+  assert.doesNotMatch(
+    chapter.originalHtml,
+    /<p[^>]*>[^<]*\s\/\s[^<]*<\/p>/,
+    `${chapter.id} Mixed content is not sentence-by-sentence slash translation`
+  );
+}
+
 for (const field of ["title", "originalHtml", "plainText"]) {
   const englishValue = guideSnapshotsByMode.get(MODES.ENGLISH_STUDY).chapters[0][field];
   const chineseValue = guideSnapshotsByMode.get(MODES.CHINESE).chapters[0][field];
@@ -707,12 +782,12 @@ for (const [uiLanguage, mode, expectedContentKey] of [
 
 assert.match(
   renderChapterForMode(welcomeChapter, MODES.CHINESE, { isBuiltInGuide: true }).html,
-  /欢迎使用|Reading Mode/,
+  /三分钟开始使用|核心阅读流程/,
   "Built-in Guide Chinese mode renders pre-authored Chinese content"
 );
 assert.match(
   renderChapterForMode(welcomeChapter, MODES.CLOZE_MIXED, { isBuiltInGuide: true }).html,
-  /\/|Reading Mode/,
+  /三分钟开始使用[\s\S]*(?:Reading Mode|Vocabulary Preview)|(?:Reading Mode|Vocabulary Preview)[\s\S]*三分钟开始使用/,
   "Built-in Guide Mixed mode renders pre-authored mixed content"
 );
 withMinimalDocument(() => {
@@ -1043,7 +1118,7 @@ assert.deepEqual(
   {
     tabs: [
       { id: "learning", label: "Learning", count: 2, isActive: true },
-      { id: "mastered", label: "Mastered", count: 1, isActive: false },
+      { id: "mastered", label: "Known", count: 1, isActive: false },
       { id: "hidden", label: "Hidden", count: 2, isActive: false }
     ],
     activeTab: "learning",
@@ -1058,7 +1133,7 @@ assert.deepEqual(
 assert.deepEqual(
   getVocabularyLibraryDetailState(detailProfile, "mastered").terms,
   ["anxious"],
-  "Vocabulary Library detail shows knownWords in Mastered tab"
+  "Vocabulary Library detail shows knownWords in the compatibility-owned mastered tab"
 );
 
 assert.deepEqual(
@@ -1076,7 +1151,7 @@ assert.equal(
 assert.equal(
   getVocabularyLibraryDetailState({}, "mastered").emptyText,
   "Words marked Known will appear here.",
-  "Mastered empty state copy is stable"
+  "Known empty state copy is stable while preserving the mastered locale key"
 );
 
 assert.equal(
@@ -1090,7 +1165,7 @@ assert.deepEqual(
   {
     tabs: [
       { id: "learning", label: "Learning", count: 0, isActive: false },
-      { id: "mastered", label: "Mastered", count: 0, isActive: false },
+      { id: "mastered", label: "Known", count: 0, isActive: false },
       { id: "hidden", label: "Hidden", count: 0, isActive: true }
     ],
     activeTab: "hidden",
@@ -1175,7 +1250,7 @@ assert.deepEqual(
     reason: "move-from-mastered",
     message: "Moved to Learning."
   },
-  "Manual add can move a Mastered term to Learning"
+  "Manual add can move a Known term from the compatibility-owned mastered status to Learning"
 );
 
 assert.deepEqual(
@@ -1209,9 +1284,9 @@ assert.deepEqual(
     shouldRemove: true,
     term: "anxious",
     reason: "remove-mastered",
-    message: "Removed from Mastered."
+    message: "Removed from Known."
   },
-  "Vocabulary remove accepts terms in the current Mastered tab"
+  "Vocabulary remove accepts terms in the current Known tab while preserving the mastered status ID"
 );
 
 assert.deepEqual(
@@ -1252,13 +1327,13 @@ assert.equal(
 
 assert.doesNotMatch(
   formatVocabularyLearningExportText(exportProfile),
-  /comma, word|quote"word|dean|Learning|Mastered|Hidden|status|definition|example/i,
+  /comma, word|quote"word|dean|Learning|Known|Hidden|status|definition|example/i,
   "Learning TXT export excludes non-Learning words, status labels, definitions, and examples"
 );
 
 assert.equal(
   formatVocabularyAllExportText(exportProfile),
-  "Learning\nalpha\nzeta\n\nMastered\ncomma, word\nquote\"word\n\nHidden\ndean",
+  "Learning\nalpha\nzeta\n\nKnown\ncomma, word\nquote\"word\n\nHidden\ndean",
   "All vocabulary export text uses section headers"
 );
 
@@ -2068,7 +2143,7 @@ assert.match(
 
 assert.match(
   homeHtml,
-  /Learning[\s\S]*Mastered[\s\S]*Hidden/,
+  /Learning[\s\S]*Known[\s\S]*Hidden/,
   "Vocabulary Library summary shows word-count labels"
 );
 
@@ -2080,8 +2155,8 @@ assert.match(
 
 assert.match(
   homeHtml,
-  /role="tab"[\s\S]*Learning \(0\)[\s\S]*role="tab"[\s\S]*Mastered \(0\)[\s\S]*role="tab"[\s\S]*Hidden \(0\)/,
-  "Vocabulary Library view includes Learning, Mastered, and Hidden tabs"
+  /role="tab"[\s\S]*Learning \(0\)[\s\S]*role="tab"[\s\S]*Known \(0\)[\s\S]*role="tab"[\s\S]*Hidden \(0\)/,
+  "Vocabulary Library view includes Learning, Known, and Hidden tabs"
 );
 
 assert.match(
