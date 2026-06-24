@@ -8,6 +8,8 @@ This guide describes current user-facing behavior.
 
 For implementation and verification status, see `docs/PROJECT_STATE.md`.
 
+This guide is synchronized to R1 acceptance candidate `4b7e94e`.
+
 ---
 
 ## 1. Current Capability Boundary
@@ -19,7 +21,7 @@ For user-imported EPUBs:
 * **Mixed Mode** is a placeholder.
 * No real translation provider is integrated.
 
-The built-in Interleaf Reader Guide may contain authored English, Chinese, and Mixed content.
+The built-in Interleaf Reader Guide contains authored English, independently authored Chinese, and purpose-written Mixed content.
 
 This Guide-specific content does not mean that imported EPUBs can currently be translated.
 
@@ -66,7 +68,9 @@ The Guide is not a user-imported EPUB.
 
 Hiding the Guide does not delete an imported book.
 
-Guide multilingual content is authored locally and is not machine-generated translation.
+Reading Mode selects the Guide's English, Chinese, or Mixed authored variant. Interface Language changes app chrome and does not change Guide content.
+
+Mixed Guide content is purpose-written mixed reading, not sentence-by-sentence slash translation. Guide multilingual content is authored locally and is not machine-generated translation.
 
 ---
 
@@ -185,6 +189,8 @@ For imported EPUBs, Chinese and Mixed currently show explicit placeholder behavi
 
 They do not generate translation.
 
+Real imported-book Chinese or Mixed remains future work requiring Translation Version, alignment, candidate analysis, and generation contracts; provider availability alone is insufficient.
+
 ---
 
 ## 8. Vocabulary Preview and Bubbles
@@ -214,6 +220,8 @@ If optional vocabulary data fails, the preferred behavior is that the original c
 
 Vocabulary actions update the browser-local vocabulary profile.
 
+The profile is global: Known, Learning, and Hidden outcomes apply across every book and chapter in this browser profile.
+
 ### Known
 
 Use Known when:
@@ -226,9 +234,7 @@ Current effect:
 * remove it from Learning and Hidden;
 * reduce or remove future ordinary Preview recommendations.
 
-The Vocabulary Library may display Known words under the **Mastered** tab.
-
-This is a UI label only. Interleaf did not test or prove mastery.
+The Vocabulary Library displays these words under the **Known** tab. Known means the user explicitly marked the term as already known; it is not a tested mastery claim.
 
 ### Save
 
@@ -286,11 +292,9 @@ Vocabulary Library contains three current collections:
 
 Terms saved while reading or added manually.
 
-### Mastered
+### Known
 
-The UI view of terms stored as Known.
-
-This does not represent tested or scheduled mastery.
+Terms explicitly marked as already known. This does not represent tested or scheduled mastery.
 
 ### Hidden
 
@@ -332,7 +336,7 @@ A restored backup may still contain the same term in multiple collections if the
 
 ## 13. Vocabulary Export
 
-Current export surfaces may include:
+Current export surfaces include:
 
 * Copy Learning;
 * Copy All;
@@ -447,7 +451,7 @@ The following are not current imported-book capabilities:
 * general dictionary search;
 * automatic enrichment for every manually added term;
 * flashcards, quizzes, drills, streaks, or spaced repetition;
-* tested Mastered lifecycle.
+* a tested mastery-learning lifecycle.
 
 Placeholder features must not be interpreted as completed functionality.
 

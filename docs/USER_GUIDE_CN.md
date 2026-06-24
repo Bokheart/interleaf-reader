@@ -8,6 +8,8 @@ Interleaf Reader 是一个移动端优先、本地优先、阅读优先的长篇
 
 当前实现与验证状态以 `docs/PROJECT_STATE.md` 为准。
 
+本指南已与 R1 acceptance candidate `4b7e94e` 同步。
+
 ---
 
 ## 1. 当前功能边界
@@ -19,7 +21,7 @@ Interleaf Reader 是一个移动端优先、本地优先、阅读优先的长篇
 * **Mixed Mode** 是占位功能。
 * 当前没有接入真实翻译服务。
 
-内置的 Interleaf Reader Guide 可以包含人工编写的英文、中文和中英混合内容。
+内置的 Interleaf Reader Guide 包含人工编写的英文、独立编写的中文，以及专门编写的混合阅读内容。
 
 这只是 Guide 的特殊内容，并不代表导入的 EPUB 已经能够自动翻译。
 
@@ -71,7 +73,9 @@ Guide 不是用户导入的 EPUB。
 
 隐藏 Guide 不会删除普通书籍。
 
-Guide 的多语言内容是本地人工内容，不是机器翻译结果。
+Reading Mode 决定 Guide 使用英文、中文或混合正文。Interface Language 只控制应用界面，不会改变 Guide 正文。
+
+Mixed Guide 是专门编写的混合阅读内容，不是逐句使用斜杠分隔的中英对照。Guide 的多语言内容是本地人工内容，不是机器翻译结果。
 
 ---
 
@@ -188,6 +192,8 @@ Preview 是阅读辅助，不是完整词典，也不是必须完成的学习任
 
 对于导入的 EPUB，Chinese 和 Mixed 目前只显示明确的占位内容，不会生成翻译。
 
+真实的导入书籍中文或 Mixed 仍是未来工作，需要 Translation Version、alignment、candidate analysis 和 generation contracts；仅有 provider 并不足够。
+
 ---
 
 ## 8. Vocabulary Preview 与词汇气泡
@@ -217,6 +223,8 @@ Vocabulary Preview 使用应用内置的 app-ready 词汇数据，在当前章�
 
 这些操作会更新当前浏览器中的本地 vocabulary profile。
 
+这是一份全局词汇资料：已认识（Known）、Learning 和 Hidden 状态会作用于当前浏览器资料中的所有书籍和章节。
+
 ### Known
 
 当你的意思是：
@@ -231,9 +239,7 @@ Vocabulary Preview 使用应用内置的 app-ready 词汇数据，在当前章�
 * 从 Learning 和 Hidden 中移除；
 * 降低或取消之后普通 Preview 中的推荐。
 
-Vocabulary Library 可能会在 **Mastered** 标签中显示 Known words。
-
-这只是当前 UI 标签。Interleaf 没有测试或证明你已经真正掌握这个词。
+Vocabulary Library 会在 **已认识（Known）** 标签中显示这些词。已认识表示用户明确标记自己认识该词，不代表经过测试的掌握结论。
 
 ### Save
 
@@ -295,11 +301,9 @@ Vocabulary Library 当前包含三个 collection：
 
 阅读时 Save 的词，以及手动添加的词。
 
-### Mastered
+### 已认识（Known）
 
-UI 对 Known words 的显示方式。
-
-它不代表经过测试、复习计划或记忆验证后的真正掌握。
+用户明确标记为已经认识的词。它不代表经过测试、复习计划或记忆验证后的真正掌握。
 
 ### Hidden
 
@@ -331,7 +335,7 @@ Manual Add 是快速收集，不是词典查询。
 
 移除或恢复一个词，会把它从相关状态 collection 中删除，使它之后可以重新选择状态。
 
-当前系统没有独立的历史 Mastered record。
+当前系统没有独立的历史掌握记录。
 
 通过 Known、Save 或 Hide 改变状态时，对应 action helper 会让选择的状态保持互斥。
 
@@ -341,7 +345,7 @@ Manual Add 是快速收集，不是词典查询。
 
 ## 13. 词汇导出
 
-当前导出入口可能包括：
+当前导出入口包括：
 
 * Copy Learning；
 * Copy All；
@@ -456,7 +460,7 @@ Interleaf Reader 是 local-first，但目前并不是完整离线应用。
 * 通用词典搜索；
 * 为每个手动添加词自动补全内容；
 * 闪卡、测验、刷题、streak 或 spaced repetition；
-* 经过测试的 Mastered 学习生命周期。
+* 经过测试的掌握学习生命周期。
 
 占位功能不能被理解为已经完成。
 

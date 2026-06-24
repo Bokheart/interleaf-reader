@@ -34,21 +34,25 @@ The former AI workflow protocol is superseded.
 
 ## 2. Current Control State
 
-As of `2026-06-23`:
+As of `2026-06-24`:
 
 | Field | Current state |
 | --- | --- |
 | **R0** | Closed |
-| **R1** | Active — implementation in progress |
+| **R1** | Active — acceptance candidate verified; explicit product-owner acceptance pending |
 | **Accepted runtime baseline** | `99ad1e3` |
 | **Runtime baseline tag** | `r0-closure-99ad1e3` |
 | **Repository branch** | `feature/m2-reader-toc` |
-| **Repository HEAD** | `74ce309` — `feat: localize reader chrome` (read from Git after later commits) |
-| **First R1 increment** | `R1-L10N-01 — Reader Chrome Localization` — complete at `74ce309` |
-| **Closure evidence** | Complete |
+| **R1 acceptance candidate HEAD** | `4b7e94e` — `fix: align Known terminology and Guide facts` |
+| **Locale parity** | 253 English / 253 Simplified Chinese keys |
+| **Automated evidence** | `node --test tests/*.mjs` — 7 / 7 suites passed |
+| **Manual evidence** | Chinese and Mixed Guide rendering and desktop/mobile Guide layout checked; no blocking UI issue in the checked surfaces |
+| **R1 closure evidence** | Candidate evidence recorded; explicit product-owner acceptance still required |
 | **Further R0 verification** | Not required unless runtime code changes |
 
-R0 remains closed on accepted runtime baseline `99ad1e3` with tag `r0-closure-99ad1e3`. The first R1 implementation increment localized Reader UI chrome only. Interface Language changes Reader labels and empty states; it does not change Reading Mode, Guide content, imported book content, or storage/progress contracts. English and Simplified Chinese locale catalogs now have **108 matching keys**. No external Guide redesign patch was applied.
+R0 remains closed on accepted runtime baseline `99ad1e3` with tag `r0-closure-99ad1e3`. R1 candidate `4b7e94e` includes complete English and Simplified Chinese Interface Language coverage, visible `Known / 已认识` terminology, and the restored authored Guide redesign. Historical internal value `mastered` remains compatibility-owned.
+
+Reading Mode controls the built-in Guide's English, Chinese, or Mixed authored variant. Interface Language controls application chrome and does not select Guide content. Imported-book Chinese Reading Mode and Mixed Mode remain honest placeholders. Real imported-book Chinese or Mixed requires future Translation Version, alignment, candidate analysis, and generation contracts.
 
 ### Tooling roles
 
@@ -58,15 +62,7 @@ R0 remains closed on accepted runtime baseline `99ad1e3` with tag `r0-closure-99
 
 ### Next recommended task
 
-**`R1-L10N-02 — Reader Help and Glossary Chrome Localization`**
-
-Deferred from `R1-L10N-01`:
-
-* Reader Help explanatory copy;
-* Book Glossary panel UI copy;
-* other UI-owned Reader-adjacent strings.
-
-Do not treat Home, Vocabulary Library, Guide redesign, pagination, gestures, or quick-add widget work as started.
+Complete `R1-CLOSE-02`, then conduct the explicit product-owner acceptance review for candidate `4b7e94e`. Do not begin new implementation as part of that review.
 
 ---
 
@@ -185,25 +181,10 @@ Syntax checks confirm parsing only.
 ### Current Node tests
 
 ```powershell
-$tests = @(
-  "tests/vocabEngine.test.mjs",
-  "tests/glossaryEngine.test.mjs",
-  "tests/navigationEngine.test.mjs",
-  "tests/storage.test.mjs",
-  "tests/homeState.test.mjs",
-  "tests/readingModes.test.mjs",
-  "tests/levelBaselineEngine.test.mjs"
-)
-
-foreach ($test in $tests) {
-  node $test
-  if ($LASTEXITCODE -ne 0) {
-    throw "Test failed: $test"
-  }
-}
+node --test tests/*.mjs
 ```
 
-The suites may also be run individually with `node`.
+This currently runs seven Node suites. A suite may also be run individually with `node --test tests/<name>.test.mjs`.
 
 Pure-module tests do not replace browser integration checks.
 
@@ -449,15 +430,23 @@ Viewport, fonts, layout, chapter HTML, and annotations may move the restored pos
 
 Historical values such as `cloze-mixed`, `clozeHtml`, and Slash-era storage or debug names may remain intentionally.
 
+Vocabulary UI and user guidance use `Known / 已认识`. The internal value `mastered` remains compatibility-owned and must not be renamed without migration analysis.
+
 ### Built-in Guide
 
 The Guide is a virtual book, not a user-imported EPUB blob.
 
-Guide-authored multilingual content does not prove imported-book multilingual generation.
+Its English, independently authored Chinese, and purpose-written Mixed variants are selected by Reading Mode. Interface Language changes app chrome and does not select Guide content. The Guide key and six chapter IDs are compatibility-stable.
+
+Guide-authored multilingual content does not prove imported-book multilingual generation. Personal names in current Guide practice text remain in English: Elizabeth, Darcy, and Bingley.
+
+Polishing embedded English UI terms in Guide prose should follow the future UI redesign and remains Later work, not an R1 blocker.
 
 ### Placeholder modes
 
 Chinese Reading Mode and Mixed Mode for imported books remain placeholders unless `docs/PROJECT_STATE.md` records a later verified implementation.
+
+Vocabulary TXT/CSV/Copy export and Vocabulary Profile Backup/Restore are current features. Real imported-book Chinese or Mixed remains future work gated by Translation Version, alignment, candidate analysis, and generation contracts.
 
 ### Browser automation
 

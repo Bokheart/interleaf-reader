@@ -1,6 +1,6 @@
 # Interleaf Reader — Project State
 
-**Last updated:** 2026-06-23
+**Last updated:** 2026-06-24
 **Canonical product specification:** `docs/INTERLEAF_READER_PRD.md`
 **Active control phase:** `R1 — Complete Interface Localization and Onboarding`
 
@@ -14,18 +14,20 @@
 | **Accepted runtime baseline** | `99ad1e3` — `fix: align Guide labels with mode contract` |
 | **Runtime baseline tag** | `r0-closure-99ad1e3` (annotated tag on `99ad1e3`) |
 | **Product-owner acceptance** | 孙书心 accepted the R0 runtime baseline on `2026-06-22` |
+| **R1 acceptance candidate** | `4b7e94e` — `fix: align Known terminology and Guide facts` on `feature/m2-reader-toc` |
+| **R1 product-owner acceptance** | **Pending** — R1 remains Active and is not Closed |
 | **R0 status** | **Closed** (`2026-06-22`) |
-| **R1 status** | **Active** — localization and canonical reconciliation complete; closure-readiness review next |
+| **R1 status** | **Active** — acceptance candidate verified; explicit product-owner acceptance still required |
 | **R2 status** | **Following** |
 | **First R1 implementation commit** | `74ce309` — `feat: localize reader chrome` |
 | **R1-GOV-02 starting baseline** | `b2f1ab1` — `feat: close application localization gaps` |
 | **Repository state rule** | Read the current repository HEAD from Git; do not treat HEAD as the runtime baseline |
 | **Documentation baseline** | Canonical and historical archive work is committed and reconciled; later documentation-only commits do not change the accepted runtime baseline |
 | **Localization status** | **Complete through `R1-L10N-06`**; English and Simplified Chinese locale catalogs have **253 / 253 matching keys** |
-| **Verification status** | Seven Node suites passed at the `b2f1ab1` localization baseline |
-| **Governance status** | `R1-GOV-01` audit complete; `R1-GOV-02` canonical reconciliation complete; `R1-GOV-03` closure-readiness review is the current L2 |
-| **Feature-development status** | R1 remains Active; no vocabulary schema, Preview-behavior, UI-redesign, or Mixed implementation has started through governance work |
-| **Current priority** | `R1-GOV-03 — R1 Closure Readiness and Product-Owner Acceptance Review` |
+| **Verification status** | At `4b7e94e`, 7 / 7 Node suites passed and locale parity remained 253 English / 253 Simplified Chinese keys |
+| **Governance status** | `R1-GOV-01`, `R1-GOV-02`, and `R1-GOV-03` complete; closure corrections and acceptance checks complete through `R1-ACCEPT-01` |
+| **Feature-development status** | R1 remains Active; no vocabulary schema, Preview-behavior, UI-redesign, or real imported-book Mixed implementation has started |
+| **Current priority** | `R1-CLOSE-02 — Acceptance Evidence and User Documentation Sync` |
 
 The earlier runtime reproducibility risk is resolved. The current application no longer depends on untracked Guide or localization modules.
 
@@ -33,7 +35,7 @@ R0 closure evidence is complete. No verified R0 P0 blocker remains. The product 
 
 The exact repository HEAD is intentionally not hard-coded in this document because documentation-only commits may advance it. Git is the source of truth for the current HEAD; `99ad1e3` remains the fixed accepted runtime baseline regardless of later documentation commits.
 
-`b2f1ab1` is the verified starting baseline for `R1-GOV-02`, not a replacement for the accepted R0 runtime baseline.
+`b2f1ab1` remains the historical localization baseline. `4b7e94e` is the current R1 acceptance candidate; it does not replace the accepted and tagged R0 baseline.
 
 ---
 
@@ -60,7 +62,7 @@ The current supported baseline includes:
 * Settings and Help surfaces;
 * complete English and Simplified Chinese Interface Language coverage through `R1-L10N-06`.
 
-R1 localization implementation is complete through `R1-L10N-06` with 253 matching English and Simplified Chinese locale keys. Vocabulary and Mixed canonical reconciliation is also complete. R1 remains Active because closure-readiness review, closure evidence, and product-owner acceptance are not complete.
+R1 localization implementation is complete through `R1-L10N-06` with 253 matching English and Simplified Chinese locale keys. Vocabulary and Mixed canonical reconciliation, closure-readiness review, candidate corrections, and bounded acceptance checks are also complete. R1 remains Active because explicit product-owner acceptance and the closure decision are still pending.
 
 The approved target vocabulary model is one global profile across all books and chapters with mutually exclusive Known, Learning, and Hidden outcomes. Current storage and runtime behavior have not been migrated to a new schema or chapter-analysis model.
 
@@ -126,7 +128,7 @@ r0-closure-99ad1e3 → 99ad1e3
 
 Commit `817d902` retains the responsive Vocabulary Preview prototype under `design-lab/` as version-controlled non-runtime experimental material. Production files do not import it. It is not approved runtime implementation and does not count as milestone-completion evidence.
 
-A separate six-file Guide redesign and interaction draft was preserved outside the repository, verified as recoverable in an isolated worktree, and removed from the R0 working tree. It is unapproved R1 work, is not part of runtime candidate commit `99ad1e3`, and leaves Guide chapter-ID and editorial decisions deferred.
+At R0 closure, a separate six-file Guide redesign and interaction draft was preserved outside the repository and was not part of runtime candidate commit `99ad1e3`. That historical state was later superseded when the approved authored-content redesign was selectively restored in R1 candidate `4b7e94e` while retaining the existing Guide key and six chapter IDs.
 
 ---
 
@@ -165,7 +167,7 @@ Two apparent failures were traced to test timing rather than product defects:
 
 The sequential user flows passed when synchronized against persisted IndexedDB state. No application fix was required.
 
-The preserved Guide draft also passed all seven Node suites in its isolated verification worktree. That result establishes patch recoverability only; it does not verify runtime candidate commit `99ad1e3` and does not count as R0 closure-candidate evidence.
+The preserved Guide draft also passed all seven Node suites in its isolated verification worktree. That historical result established patch recoverability only and did not count as R0 closure-candidate evidence; the later restored Guide was separately verified as part of R1 candidate `4b7e94e`.
 
 ### R0 closure evidence for accepted baseline `99ad1e3`
 
@@ -230,7 +232,7 @@ This evidence supported the accepted baseline correction and is part of the comp
 
 Guide metadata, Guide chapter titles, and Guide body content remain **Reading-Mode-owned** and must not be localized through Interface Language.
 
-Localization completion does not implement real imported-book Chinese or Mixed content, change vocabulary persistence, approve a Guide redesign, add gestures, or authorize UI redesign.
+Localization completion and the restored authored Guide do not implement real imported-book Chinese or Mixed content, change vocabulary persistence, add gestures, or authorize UI redesign.
 
 ### R1-GOV-01 — Global Vocabulary Profile and Mixed-Mode Repository Audit
 
@@ -243,6 +245,23 @@ The audit confirmed the current singleton profile, curated-only Preview, backup 
 **Status: Complete — documentation-only canonicalization**
 
 This task records approved global vocabulary, explicit-action, stable-snapshot, Preview/Mixed, phrase-integrity, backup, and artifact-reproducibility semantics in the six canonical control documents. It does not implement the future runtime or schema.
+
+### R1 closure and acceptance sequence
+
+| Task | Status | Evidence or result |
+| --- | --- | --- |
+| `R1-GOV-03` | Complete | Closure-readiness review identified the narrow terminology, Guide-fact, and browser-verification gaps. |
+| `R1-CLOSE-01` | Complete | Visible terminology changed to `Known / 已认识`; internal compatibility value `mastered` remained unchanged; current export, backup, and placeholder facts were corrected. |
+| `R1-CLOSE-01A` | Complete | Approved redesigned Guide content was restored while preserving the Guide key, six chapter IDs, Reading Mode ownership, and imported-book placeholder boundaries. |
+| `R1-CLOSE-01B` | Complete | Story-specific personal names remain in English: Elizabeth, Darcy, and Bingley. |
+| `R1-ACCEPT-01` | Complete | Product owner manually checked Chinese and Mixed Guide rendering and desktop/mobile layout; no blocking UI issue or visible `Mastered / 已掌握` remained in the checked surfaces. |
+| `R1-CLOSE-02` | **Current** | Synchronize acceptance evidence and current user guidance without changing runtime behavior. |
+
+The R1 acceptance candidate is commit `4b7e94e` (`fix: align Known terminology and Guide facts`) on `feature/m2-reader-toc`. The working tree was clean after the commit, the local branch was synchronized with origin, all 7 Node suites passed, and locale parity remained 253 English / 253 Simplified Chinese keys.
+
+The built-in Guide now has independently authored English and Chinese variants and purpose-written Mixed content rather than sentence-by-sentence slash translation. Reading Mode owns the Guide variant; Interface Language owns application chrome. Manual product-owner checks covered restored Chinese and Mixed Guide rendering and desktop/mobile Guide layout only; they are not evidence of a broader automated browser matrix.
+
+UI terminology such as Home, Reader, Preview, Known, Save, and Hide inside Chinese Guide prose remains deferred content polish after the future UI redesign. This is not an R1 closure blocker.
 
 ---
 
@@ -260,7 +279,7 @@ The following remain outside the accepted R0 baseline or are deferred to later m
 * real imported-book Chinese Reading Mode;
 * real imported-book Mixed Mode;
 * translation-provider behavior;
-* R1 closure acceptance and final closure evidence.
+* explicit R1 product-owner acceptance and the final closure decision.
 
 These limits must not be represented as completed functionality.
 
@@ -323,7 +342,7 @@ The current runtime still uses IndexedDB database `slash-reader-v2-books`, datab
 
 Current limitations include:
 
-* internal UI/export identifier `mastered` and compatibility-era visible wording;
+* internal UI/export compatibility identifier `mastered`, while visible product terminology is `Known / 已认识`;
 * curated-only Preview generation;
 * personalization applied after candidate generation;
 * immediate current-Preview refiltering, which does not match the approved future stable-snapshot contract;
@@ -341,7 +360,7 @@ A manifest and planning documents exist, but no service worker is implemented or
 
 ### Governance reconciliation
 
-Localization implementation is complete through `R1-L10N-06`, and `R1-GOV-02` completed the canonical vocabulary and Mixed reconciliation without changing runtime behavior. `R1-GOV-03` closure-readiness review is next. R1 closure still requires current acceptance evidence and explicit product-owner acceptance; completion of localization and canonical reconciliation does not close the milestone.
+Localization implementation is complete through `R1-L10N-06`; canonical vocabulary and Mixed reconciliation, closure-readiness review, acceptance-candidate corrections, and bounded manual acceptance checks are also complete. `R1-CLOSE-02` is the current documentation synchronization task. R1 remains Active and explicit product-owner acceptance is still required before closure.
 
 ---
 
@@ -383,9 +402,9 @@ The verified archive moves and preserved M2 records are committed. The former bi
 
 Commit `817d902` retains the responsive Vocabulary Preview prototype under `design-lab/` as version-controlled non-runtime experimental material. It is not imported by the production application, is not approved for production, and is not evidence that responsive Vocabulary Preview has been implemented.
 
-### Preserved Guide draft
+### Restored Guide redesign
 
-The six-file Guide redesign and interaction draft is preserved externally as verified, recoverable, unapproved R1 work. It is absent from runtime candidate commit `99ad1e3`. Guide chapter-ID and editorial decisions remain deferred until R1 review.
+The externally preserved Guide draft was used as source evidence for the approved authored-content restoration now included in R1 acceptance candidate `4b7e94e`. It was not applied wholesale: the current Guide key and six chapter IDs remain unchanged, current `Known / 已认识` and export/backup facts were preserved, Chinese content is independently authored, and Mixed content is purpose-written rather than sentence-by-sentence slash translation.
 
 ### Local-only material
 
@@ -432,9 +451,9 @@ R0 may be reopened only for a confirmed baseline defect or governance correction
 
 ## 11. Immediate Next Action
 
-> **`R1-GOV-03 — R1 Closure Readiness and Product-Owner Acceptance Review`**
+> **Complete `R1-CLOSE-02`, then conduct the explicit product-owner acceptance review for candidate `4b7e94e`.**
 
-After `R1-GOV-02`, the next bounded task is a read-only closure-readiness review. It should verify localization and onboarding exit evidence against the current Git baseline, identify any remaining R1 blockers, and request product-owner acceptance without implementing Profile migration, Preview changes, UI redesign, dictionary enrichment, alignment, or real Mixed Mode.
+The acceptance review should decide whether to accept and close R1 based on the recorded candidate evidence. It must not start Profile migration, Preview changes, UI redesign, dictionary enrichment, alignment, or real Mixed Mode. Only the product owner may approve R1 closure.
 
 ---
 
@@ -442,11 +461,10 @@ After `R1-GOV-02`, the next bounded task is a read-only closure-readiness review
 
 * whether the deployed Pages build matches accepted runtime baseline `99ad1e3`;
 * whether non-Chromium browsers pass supported flows;
-* whether current localization and onboarding evidence satisfies every R1 exit criterion;
+* whether the product owner accepts R1 candidate `4b7e94e` and authorizes closure;
 * whether manifest and icons produce a verified installable experience;
 * whether service-worker work belongs in R2;
 * whether maintainer contact and legal review are complete;
-* how the externally preserved Guide redesign should be reviewed and sequenced within R1;
 * Hide cancellation restoration behavior;
 * same-chapter Preview reopening or regeneration policy;
 * legacy cross-list conflict precedence;
