@@ -27,8 +27,8 @@
 | **Localization status** | **Complete through `R1-L10N-06`**; English and Simplified Chinese locale catalogs have **253 / 253 matching keys** |
 | **Verification status** | At `4b7e94e`, 7 / 7 Node suites passed and locale parity remained 253 English / 253 Simplified Chinese keys |
 | **Governance status** | R1 localization, governance reconciliation, Guide restoration, Known terminology correction, bounded acceptance checks, and closure documentation are complete |
-| **Feature-development status** | R2 entry audit authorized; no Profile migration, UI redesign, or real imported-book Mixed implementation is authorized by R1 closure |
-| **Current priority** | `R2-ENTRY-01 — Installability and Offline Baseline Audit` |
+| **Feature-development status** | `R2-ENTRY-01` and `R2-VND-01` complete; JSZip 3.10.1 and epub.js 0.3.93 are now locally vendored |
+| **Current priority** | `R2-PWA-01 — Implement App Shell and Static-Data Service Worker` |
 
 The earlier runtime reproducibility risk is resolved. The current application no longer depends on untracked Guide or localization modules.
 
@@ -360,7 +360,7 @@ No Profile migration, backup v2, Preview behavior change, dictionary enrichment,
 
 ### Service worker and offline application shell
 
-A manifest and planning documents exist, but no service worker is implemented or registered.
+A manifest and planning documents exist. JSZip 3.10.1 and epub.js 0.3.93 are now locally vendored. No service worker exists yet; offline reload is not yet claimed. IndexedDB and private imported EPUB data were not changed.
 
 ### Governance reconciliation
 
@@ -455,9 +455,9 @@ R0 may be reopened only for a confirmed baseline defect or governance correction
 
 ## 11. Immediate Next Action
 
-> **`R2-ENTRY-01 — Installability and Offline Baseline Audit`**
+> **`R2-PWA-01 — Implement App Shell and Static-Data Service Worker`**
 
-Run a read-only R2 entry audit before any release implementation. Verify the current manifest, icons, deployment path, dependency and network boundaries, offline behavior, update behavior, privacy constraints, and local-data preservation risks. Do not begin service-worker, dependency-vendoring, cache, or deployment implementation until the audit establishes the baseline and recommends a bounded task.
+Implement the app shell and static-data service worker.
 
 ---
 
