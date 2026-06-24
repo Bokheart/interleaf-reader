@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-06-24
 **Canonical product specification:** `docs/INTERLEAF_READER_PRD.md`
-**Active control phase:** `R2 — Installable Local-First Release`
+**Active control phase:** `None (awaiting prioritization)`
 
 ---
 
@@ -19,7 +19,7 @@
 | **Pre-closure documentation baseline** | `b7b0852` — accepted documentation sync baseline |
 | **R0 status** | **Closed** (`2026-06-22`) |
 | **R1 status** | **Closed** (`2026-06-24`) |
-| **R2 status** | **Active** |
+| **R2 status** | **Closed** (2026-06-25) |
 | **First R1 implementation commit** | `74ce309` — `feat: localize reader chrome` |
 | **R1-GOV-02 starting baseline** | `b2f1ab1` — `feat: close application localization gaps` |
 | **Repository state rule** | Read the current repository HEAD from Git; do not treat HEAD as the runtime baseline |
@@ -27,8 +27,8 @@
 | **Localization status** | **Complete through `R1-L10N-06`**; English and Simplified Chinese locale catalogs have **253 / 253 matching keys** |
 | **Verification status** | At `4b7e94e`, 7 / 7 Node suites passed and locale parity remained 253 English / 253 Simplified Chinese keys |
 | **Governance status** | R1 localization, governance reconciliation, Guide restoration, Known terminology correction, bounded acceptance checks, and closure documentation are complete |
-| **Feature-development status** | `R2-PWA-01` complete; App Shell SW implemented and verified locally |
-| **Current priority** | `R2-RLS-01 — GitHub Pages Installability and Offline Verification` |
+| **Feature-development status** | R2 implementation complete. SW implemented and verified locally. Remote dynamic-browser limitation accepted. |
+| **Current priority** | Awaiting product-owner prioritization |
 
 The earlier runtime reproducibility risk is resolved. The current application no longer depends on untracked Guide or localization modules.
 
@@ -247,6 +247,19 @@ The audit confirmed the current singleton profile, curated-only Preview, backup 
 
 This task records approved global vocabulary, explicit-action, stable-snapshot, Preview/Mixed, phrase-integrity, backup, and artifact-reproducibility semantics in the six canonical control documents. It does not implement the future runtime or schema.
 
+
+### R2 closure and acceptance sequence
+
+| Task | Status | Evidence or result |
+| --- | --- | --- |
+| `R2-RLS-01` | Complete | Complete by bounded acceptance. Service Worker implementation baseline `10b87d7` and responsive-fix baseline `7463846` are accepted. Local offline verification and remote asset/deployment checks passed. The remaining remote dynamic-browser limitation was explicitly accepted as a bounded residual risk by the product owner. |
+
+**Explicit unresolved verification limitation**:
+* A final disposable-browser remote dynamic verification was not completed.
+* Remote Service Worker control, Cache Storage enumeration, offline reload and exact deployed 393x852 runtime width metrics were not independently automated.
+* This is accepted as a bounded residual verification risk by the product owner.
+* Closure does not imply universal browser compatibility, permanent offline availability, or protection against browser storage eviction.
+
 ### R1 closure and acceptance sequence
 
 | Task | Status | Evidence or result |
@@ -364,7 +377,7 @@ A manifest and planning documents exist. JSZip 3.10.1 and epub.js 0.3.93 are now
 
 ### Governance reconciliation
 
-Localization implementation is complete through `R1-L10N-06`; canonical vocabulary and Mixed reconciliation, Guide restoration, acceptance-candidate corrections, bounded manual acceptance checks, and product-owner acceptance are complete. R1 is Closed. R2 is Active, with `R2-ENTRY-01 — Installability and Offline Baseline Audit` as the current read-only L2 task.
+Localization implementation is complete through `R1-L10N-06`; canonical vocabulary and Mixed reconciliation, Guide restoration, acceptance-candidate corrections, bounded manual acceptance checks, and product-owner acceptance are complete. R1 is Closed. R2 is Closed. No next milestone is activated.
 
 ---
 
@@ -455,9 +468,9 @@ R0 may be reopened only for a confirmed baseline defect or governance correction
 
 ## 11. Immediate Next Action
 
-> **`R2-RLS-01 — GitHub Pages Installability and Offline Verification`**
+> **Awaiting prioritization**
 
-Verify the application deployment on GitHub Pages.
+No new runtime task is active until product-owner prioritization.
 
 ---
 

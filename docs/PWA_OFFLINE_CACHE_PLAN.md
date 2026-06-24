@@ -1,6 +1,10 @@
 # PWA Offline Cache Plan
 
-**Status:** Plan only. No service worker is implemented yet.  
+**Status:** Implementation Complete (Bounded Risk Acceptance)
+
+* Locally verified and remotely deployed.
+* Remote dynamic-browser check waived through product-owner risk acceptance.
+* Browser cache/storage eviction caveats remain.
 **Product:** Interleaf Reader  
 **Last updated:** 2026-06-17
 
@@ -13,7 +17,7 @@ This document defines a cautious service worker and offline caching strategy bef
 - `pwa-reader/manifest.webmanifest` exists.
 - Basic self-authored PWA icons exist in `pwa-reader/assets/icons/`.
 - Service worker is implemented and local offline support verification passed.
-- Remote GitHub Pages verification is pending.
+- Remote dynamic-browser check waived through product-owner risk acceptance.
 - epub.js and JSZip are locally vendored.
 
 ## 2. Goals

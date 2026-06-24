@@ -195,7 +195,7 @@ R0 is **Closed** as of `2026-06-22`.
 
 R1 is **Closed** as of `2026-06-24`.
 
-R2 is the sole **Active** milestone. `R2-RLS-01 — GitHub Pages Installability and Offline Verification` is the current L2.
+R2 is **Closed**.
 
 ---
 
@@ -450,7 +450,9 @@ R1 may close only when:
 
 ## 6. Active Milestone — R2: Installable Local-First Release
 
-**Status: Active**
+**Status: Closed**
+
+The remaining remote dynamic verification limitation was explicitly accepted by the product owner.
 
 **Current L2:** `R2-RLS-01 — GitHub Pages Installability and Offline Verification`
 
@@ -742,7 +744,7 @@ During an active milestone:
 | ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------- | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | **R0 — Project Truth and Structure Reset**                    | A consistent, reproducible, trusted development baseline                                                    | **Closed** (`2026-06-22`) | Project reset approved; feature development paused | Canonical docs and archive reconciled, repository reproducible, evidence current, trusted baselines locked |
 | **R1 — Complete Interface Localization and Onboarding**       | Chinese-interface users can complete all current supported workflows without altering imported content      | **Closed** (`2026-06-24`) | R0 closed (`2026-06-22`)                         | Accepted against runtime candidate `4b7e94e`                                                               |
-| **R2 — Installable Local-First Release**                      | Users can access the official release, understand install/offline boundaries, and retain local reading data | **Active**              | R1 closed (`2026-06-24`)                           | Release, privacy, deployment, installability or fallback, update, and local-data verification pass         |
+| **R2 — Installable Local-First Release**                      | Users can access the official release, understand install/offline boundaries, and retain local reading data | **Closed**              | R1 closed (`2026-06-24`)                           | Release, privacy, deployment, installability or fallback, update, and local-data verification pass         |
 | **Translation and multilingual book system**                  | Real Translation Versions, Chinese Mode, and Mixed Mode                                                     | **Later / uncommitted** | Separate approved milestone                        | Not defined                                                                                                |
 | **Vocabulary enrichment and additional exports**              | Greater vocabulary depth without replacing reading                                                          | **Later / uncommitted** | Separate approved milestone                        | Not defined                                                                                                |
 | **Cloud, AO3, enhanced EPUB, and reading-platform expansion** | Optional platform expansion                                                                                 | **Later / uncommitted** | Separate approved milestone                        | Not defined                                                                                                |

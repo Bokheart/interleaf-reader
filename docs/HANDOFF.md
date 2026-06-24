@@ -40,17 +40,19 @@ As of `2026-06-24`:
 | --- | --- |
 | **R0** | Closed |
 | **R1** | Closed (`2026-06-24`) |
-| **R2** | Active |
+| **R2** | Closed (`2026-06-25`) |
 | **Accepted runtime baseline** | `99ad1e3` |
 | **Runtime baseline tag** | `r0-closure-99ad1e3` |
 | **Repository branch** | `feature/m2-reader-toc` |
 | **Accepted R1 runtime candidate** | `4b7e94e` — `fix: align Known terminology and Guide facts` |
+| **Current accepted R2 baselines** | SW Implementation `10b87d7`, Responsive Fix `7463846` |
 | **Latest pre-closure documentation commit** | `b7b0852` |
-| **Current L2** | `R2-RLS-01 — GitHub Pages Installability and Offline Verification` |
+| **Current L2** | `None (awaiting prioritization)` |
 | **Locale parity** | 253 English / 253 Simplified Chinese keys |
 | **Automated evidence** | `node --test tests/*.mjs` — 7 / 7 suites passed |
 | **Manual evidence** | Chinese and Mixed Guide rendering and desktop/mobile Guide layout checked; no blocking UI issue in the checked surfaces |
 | **R1 closure evidence** | Accepted by product owner 孙书心; bounded evidence recorded |
+| **R2 closure evidence** | Existing local and static deployment evidence accepted. Remaining bounded verification limitation (remote dynamic checks) waived. Cache Storage vs IndexedDB boundary maintained. |
 | **Further R0 verification** | Not required unless runtime code changes |
 
 R0 remains closed on accepted runtime baseline `99ad1e3` with tag `r0-closure-99ad1e3`. Product owner 孙书心 accepted R1 runtime candidate `4b7e94e` and closed R1 on `2026-06-24`; `b7b0852` is the latest pre-closure documentation commit. The accepted candidate includes complete English and Simplified Chinese Interface Language coverage, visible `Known / 已认识` terminology, and the restored authored Guide redesign. Historical internal value `mastered` remains compatibility-owned.
@@ -65,7 +67,7 @@ Reading Mode controls the built-in Guide's English, Chinese, or Mixed authored v
 
 ### Next recommended task
 
-Run `R2-RLS-01 — GitHub Pages Installability and Offline Verification`.
+No current runtime implementation task until the product owner selects the next milestone.
 
 ---
 

@@ -876,3 +876,12 @@ These questions must remain open until a separately approved architecture or imp
 ---
 
 *Add a new decision only when a durable product, architecture, compatibility, privacy, licensing, or milestone rule is approved. Do not use this file as a task or status log.*
+
+
+### DEC-034: Acceptance and Closure of R2
+
+* **Date**: 2026-06-25
+* **Context**: The R2 Installable Local-First Release implementation was completed, establishing baselines `10b87d7` and `7463846`. The offline app-shell and local vendor boundary were implemented. Local verification and remote static deployment evidence were completed. Remote dynamic-browser verification remained uncompleted.
+* **Decision**: Close R2 through bounded product-owner risk acceptance. The uncompleted remote dynamic-browser verification is accepted as a residual risk.
+* **Evidence**: Completed local verification and remote static deployment evidence.
+* **Caveats**: No claim of universal or permanent offline support. No authorization of Profile v2, Preview/UI redesign, pagination, Translation Version, alignment or real Mixed generation.
