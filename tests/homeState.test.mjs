@@ -2261,4 +2261,18 @@ assert.doesNotMatch(
   "app.js no longer renders a separate Guide version selector panel"
 );
 
+const stylesSource = await readFile(new URL("../pwa-reader/styles.css", import.meta.url), "utf8");
+
+assert.match(
+  stylesSource,
+  /\.reader-layout\s*\{\s*grid-template-columns:\s*minmax\(0,\s*1fr\);/m,
+  "Mobile .reader-layout rule uses a zero-minimum grid track to prevent flex/grid blowout"
+);
+
+assert.doesNotMatch(
+  stylesSource,
+  /\.reader-layout\s*\{\s*grid-template-columns:\s*1fr;/m,
+  "Mobile .reader-layout must not regress to plain 1fr which causes responsive grid overflow"
+);
+
 console.log("homeState tests passed");
