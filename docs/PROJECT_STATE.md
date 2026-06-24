@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-06-24
 **Canonical product specification:** `docs/INTERLEAF_READER_PRD.md`
-**Active control phase:** `R1 — Complete Interface Localization and Onboarding`
+**Active control phase:** `R2 — Installable Local-First Release`
 
 ---
 
@@ -15,19 +15,20 @@
 | **Runtime baseline tag** | `r0-closure-99ad1e3` (annotated tag on `99ad1e3`) |
 | **Product-owner acceptance** | 孙书心 accepted the R0 runtime baseline on `2026-06-22` |
 | **R1 acceptance candidate** | `4b7e94e` — `fix: align Known terminology and Guide facts` on `feature/m2-reader-toc` |
-| **R1 product-owner acceptance** | **Pending** — R1 remains Active and is not Closed |
+| **R1 product-owner acceptance** | 孙书心 accepted runtime candidate `4b7e94e` and authorized R1 closure on `2026-06-24` |
+| **Pre-closure documentation baseline** | `b7b0852` — accepted documentation sync baseline |
 | **R0 status** | **Closed** (`2026-06-22`) |
-| **R1 status** | **Active** — acceptance candidate verified; explicit product-owner acceptance still required |
-| **R2 status** | **Following** |
+| **R1 status** | **Closed** (`2026-06-24`) |
+| **R2 status** | **Active** |
 | **First R1 implementation commit** | `74ce309` — `feat: localize reader chrome` |
 | **R1-GOV-02 starting baseline** | `b2f1ab1` — `feat: close application localization gaps` |
 | **Repository state rule** | Read the current repository HEAD from Git; do not treat HEAD as the runtime baseline |
 | **Documentation baseline** | Canonical and historical archive work is committed and reconciled; later documentation-only commits do not change the accepted runtime baseline |
 | **Localization status** | **Complete through `R1-L10N-06`**; English and Simplified Chinese locale catalogs have **253 / 253 matching keys** |
 | **Verification status** | At `4b7e94e`, 7 / 7 Node suites passed and locale parity remained 253 English / 253 Simplified Chinese keys |
-| **Governance status** | `R1-GOV-01`, `R1-GOV-02`, and `R1-GOV-03` complete; closure corrections and acceptance checks complete through `R1-ACCEPT-01` |
-| **Feature-development status** | R1 remains Active; no vocabulary schema, Preview-behavior, UI-redesign, or real imported-book Mixed implementation has started |
-| **Current priority** | `R1-CLOSE-02 — Acceptance Evidence and User Documentation Sync` |
+| **Governance status** | R1 localization, governance reconciliation, Guide restoration, Known terminology correction, bounded acceptance checks, and closure documentation are complete |
+| **Feature-development status** | R2 entry audit authorized; no Profile migration, UI redesign, or real imported-book Mixed implementation is authorized by R1 closure |
+| **Current priority** | `R2-ENTRY-01 — Installability and Offline Baseline Audit` |
 
 The earlier runtime reproducibility risk is resolved. The current application no longer depends on untracked Guide or localization modules.
 
@@ -35,7 +36,7 @@ R0 closure evidence is complete. No verified R0 P0 blocker remains. The product 
 
 The exact repository HEAD is intentionally not hard-coded in this document because documentation-only commits may advance it. Git is the source of truth for the current HEAD; `99ad1e3` remains the fixed accepted runtime baseline regardless of later documentation commits.
 
-`b2f1ab1` remains the historical localization baseline. `4b7e94e` is the current R1 acceptance candidate; it does not replace the accepted and tagged R0 baseline.
+`b2f1ab1` remains the historical localization baseline. `4b7e94e` is the accepted R1 runtime candidate, and `b7b0852` is the accepted pre-closure documentation baseline. Neither replaces the accepted and tagged R0 baseline.
 
 ---
 
@@ -62,7 +63,7 @@ The current supported baseline includes:
 * Settings and Help surfaces;
 * complete English and Simplified Chinese Interface Language coverage through `R1-L10N-06`.
 
-R1 localization implementation is complete through `R1-L10N-06` with 253 matching English and Simplified Chinese locale keys. Vocabulary and Mixed canonical reconciliation, closure-readiness review, candidate corrections, and bounded acceptance checks are also complete. R1 remains Active because explicit product-owner acceptance and the closure decision are still pending.
+R1 localization implementation is complete through `R1-L10N-06` with 253 matching English and Simplified Chinese locale keys. Vocabulary and Mixed canonical reconciliation, Guide restoration, Known terminology correction, closure-readiness review, candidate corrections, and bounded acceptance checks are complete. The product owner accepted candidate `4b7e94e`; R1 is Closed and R2 is Active.
 
 The approved target vocabulary model is one global profile across all books and chapters with mutually exclusive Known, Learning, and Hidden outcomes. Current storage and runtime behavior have not been migrated to a new schema or chapter-analysis model.
 
@@ -255,11 +256,14 @@ This task records approved global vocabulary, explicit-action, stable-snapshot, 
 | `R1-CLOSE-01A` | Complete | Approved redesigned Guide content was restored while preserving the Guide key, six chapter IDs, Reading Mode ownership, and imported-book placeholder boundaries. |
 | `R1-CLOSE-01B` | Complete | Story-specific personal names remain in English: Elizabeth, Darcy, and Bingley. |
 | `R1-ACCEPT-01` | Complete | Product owner manually checked Chinese and Mixed Guide rendering and desktop/mobile layout; no blocking UI issue or visible `Mastered / 已掌握` remained in the checked surfaces. |
-| `R1-CLOSE-02` | **Current** | Synchronize acceptance evidence and current user guidance without changing runtime behavior. |
+| `R1-CLOSE-02` | Complete | Acceptance evidence and English/Chinese User Guides were synchronized in documentation baseline `b7b0852`. |
+| `R1-CLOSE-03` | Complete | Product owner accepted `4b7e94e`, closed R1, and activated R2 on `2026-06-24`. |
 
 The R1 acceptance candidate is commit `4b7e94e` (`fix: align Known terminology and Guide facts`) on `feature/m2-reader-toc`. The working tree was clean after the commit, the local branch was synchronized with origin, all 7 Node suites passed, and locale parity remained 253 English / 253 Simplified Chinese keys.
 
 The built-in Guide now has independently authored English and Chinese variants and purpose-written Mixed content rather than sentence-by-sentence slash translation. Reading Mode owns the Guide variant; Interface Language owns application chrome. Manual product-owner checks covered restored Chinese and Mixed Guide rendering and desktop/mobile Guide layout only; they are not evidence of a broader automated browser matrix.
+
+Accepted automated evidence for `4b7e94e` is bounded to 7 / 7 passing Node suites, 253 / 253 locale parity, passing JavaScript syntax checks, and passing diff checks. Accepted manual evidence is bounded to correct restored Chinese and Mixed Guide rendering, no blocking desktop/mobile Guide layout issue, visible `Known / 已认识` terminology, and English personal names Elizabeth, Darcy, and Bingley.
 
 UI terminology such as Home, Reader, Preview, Known, Save, and Hide inside Chinese Guide prose remains deferred content polish after the future UI redesign. This is not an R1 closure blocker.
 
@@ -279,7 +283,7 @@ The following remain outside the accepted R0 baseline or are deferred to later m
 * real imported-book Chinese Reading Mode;
 * real imported-book Mixed Mode;
 * translation-provider behavior;
-* explicit R1 product-owner acceptance and the final closure decision.
+* R2 installability and offline-baseline verification.
 
 These limits must not be represented as completed functionality.
 
@@ -360,7 +364,7 @@ A manifest and planning documents exist, but no service worker is implemented or
 
 ### Governance reconciliation
 
-Localization implementation is complete through `R1-L10N-06`; canonical vocabulary and Mixed reconciliation, closure-readiness review, acceptance-candidate corrections, and bounded manual acceptance checks are also complete. `R1-CLOSE-02` is the current documentation synchronization task. R1 remains Active and explicit product-owner acceptance is still required before closure.
+Localization implementation is complete through `R1-L10N-06`; canonical vocabulary and Mixed reconciliation, Guide restoration, acceptance-candidate corrections, bounded manual acceptance checks, and product-owner acceptance are complete. R1 is Closed. R2 is Active, with `R2-ENTRY-01 — Installability and Offline Baseline Audit` as the current read-only L2 task.
 
 ---
 
@@ -451,17 +455,16 @@ R0 may be reopened only for a confirmed baseline defect or governance correction
 
 ## 11. Immediate Next Action
 
-> **Complete `R1-CLOSE-02`, then conduct the explicit product-owner acceptance review for candidate `4b7e94e`.**
+> **`R2-ENTRY-01 — Installability and Offline Baseline Audit`**
 
-The acceptance review should decide whether to accept and close R1 based on the recorded candidate evidence. It must not start Profile migration, Preview changes, UI redesign, dictionary enrichment, alignment, or real Mixed Mode. Only the product owner may approve R1 closure.
+Run a read-only R2 entry audit before any release implementation. Verify the current manifest, icons, deployment path, dependency and network boundaries, offline behavior, update behavior, privacy constraints, and local-data preservation risks. Do not begin service-worker, dependency-vendoring, cache, or deployment implementation until the audit establishes the baseline and recommends a bounded task.
 
 ---
 
 ## 12. Remaining Unknowns
 
-* whether the deployed Pages build matches accepted runtime baseline `99ad1e3`;
+* whether the deployed Pages build matches accepted R1 runtime candidate `4b7e94e`;
 * whether non-Chromium browsers pass supported flows;
-* whether the product owner accepts R1 candidate `4b7e94e` and authorizes closure;
 * whether manifest and icons produce a verified installable experience;
 * whether service-worker work belongs in R2;
 * whether maintainer contact and legal review are complete;

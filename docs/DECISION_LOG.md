@@ -101,6 +101,7 @@ Current status details belong in `PROJECT_STATE.md`, not here.
 | DEC-030 | 2026-06-23 | Vocabulary interaction   | Keep persistence explicit and current chapter snapshots stable | Active   | —                         |
 | DEC-031 | 2026-06-23 | Mixed architecture       | Separate Preview and Mixed candidate contracts               | Active     | —                         |
 | DEC-032 | 2026-06-23 | Reproducibility          | Gate exact backup and generated artifacts on reproducible inputs | Active | —                         |
+| DEC-033 | 2026-06-24 | Milestone governance     | Accept R1 and activate the installable local-first release milestone | Active | —                      |
 
 ---
 
@@ -763,6 +764,31 @@ Current status details belong in `PROJECT_STATE.md`, not here.
 * **Supersedes:** None
 * **Superseded by:** None
 * **Related documents:** `docs/INTERLEAF_READER_PRD.md`, `docs/DATA_MODEL.md`, `docs/ARCHITECTURE.md`
+
+---
+
+### DEC-033 — Accept R1 and activate the installable local-first release milestone
+
+* **Date:** 2026-06-24
+* **Status:** Active
+* **Area:** Milestone governance
+* **Context:** R1 localization, vocabulary/Mixed governance reconciliation, Guide restoration, Known terminology correction, and bounded acceptance checks are complete. Runtime candidate `4b7e94e` and pre-closure documentation baseline `b7b0852` provide the accepted evidence boundary.
+* **Decision:**
+
+  * Product owner 孙书心 accepts R1 runtime candidate `4b7e94e`.
+  * R1 is Closed as of `2026-06-24`.
+  * R2 — Installable Local-First Release is activated as the sole Active milestone.
+  * `R2-ENTRY-01 — Installability and Offline Baseline Audit` is the current read-only L2 task; no runtime implementation begins before that audit.
+  * Acceptance evidence remains bounded to the recorded 7 / 7 Node suites, 253 / 253 locale parity, JavaScript syntax and diff checks, and the recorded manual Chinese/Mixed Guide and desktop/mobile Guide-layout checks. This decision does not claim a broader automated browser matrix.
+  * PDQ-012 remains open in full.
+* **Consequences:**
+
+  * R1 closure does not authorize Profile v2, backup v2, stable Preview implementation, dictionary enrichment, UI redesign, pagination or gestures, Translation Version persistence, alignment, or real Chinese or Mixed generation.
+  * R2 scope remains installability, offline and dependency boundaries, deployment, privacy, update behavior, and local-data preservation unless formally rebaselined.
+  * Historical R1 and R0 evidence remains valid within its recorded scope.
+* **Supersedes:** None
+* **Superseded by:** None
+* **Related documents:** `docs/PROJECT_STATE.md`, `docs/MILESTONES.md`, `docs/HANDOFF.md`
 
 ---
 

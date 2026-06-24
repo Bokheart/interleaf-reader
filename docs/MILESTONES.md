@@ -183,9 +183,9 @@ Commit `91d6914` is an ancestor of accepted runtime baseline `99ad1e3`. The base
 
 The responsive Vocabulary Preview prototype retained under `design-lab/` is version-controlled non-runtime experimental material. It is not imported by production, is not approved implementation, and does not count as milestone-completion evidence.
 
-A separate six-file Guide redesign and interaction draft was preserved externally and removed from the R0 working tree. It remains deferred input and was not applied to the accepted baseline.
+A separately preserved Guide redesign was selectively restored during R1 while retaining the stable Guide key, six chapter IDs, current terminology, and placeholder boundaries.
 
-R1 Interface Language implementation is complete through `R1-L10N-06` at starting baseline `b2f1ab1`. English and Simplified Chinese locale catalogs have 253 / 253 matching keys, and seven Node suites passed at that baseline. `R1-GOV-01` completed the read-only vocabulary/Mixed repository audit; `R1-GOV-02` completed the canonical vocabulary and Mixed semantics reconciliation; `R1-GOV-03 — R1 Closure Readiness and Product-Owner Acceptance Review` is the current L2 documentation task—a read-only closure-readiness and product-owner acceptance review, not runtime implementation.
+R1 Interface Language implementation, governance reconciliation, Guide restoration, Known terminology correction, and bounded acceptance checks are complete. Product owner 孙书心 accepted runtime candidate `4b7e94e` and closed R1 on `2026-06-24`; pre-closure documentation baseline `b7b0852` records the synchronized evidence.
 
 Current verification evidence and closure status are maintained in `docs/PROJECT_STATE.md`.
 
@@ -193,9 +193,9 @@ Chinese Reading Mode and imported-book Mixed Mode remain placeholders.
 
 R0 is **Closed** as of `2026-06-22`.
 
-R1 is **Active**. Localization and canonical governance reconciliation are complete, but closure-readiness review, closure evidence, and explicit product-owner acceptance remain outstanding. R1 must not be marked Closed merely because locale parity and canonical reconciliation are complete.
+R1 is **Closed** as of `2026-06-24`.
 
-R2 remains **Following** and has not started.
+R2 is the sole **Active** milestone. `R2-ENTRY-01 — Installability and Offline Baseline Audit` is the current L2 and is read-only; runtime implementation must not begin before that audit.
 
 ---
 
@@ -332,15 +332,21 @@ R0 may close only when all of the following are true:
 
 ---
 
-## 5. Active Milestone — R1: Complete Interface Localization and Onboarding
+## 5. Closed Milestone — R1: Complete Interface Localization and Onboarding
 
-**Status: Active**
+**Status: Closed (`2026-06-24`)**
+
+**Accepted runtime candidate:** `4b7e94e`
+
+**Pre-closure documentation baseline:** `b7b0852`
+
+**Product-owner acceptance:** 孙书心 — `2026-06-24`
 
 ### Entry Condition
 
 R1 entry conditions are satisfied. R0 closed on `2026-06-22` with accepted runtime baseline `99ad1e3` and tag `r0-closure-99ad1e3`.
 
-R1 localization implementation is complete through `R1-L10N-06` at `b2f1ab1`, with 253 / 253 locale-key parity and seven passing Node suites. `R1-GOV-01` and `R1-GOV-02 — Canonical Vocabulary and Mixed Semantics Reconciliation` are complete; `R1-GOV-03 — R1 Closure Readiness and Product-Owner Acceptance Review` is the current Active L2 documentation task—a read-only closure-readiness and product-owner acceptance review, not runtime implementation. Profile migration, backup schema version 2, Preview redesign, UI redesign, dictionary enrichment, and real Mixed Mode remain outside current R1 implementation unless formally rebaselined. The externally preserved Guide draft remains deferred review input, not accepted implementation or milestone evidence, and must not be restored automatically.
+R1 entry conditions were satisfied by R0 closure. R1 then completed localization, canonical vocabulary/Mixed governance reconciliation, the approved Guide authored-content restoration, Known terminology correction, and bounded acceptance checks. Closure does not authorize Profile migration, backup schema version 2, stable Preview implementation, UI redesign, dictionary enrichment, or real imported-book Mixed Mode.
 
 ### User Outcome
 
@@ -442,7 +448,13 @@ R1 may close only when:
 
 ---
 
-## 6. Following Milestone — R2: Installable Local-First Release
+## 6. Active Milestone — R2: Installable Local-First Release
+
+**Status: Active**
+
+**Current L2:** `R2-ENTRY-01 — Installability and Offline Baseline Audit`
+
+R2 begins with a read-only entry audit. Service-worker, dependency-vendoring, cache, deployment, or other runtime implementation must not begin until the audit records the current baseline, risks, boundaries, and recommended bounded next task.
 
 ### Entry Condition
 
@@ -513,6 +525,10 @@ R2 does not include:
 * real Chinese Reading Mode;
 * real Mixed Mode;
 * Book Project migration;
+* Vocabulary Profile schema migration or backup schema version 2;
+* stable Preview snapshot implementation or dictionary enrichment;
+* Translation Version persistence or source-to-translation alignment;
+* pagination, gestures, or broad UI redesign;
 * public book hosting;
 * public translated-book hosting;
 * AO3 scraping;
@@ -725,8 +741,8 @@ During an active milestone:
 | Milestone                                                     | Outcome                                                                                                     | Status                  | Entry condition                                    | Exit condition                                                                                             |
 | ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------- | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | **R0 — Project Truth and Structure Reset**                    | A consistent, reproducible, trusted development baseline                                                    | **Closed** (`2026-06-22`) | Project reset approved; feature development paused | Canonical docs and archive reconciled, repository reproducible, evidence current, trusted baselines locked |
-| **R1 — Complete Interface Localization and Onboarding**       | Chinese-interface users can complete all current supported workflows without altering imported content      | **Active**              | R0 closed (`2026-06-22`)                           | Localization and onboarding acceptance flows pass without English Study regression                         |
-| **R2 — Installable Local-First Release**                      | Users can access the official release, understand install/offline boundaries, and retain local reading data | **Following**           | R0 closed and R1 closed or formally deferred       | Release, privacy, deployment, installability or fallback, update, and local-data verification pass         |
+| **R1 — Complete Interface Localization and Onboarding**       | Chinese-interface users can complete all current supported workflows without altering imported content      | **Closed** (`2026-06-24`) | R0 closed (`2026-06-22`)                         | Accepted against runtime candidate `4b7e94e`                                                               |
+| **R2 — Installable Local-First Release**                      | Users can access the official release, understand install/offline boundaries, and retain local reading data | **Active**              | R1 closed (`2026-06-24`)                           | Release, privacy, deployment, installability or fallback, update, and local-data verification pass         |
 | **Translation and multilingual book system**                  | Real Translation Versions, Chinese Mode, and Mixed Mode                                                     | **Later / uncommitted** | Separate approved milestone                        | Not defined                                                                                                |
 | **Vocabulary enrichment and additional exports**              | Greater vocabulary depth without replacing reading                                                          | **Later / uncommitted** | Separate approved milestone                        | Not defined                                                                                                |
 | **Cloud, AO3, enhanced EPUB, and reading-platform expansion** | Optional platform expansion                                                                                 | **Later / uncommitted** | Separate approved milestone                        | Not defined                                                                                                |

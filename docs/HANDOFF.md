@@ -39,18 +39,21 @@ As of `2026-06-24`:
 | Field | Current state |
 | --- | --- |
 | **R0** | Closed |
-| **R1** | Active — acceptance candidate verified; explicit product-owner acceptance pending |
+| **R1** | Closed (`2026-06-24`) |
+| **R2** | Active |
 | **Accepted runtime baseline** | `99ad1e3` |
 | **Runtime baseline tag** | `r0-closure-99ad1e3` |
 | **Repository branch** | `feature/m2-reader-toc` |
-| **R1 acceptance candidate HEAD** | `4b7e94e` — `fix: align Known terminology and Guide facts` |
+| **Accepted R1 runtime candidate** | `4b7e94e` — `fix: align Known terminology and Guide facts` |
+| **Latest pre-closure documentation commit** | `b7b0852` |
+| **Current L2** | `R2-ENTRY-01 — Installability and Offline Baseline Audit` |
 | **Locale parity** | 253 English / 253 Simplified Chinese keys |
 | **Automated evidence** | `node --test tests/*.mjs` — 7 / 7 suites passed |
 | **Manual evidence** | Chinese and Mixed Guide rendering and desktop/mobile Guide layout checked; no blocking UI issue in the checked surfaces |
-| **R1 closure evidence** | Candidate evidence recorded; explicit product-owner acceptance still required |
+| **R1 closure evidence** | Accepted by product owner 孙书心; bounded evidence recorded |
 | **Further R0 verification** | Not required unless runtime code changes |
 
-R0 remains closed on accepted runtime baseline `99ad1e3` with tag `r0-closure-99ad1e3`. R1 candidate `4b7e94e` includes complete English and Simplified Chinese Interface Language coverage, visible `Known / 已认识` terminology, and the restored authored Guide redesign. Historical internal value `mastered` remains compatibility-owned.
+R0 remains closed on accepted runtime baseline `99ad1e3` with tag `r0-closure-99ad1e3`. Product owner 孙书心 accepted R1 runtime candidate `4b7e94e` and closed R1 on `2026-06-24`; `b7b0852` is the latest pre-closure documentation commit. The accepted candidate includes complete English and Simplified Chinese Interface Language coverage, visible `Known / 已认识` terminology, and the restored authored Guide redesign. Historical internal value `mastered` remains compatibility-owned.
 
 Reading Mode controls the built-in Guide's English, Chinese, or Mixed authored variant. Interface Language controls application chrome and does not select Guide content. Imported-book Chinese Reading Mode and Mixed Mode remain honest placeholders. Real imported-book Chinese or Mixed requires future Translation Version, alignment, candidate analysis, and generation contracts.
 
@@ -62,7 +65,7 @@ Reading Mode controls the built-in Guide's English, Chinese, or Mixed authored v
 
 ### Next recommended task
 
-Complete `R1-CLOSE-02`, then conduct the explicit product-owner acceptance review for candidate `4b7e94e`. Do not begin new implementation as part of that review.
+Run `R2-ENTRY-01 — Installability and Offline Baseline Audit`. This is a read-only entry audit; do not begin service-worker, cache, dependency-vendoring, deployment, or other runtime implementation before it is complete.
 
 ---
 
