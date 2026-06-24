@@ -18,5 +18,5 @@ This directory contains exact, tracked versions of the runtime dependencies requ
 * **Source:** `npm pack epubjs@0.3.93`
 * **Vendored runtime file:** `epubjs-0.3.93/epub.min.js`
 * **Source Map:** `epubjs-0.3.93/epub.js.map`
-* **License:** MIT (`epubjs-0.3.93/LICENSE`)
+* **License:** BSD 2-Clause (`epubjs-0.3.93/LICENSE`)
 * **SHA-256 (`epub.min.js`):** `06EAE15745107B4AA508C95538275251F69BFB9F1175621FC458D9F42ED082D4`

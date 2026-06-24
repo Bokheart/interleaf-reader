@@ -46,7 +46,7 @@ As of `2026-06-24`:
 | **Repository branch** | `feature/m2-reader-toc` |
 | **Accepted R1 runtime candidate** | `4b7e94e` — `fix: align Known terminology and Guide facts` |
 | **Latest pre-closure documentation commit** | `b7b0852` |
-| **Current L2** | `R2-PWA-01 — Implement App Shell and Static-Data Service Worker` |
+| **Current L2** | `R2-RLS-01 — GitHub Pages Installability and Offline Verification` |
 | **Locale parity** | 253 English / 253 Simplified Chinese keys |
 | **Automated evidence** | `node --test tests/*.mjs` — 7 / 7 suites passed |
 | **Manual evidence** | Chinese and Mixed Guide rendering and desktop/mobile Guide layout checked; no blocking UI issue in the checked surfaces |
@@ -65,7 +65,7 @@ Reading Mode controls the built-in Guide's English, Chinese, or Mixed authored v
 
 ### Next recommended task
 
-Run `R2-PWA-01 — Implement App Shell and Static-Data Service Worker`.
+Run `R2-RLS-01 — GitHub Pages Installability and Offline Verification`.
 
 ---
 

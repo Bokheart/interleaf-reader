@@ -27,8 +27,8 @@
 | **Localization status** | **Complete through `R1-L10N-06`**; English and Simplified Chinese locale catalogs have **253 / 253 matching keys** |
 | **Verification status** | At `4b7e94e`, 7 / 7 Node suites passed and locale parity remained 253 English / 253 Simplified Chinese keys |
 | **Governance status** | R1 localization, governance reconciliation, Guide restoration, Known terminology correction, bounded acceptance checks, and closure documentation are complete |
-| **Feature-development status** | `R2-ENTRY-01` and `R2-VND-01` complete; JSZip 3.10.1 and epub.js 0.3.93 are now locally vendored |
-| **Current priority** | `R2-PWA-01 — Implement App Shell and Static-Data Service Worker` |
+| **Feature-development status** | `R2-PWA-01` complete; App Shell SW implemented and verified locally |
+| **Current priority** | `R2-RLS-01 — GitHub Pages Installability and Offline Verification` |
 
 The earlier runtime reproducibility risk is resolved. The current application no longer depends on untracked Guide or localization modules.
 
@@ -360,7 +360,7 @@ No Profile migration, backup v2, Preview behavior change, dictionary enrichment,
 
 ### Service worker and offline application shell
 
-A manifest and planning documents exist. JSZip 3.10.1 and epub.js 0.3.93 are now locally vendored. No service worker exists yet; offline reload is not yet claimed. IndexedDB and private imported EPUB data were not changed.
+A manifest and planning documents exist. JSZip 3.10.1 and epub.js 0.3.93 are now locally vendored. The initial App Shell and static-data service worker now exists and precaches local JSON datasets. Exact cache scope excludes cross-origin and dynamic requests. Imported EPUBs and profile data remain IndexedDB-only; no private book content is stored in Cache Storage. Local offline browser verification passed manually. Remote GitHub Pages installability/offline verification is still pending.
 
 ### Governance reconciliation
 
@@ -455,9 +455,9 @@ R0 may be reopened only for a confirmed baseline defect or governance correction
 
 ## 11. Immediate Next Action
 
-> **`R2-PWA-01 — Implement App Shell and Static-Data Service Worker`**
+> **`R2-RLS-01 — GitHub Pages Installability and Offline Verification`**
 
-Implement the app shell and static-data service worker.
+Verify the application deployment on GitHub Pages.
 
 ---
 

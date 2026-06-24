@@ -949,6 +949,14 @@ function scheduleAppInit() {
   }
 }
 
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch((err) => {
+      console.warn("Service Worker registration failed:", err);
+    });
+  });
+}
+
 scheduleAppInit();
 
 // app.js owns UI wiring and state. EPUB parsing, matching, translation, and

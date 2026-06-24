@@ -195,7 +195,7 @@ R0 is **Closed** as of `2026-06-22`.
 
 R1 is **Closed** as of `2026-06-24`.
 
-R2 is the sole **Active** milestone. `R2-ENTRY-01 — Installability and Offline Baseline Audit` is the current L2 and is read-only; runtime implementation must not begin before that audit.
+R2 is the sole **Active** milestone. `R2-RLS-01 — GitHub Pages Installability and Offline Verification` is the current L2.
 
 ---
 
@@ -452,9 +452,9 @@ R1 may close only when:
 
 **Status: Active**
 
-**Current L2:** `R2-ENTRY-01 — Installability and Offline Baseline Audit`
+**Current L2:** `R2-RLS-01 — GitHub Pages Installability and Offline Verification`
 
-R2 begins with a read-only entry audit. Service-worker, dependency-vendoring, cache, deployment, or other runtime implementation must not begin until the audit records the current baseline, risks, boundaries, and recommended bounded next task.
+R2 has an implemented Service Worker and passed local offline verification. Remote installation and deployment verification are pending.
 
 ### Entry Condition
 

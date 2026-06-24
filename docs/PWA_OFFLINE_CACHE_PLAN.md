@@ -12,9 +12,9 @@ This document defines a cautious service worker and offline caching strategy bef
 - Root `index.html` redirects to `./pwa-reader/`.
 - `pwa-reader/manifest.webmanifest` exists.
 - Basic self-authored PWA icons exist in `pwa-reader/assets/icons/`.
-- Service worker is not implemented.
-- Offline support is not implemented.
-- epub.js and JSZip still load from CDN.
+- Service worker is implemented and local offline support verification passed.
+- Remote GitHub Pages verification is pending.
+- epub.js and JSZip are locally vendored.
 
 ## 2. Goals
 
