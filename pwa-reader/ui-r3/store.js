@@ -50,6 +50,7 @@ function createDefaultReaderState() {
     progressLabel: "No chapter loaded",
     hasPrevious: false,
     hasNext: false,
+    toc: [],
     error: null
   };
 }

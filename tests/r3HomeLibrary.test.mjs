@@ -5,7 +5,7 @@ import test from "node:test";
 
 import { bootstrapR3App } from "../pwa-reader/ui-r3/bootstrap.js";
 import { createR3Controller } from "../pwa-reader/ui-r3/controller.js";
-import { R3_ROUTES } from "../pwa-reader/ui-r3/routes.js";
+import { R3_OVERLAYS, R3_ROUTES } from "../pwa-reader/ui-r3/routes.js";
 import { createR3Store } from "../pwa-reader/ui-r3/store.js";
 import { createAppShellView } from "../pwa-reader/ui-r3/views/appShellView.js";
 import { createHomeView } from "../pwa-reader/ui-r3/views/homeView.js";
@@ -221,6 +221,7 @@ function createShellState(overrides = {}) {
       progressLabel: "No chapter loaded",
       hasPrevious: false,
       hasNext: false,
+      toc: [],
       error: null
     },
     books,
@@ -654,11 +655,13 @@ test("App Shell renders the real Reader state instead of the old placeholder", (
       progressLabel: "The River Bank · 2 / 3",
       hasPrevious: true,
       hasNext: true,
+      toc: [],
       error: null
     }
   }));
   const readerContent = findAll(shell, (node) => node.className === "r3-reader-content")[0];
   const backButton = findByDataAction(shell, "reader-back")[0];
+  const contentsButton = findByDataAction(shell, "reader-contents")[0];
   const previousButton = findByDataAction(shell, "reader-previous")[0];
   const nextButton = findByDataAction(shell, "reader-next")[0];
 
@@ -667,8 +670,50 @@ test("App Shell renders the real Reader state instead of the old placeholder", (
   assert.match(shell.textContent, /The River Bank/);
   assert.equal(readerContent.innerHTML, "<article><p>Real fixture chapter text.</p></article>");
   assert.ok(backButton);
+  assert.ok(contentsButton);
   assert.equal(previousButton.disabled, false);
   assert.equal(nextButton.disabled, false);
+});
+
+test("App Shell renders Reader Contents with current chapter and selectable rows", () => {
+  const documentRef = createMockDocument();
+  const shell = createAppShellView(documentRef, createShellState({
+    activeScreen: R3_ROUTES.READER,
+    activeBookId: "book-one",
+    activeChapterId: "chapter-2",
+    activeChapterIndex: 1,
+    openOverlay: R3_OVERLAYS.CONTENTS,
+    reader: {
+      status: "ready",
+      bookTitle: "The Wind in the Willows",
+      chapterTitle: "The River Bank",
+      html: "<article><p>Real fixture chapter text.</p></article>",
+      chapterIndex: 1,
+      chapterCount: 3,
+      progressLabel: "The River Bank · 2 / 3",
+      hasPrevious: true,
+      hasNext: true,
+      toc: [
+        { id: "chapter-1", title: "The Open Road", index: 0, isCurrent: false, isReadable: true },
+        { id: "chapter-2", title: "The River Bank", index: 1, isCurrent: true, isReadable: true },
+        { id: "", title: "Appendix", index: 2, isCurrent: false, isReadable: false }
+      ],
+      error: null
+    }
+  }));
+  const rows = findByDataAction(shell, "reader-select-chapter");
+  const closeButton = findByDataAction(shell, "reader-close-contents")[0];
+  const currentRows = findAll(shell, (node) => node.getAttribute("aria-current") === "true");
+
+  assert.match(shell.textContent, /Contents/);
+  assert.equal(rows.length, 3);
+  assert.equal(rows[0].dataset.chapterIndex, "0");
+  assert.equal(rows[1].dataset.chapterIndex, "1");
+  assert.equal(rows[1].className.includes("is-current"), true);
+  assert.equal(rows[2].disabled, true);
+  assert.equal(currentRows.length, 1);
+  assert.equal(currentRows[0].dataset.chapterIndex, "1");
+  assert.ok(closeButton);
 });
 
 test("Controller initializes Home and Library data through books adapter DTOs", async () => {
@@ -841,6 +886,64 @@ test("Bootstrap binds one file-change, delegated click, reader-scroll, and lifec
   assert.equal(first.root.eventListeners.get("change").length, 1);
   assert.equal(first.root.eventListeners.get("scroll").length, 1);
   assert.equal(documentRef.listeners.filter((entry) => entry.type === "visibilitychange").length, 1);
+});
+
+test("Bootstrap delegates Reader Contents actions to the controller", async () => {
+  const documentRef = createMockDocument();
+  const calls = [];
+  const store = createR3Store(createShellState({
+    activeScreen: R3_ROUTES.READER,
+    activeBookId: "book-one",
+    activeChapterId: "chapter-2",
+    activeChapterIndex: 1,
+    openOverlay: R3_OVERLAYS.CONTENTS,
+    reader: {
+      status: "ready",
+      bookTitle: "The Wind in the Willows",
+      chapterTitle: "The River Bank",
+      html: "<article><p>Real fixture chapter text.</p></article>",
+      chapterIndex: 1,
+      chapterCount: 3,
+      progressLabel: "The River Bank · 2 / 3",
+      hasPrevious: true,
+      hasNext: true,
+      toc: [
+        { id: "chapter-1", title: "The Open Road", index: 0, isCurrent: false, isReadable: true },
+        { id: "chapter-2", title: "The River Bank", index: 1, isCurrent: true, isReadable: true }
+      ],
+      error: null
+    }
+  }));
+  const controller = {
+    async initialize() {
+      calls.push(["initialize"]);
+    },
+    openReaderContents() {
+      calls.push(["openReaderContents"]);
+    },
+    selectReaderChapter(index) {
+      calls.push(["selectReaderChapter", index]);
+    },
+    closeOverlay() {
+      calls.push(["closeOverlay"]);
+    },
+    applyReaderScrollRestoration() {},
+    recordReaderScroll() {},
+    flushReaderProgress() {}
+  };
+
+  const app = await bootstrapR3App({ document: documentRef, store, controller });
+  const clickListener = app.root.eventListeners.get("click")[0];
+  clickListener({ target: findByDataAction(app.root, "reader-contents")[0] });
+  clickListener({ target: findByDataAction(app.root, "reader-select-chapter")[0] });
+  clickListener({ target: findByDataAction(app.root, "reader-close-contents")[0] });
+
+  assert.deepEqual(calls, [
+    ["initialize"],
+    ["openReaderContents"],
+    ["selectReaderChapter", 0],
+    ["closeOverlay"]
+  ]);
 });
 
 test("R3 Home and Library views do not import adapters, engines, or unsafe HTML insertion", async () => {

@@ -10,7 +10,7 @@ import {
   getChapterIndex
 } from "../navigationEngine.js";
 import { r3Actions } from "./actions.js";
-import { R3_ROUTES } from "./routes.js";
+import { R3_OVERLAYS, R3_ROUTES } from "./routes.js";
 
 function createDefaultAdapters() {
   return {
@@ -212,6 +212,51 @@ export function createR3Controller(options = {}) {
     return chapters[reader?.currentIndex] || null;
   }
 
+  function captureValidReaderState(reader = activeReader) {
+    const state = store.getState();
+    if (
+      reader
+      && state.reader?.status === "ready"
+      && state.activeChapterId === reader.renderedChapterId
+      && state.activeChapterIndex === reader.renderedChapterIndex
+      && state.reader.chapterIndex === reader.renderedChapterIndex
+    ) {
+      reader.lastValidReaderState = state.reader;
+    }
+
+    return reader?.lastValidReaderState || null;
+  }
+
+  function buildReaderToc(reader = activeReader) {
+    const chapters = reader?.book?.chapters || [];
+    const currentChapter = getCurrentReaderChapter(reader);
+    const currentChapterId = currentChapter?.id || null;
+    const rawToc = typeof adapters.reader.getTableOfContents === "function"
+      ? adapters.reader.getTableOfContents(reader?.book || {}, currentChapterId || "")
+      : chapters.map((chapter, index) => ({
+          id: chapter.id,
+          title: chapter.title,
+          index,
+          isCurrent: chapter.id === currentChapterId
+        }));
+
+    return (Array.isArray(rawToc) ? rawToc : []).map((item = {}, fallbackIndex) => {
+      const index = Number.isInteger(item.index) ? item.index : fallbackIndex;
+      const chapter = chapters[index] || null;
+      const id = typeof item.id === "string" ? item.id : chapter?.id || "";
+      const title = item.title || chapter?.title || `Chapter ${index + 1}`;
+      const isReadable = Boolean(chapter && id && chapter.id === id);
+
+      return {
+        id,
+        title,
+        index,
+        isCurrent: Boolean(item.isCurrent || id === currentChapterId),
+        isReadable
+      };
+    });
+  }
+
   function buildProgressSavePayload(reader = activeReader) {
     const chapter = getCurrentReaderChapter(reader);
     if (!reader?.bookKey || !chapter?.id || typeof adapters.reader.savePosition !== "function") {
@@ -305,8 +350,7 @@ export function createR3Controller(options = {}) {
     return runLatestProgressSave(reader);
   }
 
-  async function flushReaderProgress() {
-    const reader = activeReader;
+  async function flushReaderProgress(reader = activeReader) {
     if (!reader) {
       return store.getState();
     }
@@ -346,7 +390,12 @@ export function createR3Controller(options = {}) {
 
     const sequence = ++readerSequence;
     const chapter = chapters[chapterIndex];
-    clearPendingScrollSave(reader);
+    const previousReaderState = captureValidReaderState(reader);
+    await flushReaderProgress(reader);
+    if (sequence !== readerSequence || activeReader !== reader) {
+      return store.getState();
+    }
+
     store.dispatch(r3Actions.setReaderState({
       status: "loading",
       bookTitle: reader.book?.title || reader.restoration?.savedBook?.title || "Untitled Book",
@@ -394,10 +443,18 @@ export function createR3Controller(options = {}) {
         isBuiltInGuide: Boolean(reader.book?.isBuiltInGuide)
       });
 
+      const currentState = store.getState();
+      const shouldUpdateToc = currentState.openOverlay === R3_OVERLAYS.CONTENTS
+        || currentState.reader?.toc?.length > 0;
+
       store.dispatch(r3Actions.setActiveChapter(loadedChapter.id, chapterIndex));
       const nextState = store.dispatch(r3Actions.setReaderState(
-        getReaderStateFromChapter(reader, loadedChapter, chapterIndex, rendered)
+        {
+          ...getReaderStateFromChapter(reader, loadedChapter, chapterIndex, rendered),
+          toc: shouldUpdateToc ? buildReaderToc(reader) : []
+        }
       ));
+      reader.lastValidReaderState = nextState.reader;
       queueProgressSave(reader);
       return nextState;
     } catch (error) {
@@ -407,8 +464,9 @@ export function createR3Controller(options = {}) {
 
       store.dispatch(r3Actions.setError(error));
       return store.dispatch(r3Actions.setReaderState({
+        ...(previousReaderState || {}),
         status: "error",
-        html: "",
+        html: previousReaderState?.html || "",
         error
       }));
     }
@@ -485,7 +543,8 @@ export function createR3Controller(options = {}) {
       lastCompletedSaveSignature: null,
       inFlightSaveSignature: null,
       pendingSave: null,
-      saveInFlight: null
+      saveInFlight: null,
+      lastValidReaderState: null
     };
 
     store.dispatch(r3Actions.setActiveBook({
@@ -692,6 +751,42 @@ export function createR3Controller(options = {}) {
     return true;
   }
 
+  function openReaderContents() {
+    if (!activeReader) {
+      return store.getState();
+    }
+
+    store.dispatch(r3Actions.setReaderState({
+      toc: buildReaderToc(activeReader)
+    }));
+    return store.dispatch(r3Actions.openOverlay(R3_OVERLAYS.CONTENTS));
+  }
+
+  async function selectReaderChapter(chapterIndex) {
+    const reader = activeReader;
+    if (!reader || !Number.isInteger(chapterIndex)) {
+      return store.getState();
+    }
+
+    const tocItem = buildReaderToc(reader).find((item) => item.index === chapterIndex);
+    if (!tocItem?.isReadable) {
+      return store.getState();
+    }
+
+    const stateAfterRender = await renderReaderChapter(chapterIndex);
+    const currentState = store.getState();
+    if (
+      activeReader === reader
+      && currentState.reader?.status === "ready"
+      && currentState.activeChapterIndex === chapterIndex
+      && stateAfterRender.reader?.status === "ready"
+    ) {
+      return store.dispatch(r3Actions.closeOverlay());
+    }
+
+    return store.getState();
+  }
+
   return {
     initialize,
     loadBooks,
@@ -737,6 +832,8 @@ export function createR3Controller(options = {}) {
     recordReaderScroll,
     applyReaderScrollRestoration,
     flushReaderProgress,
+    openReaderContents,
+    selectReaderChapter,
 
     setActiveChapter(chapterId, chapterIndex = -1) {
       return store.dispatch(r3Actions.setActiveChapter(chapterId, chapterIndex));

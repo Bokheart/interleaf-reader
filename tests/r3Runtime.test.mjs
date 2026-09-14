@@ -115,6 +115,7 @@ function createAdapters() {
     getContinueReading: 0,
     openBook: [],
     resumeBook: [],
+    getTableOfContents: [],
     savePosition: [],
     restorePosition: [],
     loadEpubFromFile: [],
@@ -187,6 +188,15 @@ function createAdapters() {
         async resumeBook(bookKey = null) {
           calls.resumeBook.push(bookKey);
           return restoration;
+        },
+        getTableOfContents(book = {}, currentChapterId = "") {
+          calls.getTableOfContents.push({ book, currentChapterId });
+          return (book.chapters || []).map((chapter, index) => ({
+            id: chapter.id,
+            title: chapter.title,
+            index,
+            isCurrent: chapter.id === currentChapterId
+          }));
         },
         restorePosition(progress, chapterId, metrics) {
           calls.restorePosition.push({ progress, chapterId, metrics });
@@ -338,6 +348,7 @@ test("R3 store creates the expected initial runtime state", () => {
       progressLabel: "No chapter loaded",
       hasPrevious: false,
       hasNext: false,
+      toc: [],
       error: null
     },
     books: [],
@@ -528,6 +539,225 @@ test("R3 controller restores and renders the requested EPUB chapter without stor
   assert.equal(state.reader.hasNext, false);
   assert.equal(JSON.stringify(state).includes("private-epub-handle"), false);
   assert.equal(JSON.stringify(state).includes("recent.epub"), false);
+});
+
+test("R3 controller opens Contents from the real EPUB chapter list and marks the current chapter", async () => {
+  const { calls, adapters, readerRuntime } = createAdapters();
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters, readerRuntime });
+
+  await controller.resumeBook("recent");
+  const state = controller.openReaderContents();
+
+  assert.equal(calls.getTableOfContents.length, 1);
+  assert.equal(calls.getTableOfContents[0].currentChapterId, "chapter-2");
+  assert.equal(state.openOverlay, R3_OVERLAYS.CONTENTS);
+  assert.deepEqual(state.reader.toc, [
+    { id: "chapter-1", title: "Chapter 1", index: 0, isCurrent: false, isReadable: true },
+    { id: "chapter-2", title: "Chapter 2", index: 1, isCurrent: true, isReadable: true }
+  ]);
+  assert.equal(JSON.stringify(state.reader.toc).includes("private-epub-handle"), false);
+});
+
+test("R3 controller selects a Contents chapter through the guarded render and save pipeline", async () => {
+  const { calls, adapters, readerRuntime } = createAdapters();
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters, readerRuntime });
+
+  await controller.resumeBook("recent");
+  controller.openReaderContents();
+  calls.savePosition.length = 0;
+  const state = await controller.selectReaderChapter(0);
+  await controller.flushReaderProgress();
+
+  assert.equal(state.openOverlay, null);
+  assert.equal(state.activeChapterId, "chapter-1");
+  assert.equal(state.activeChapterIndex, 0);
+  assert.equal(state.reader.chapterTitle, "Chapter 1");
+  assert.equal(state.reader.hasPrevious, false);
+  assert.equal(state.reader.hasNext, true);
+  assert.deepEqual(state.reader.toc.map((item) => [item.id, item.isCurrent]), [
+    ["chapter-1", true],
+    ["chapter-2", false]
+  ]);
+  assert.equal(calls.loadChapterContent.at(-1).chapter.id, "chapter-1");
+  assert.equal(calls.savePosition.at(-1).currentChapterId, "chapter-1");
+  assert.equal(calls.savePosition.at(-1).scrollTop, 0);
+});
+
+test("R3 controller persists pending outgoing progress before selecting a Contents chapter", async () => {
+  const timerHarness = createTimerHarness();
+  const { calls, adapters, readerRuntime } = createAdapters();
+  const store = createR3Store();
+  const controller = createR3Controller({
+    store,
+    adapters,
+    readerRuntime,
+    timers: timerHarness.timers,
+    scrollSaveDelayMs: 1000
+  });
+
+  await controller.resumeBook("recent");
+  await controller.flushReaderProgress();
+  calls.savePosition.length = 0;
+
+  controller.recordReaderScroll({ scrollTop: 240, scrollHeight: 1000, clientHeight: 200 });
+  controller.openReaderContents();
+  const state = await controller.selectReaderChapter(0);
+  await controller.flushReaderProgress();
+
+  assert.equal(timerHarness.pendingCount(), 0);
+  assert.deepEqual(
+    calls.savePosition.map((entry) => ({
+      currentChapterId: entry.currentChapterId,
+      currentChapterIndex: entry.chapters.findIndex((chapter) => chapter.id === entry.currentChapterId),
+      scrollTop: entry.scrollTop,
+      scrollHeight: entry.scrollHeight,
+      clientHeight: entry.clientHeight
+    })),
+    [
+      {
+        currentChapterId: "chapter-2",
+        currentChapterIndex: 1,
+        scrollTop: 240,
+        scrollHeight: 1000,
+        clientHeight: 200
+      },
+      {
+        currentChapterId: "chapter-1",
+        currentChapterIndex: 0,
+        scrollTop: 0,
+        scrollHeight: 0,
+        clientHeight: 0
+      }
+    ]
+  );
+  assert.equal(state.activeChapterId, "chapter-1");
+  assert.equal(state.activeChapterIndex, 0);
+  assert.equal(state.openOverlay, null);
+});
+
+test("R3 controller rejects invalid and non-readable Contents entries without rendering or closing Contents", async () => {
+  const { calls, adapters, readerRuntime } = createAdapters();
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters, readerRuntime });
+
+  await controller.resumeBook("recent");
+  controller.openReaderContents();
+  const loadCount = calls.loadChapterContent.length;
+
+  let state = await controller.selectReaderChapter(99);
+  assert.equal(state.openOverlay, R3_OVERLAYS.CONTENTS);
+  assert.equal(state.activeChapterId, "chapter-2");
+  assert.equal(calls.loadChapterContent.length, loadCount);
+
+  state = await controller.selectReaderChapter("0");
+  assert.equal(state.openOverlay, R3_OVERLAYS.CONTENTS);
+  assert.equal(calls.loadChapterContent.length, loadCount);
+});
+
+test("R3 controller keeps Contents open and skips save when selected chapter render fails", async () => {
+  const { calls, adapters, readerRuntime } = createAdapters();
+  const originalLoadChapter = readerRuntime.loadChapterContent;
+  readerRuntime.loadChapterContent = async (handle, chapter) => {
+    if (chapter.id === "chapter-1") {
+      throw new Error("chapter failed");
+    }
+    return originalLoadChapter(handle, chapter);
+  };
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters, readerRuntime });
+
+  await controller.resumeBook("recent");
+  controller.openReaderContents();
+  calls.savePosition.length = 0;
+  const state = await controller.selectReaderChapter(0);
+  await controller.flushReaderProgress();
+
+  assert.equal(state.openOverlay, R3_OVERLAYS.CONTENTS);
+  assert.equal(state.activeChapterId, "chapter-2");
+  assert.equal(state.reader.status, "error");
+  assert.equal(calls.savePosition.length, 0);
+});
+
+test("R3 controller preserves the previous valid Reader presentation when Contents selection fails", async () => {
+  const { calls, adapters, readerRuntime } = createAdapters();
+  const originalLoadChapter = readerRuntime.loadChapterContent;
+  readerRuntime.loadChapterContent = async (handle, chapter) => {
+    if (chapter.id === "chapter-1") {
+      throw new Error("chapter failed");
+    }
+    return originalLoadChapter(handle, chapter);
+  };
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters, readerRuntime });
+
+  await controller.resumeBook("recent");
+  await controller.flushReaderProgress();
+  controller.openReaderContents();
+  const previousState = store.getState();
+  calls.savePosition.length = 0;
+
+  const state = await controller.selectReaderChapter(0);
+  await controller.flushReaderProgress();
+
+  assert.equal(state.openOverlay, R3_OVERLAYS.CONTENTS);
+  assert.equal(state.activeChapterId, "chapter-2");
+  assert.equal(state.activeChapterIndex, 1);
+  assert.equal(state.reader.status, "error");
+  assert.equal(state.reader.error.message, "chapter failed");
+  assert.equal(state.reader.html, previousState.reader.html);
+  assert.equal(state.reader.chapterTitle, previousState.reader.chapterTitle);
+  assert.equal(state.reader.chapterIndex, previousState.reader.chapterIndex);
+  assert.equal(state.reader.progressLabel, previousState.reader.progressLabel);
+  assert.equal(state.reader.hasPrevious, previousState.reader.hasPrevious);
+  assert.equal(state.reader.hasNext, previousState.reader.hasNext);
+  assert.deepEqual(state.reader.toc, previousState.reader.toc);
+  assert.equal(calls.savePosition.some((entry) => entry.currentChapterId === "chapter-1"), false);
+});
+
+test("R3 controller ignores stale rapid Contents selections and saves only the latest successful chapter", async () => {
+  const slowChapter = createDeferred();
+  const { calls, adapters, readerRuntime } = createAdapters();
+  const originalLoadEpub = readerRuntime.loadEpubFromFile;
+  readerRuntime.loadEpubFromFile = async (inputFile) => {
+    const loaded = await originalLoadEpub(inputFile);
+    return {
+      ...loaded,
+      book: {
+        ...loaded.book,
+        chapters: [
+          ...loaded.book.chapters,
+          { id: "chapter-3", title: "Chapter 3", order: 3 }
+        ]
+      }
+    };
+  };
+  const originalLoadChapter = readerRuntime.loadChapterContent;
+  readerRuntime.loadChapterContent = async (handle, chapter) => {
+    if (chapter.id === "chapter-1") {
+      await slowChapter.promise;
+    }
+    return originalLoadChapter(handle, chapter);
+  };
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters, readerRuntime });
+
+  await controller.resumeBook("recent");
+  controller.openReaderContents();
+  calls.savePosition.length = 0;
+  const firstSelection = controller.selectReaderChapter(0);
+  const secondSelection = controller.selectReaderChapter(2);
+  slowChapter.resolve();
+  await Promise.all([firstSelection, secondSelection]);
+  await controller.flushReaderProgress();
+  const state = store.getState();
+
+  assert.equal(state.activeChapterId, "chapter-3");
+  assert.equal(state.activeChapterIndex, 2);
+  assert.equal(state.reader.chapterTitle, "Chapter 3");
+  assert.equal(calls.savePosition.at(-1).currentChapterId, "chapter-3");
+  assert.equal(calls.savePosition.some((entry) => entry.currentChapterId === "chapter-1"), false);
 });
 
 test("R3 controller saves chapter progress only after successful chapter render", async () => {

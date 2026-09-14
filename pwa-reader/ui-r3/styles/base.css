@@ -307,6 +307,50 @@ body {
   gap: var(--r3-space-3);
 }
 
+.r3-toc-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--r3-space-2);
+}
+
+.r3-toc-row {
+  width: 100%;
+  min-height: 44px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--r3-space-3);
+  padding: 0 var(--r3-space-3);
+  color: inherit;
+  background: var(--r3-color-surface-muted);
+  border: 1px solid var(--r3-color-border);
+  border-radius: var(--r3-radius);
+  text-align: left;
+}
+
+.r3-toc-row.is-current {
+  color: var(--r3-color-accent-ink);
+  background: var(--r3-color-accent-soft);
+  border-color: var(--r3-color-accent);
+}
+
+.r3-toc-title,
+.r3-toc-status {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.r3-toc-title {
+  font-weight: 700;
+}
+
+.r3-toc-status {
+  color: var(--r3-color-text-muted);
+  font-size: 0.78rem;
+}
+
 .r3-book-row {
   width: 100%;
   display: grid;

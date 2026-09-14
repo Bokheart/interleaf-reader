@@ -149,6 +149,24 @@ function bindAppShellEvents(root, controller) {
       return;
     }
 
+    if (action === "reader-contents") {
+      controller.openReaderContents?.();
+      return;
+    }
+
+    if (action === "reader-select-chapter") {
+      const chapterIndex = Number(actionElement.dataset.chapterIndex);
+      if (Number.isInteger(chapterIndex)) {
+        controller.selectReaderChapter?.(chapterIndex);
+      }
+      return;
+    }
+
+    if (action === "reader-close-contents") {
+      controller.closeOverlay();
+      return;
+    }
+
     if (action === "reader-back") {
       controller.exitReader();
     }
