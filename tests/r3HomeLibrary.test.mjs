@@ -975,11 +975,17 @@ test("R3 Home view does not use savedBookCount as version-status fallback", asyn
   assert.doesNotMatch(source, /savedBookCount.*version/i);
 });
 
-test("R3 scoped CSS keeps a mobile shell without fixed-width overflow assumptions", async () => {
+test("R3 scoped CSS separates the fluid application shell from the bounded reading measure", async () => {
   const css = await readFile(new URL("../pwa-reader/ui-r3/styles/base.css", import.meta.url), "utf8");
+  const tokens = await readFile(new URL("../pwa-reader/ui-r3/styles/tokens.css", import.meta.url), "utf8");
+  const appFrameRule = css.match(/\.r3-app-frame\s*\{([^}]*)\}/s)?.[1] || "";
+  const readerArticleRule = css.match(/\.r3-reader-article\s*\{([^}]*)\}/s)?.[1] || "";
 
   assert.match(css, /overflow-x:\s*hidden/);
-  assert.match(css, /max-width:\s*430px/);
-  assert.doesNotMatch(css, /width:\s*390px/);
-  assert.doesNotMatch(css, /min-width:\s*390px/);
+  assert.match(appFrameRule, /width:\s*100%/);
+  assert.doesNotMatch(appFrameRule, /max-width:/);
+  assert.match(tokens, /--r3-content-max:/);
+  assert.match(tokens, /--r3-reading-measure:/);
+  assert.match(tokens, /--r3-navigation-rail-width:/);
+  assert.match(readerArticleRule, /max-width:\s*var\(--r3-reading-measure\)/);
 });

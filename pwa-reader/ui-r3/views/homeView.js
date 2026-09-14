@@ -70,7 +70,7 @@ function createContinueCard(documentRef, continueReading) {
 }
 
 function createQuickActions(documentRef) {
-  const section = createElement(documentRef, "section", { className: "r3-section" });
+  const section = createElement(documentRef, "section", { className: "r3-section r3-quick-section" });
   section.appendChild(createSectionHeader(documentRef, "Quick Actions"));
 
   const grid = createElement(documentRef, "div", { className: "r3-quick-grid" });
@@ -151,7 +151,7 @@ function createSnapshot(documentRef, state) {
 
 function createRecentHelpful(documentRef, state) {
   const books = state.home?.recentBooks || [];
-  const section = createElement(documentRef, "section", { className: "r3-section" });
+  const section = createElement(documentRef, "section", { className: "r3-section r3-recent-section" });
   section.appendChild(createSectionHeader(documentRef, "Recent & Helpful"));
 
   const list = createElement(documentRef, "div", { className: "r3-recent-list" });
@@ -177,18 +177,18 @@ function createRecentHelpful(documentRef, state) {
 }
 
 export function createHomeView(documentRef, state) {
+  const continueCard = createContinueCard(documentRef, state.home?.continueReading || state.continueReading);
+  const snapshot = createSnapshot(documentRef, state);
   const view = createElement(documentRef, "div", {
-    className: "r3-screen r3-home-screen",
+    className: `r3-screen r3-home-screen${continueCard ? " has-continue" : ""}${snapshot ? " has-snapshot" : ""}`,
     attrs: { "data-screen": "home" }
   });
 
   view.appendChild(createBrandHeader(documentRef));
-  const continueCard = createContinueCard(documentRef, state.home?.continueReading || state.continueReading);
   if (continueCard) {
     view.appendChild(continueCard);
   }
   view.appendChild(createQuickActions(documentRef));
-  const snapshot = createSnapshot(documentRef, state);
   if (snapshot) {
     view.appendChild(snapshot);
   }

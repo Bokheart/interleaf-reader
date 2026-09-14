@@ -26,7 +26,7 @@ function getReaderMessage(reader = {}) {
 }
 
 function createReaderContent(documentRef, reader = {}) {
-  const panel = createElement(documentRef, "section", { className: "r3-card" });
+  const panel = createElement(documentRef, "section", { className: "r3-card r3-reader-article" });
   const content = createElement(documentRef, "div", { className: "r3-reader-content" });
 
   if (reader.html) {
@@ -94,12 +94,13 @@ function createReaderContents(documentRef, reader = {}) {
 
 export function createReaderView(documentRef, state) {
   const reader = state.reader || {};
+  const hasContents = state.openOverlay === R3_OVERLAYS.CONTENTS;
   const view = createElement(documentRef, "div", {
-    className: "r3-screen r3-reader-screen",
+    className: `r3-screen r3-reader-screen${hasContents ? " has-contents" : ""}`,
     attrs: { "data-screen": "reader" }
   });
 
-  const header = createElement(documentRef, "header", { className: "r3-library-header" });
+  const header = createElement(documentRef, "header", { className: "r3-library-header r3-reader-header" });
   const titleGroup = createElement(documentRef, "div");
   titleGroup.appendChild(createElement(documentRef, "p", {
     className: "r3-eyebrow",
@@ -120,17 +121,17 @@ export function createReaderView(documentRef, state) {
   view.appendChild(header);
 
   view.appendChild(createElement(documentRef, "p", {
-    className: "r3-muted",
+    className: "r3-muted r3-reader-progress",
     text: reader.progressLabel || "No chapter loaded"
   }));
 
-  if (state.openOverlay === R3_OVERLAYS.CONTENTS) {
+  if (hasContents) {
     view.appendChild(createReaderContents(documentRef, reader));
   }
 
   view.appendChild(createReaderContent(documentRef, reader));
 
-  const nav = createElement(documentRef, "div", { className: "r3-quick-grid" });
+  const nav = createElement(documentRef, "div", { className: "r3-quick-grid r3-reader-chapter-nav" });
   nav.appendChild(createReaderButton(documentRef, "reader-previous", "Previous", !reader.hasPrevious));
   nav.appendChild(createReaderButton(documentRef, "reader-next", "Next", !reader.hasNext));
   view.appendChild(nav);

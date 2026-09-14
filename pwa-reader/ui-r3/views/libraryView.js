@@ -65,7 +65,7 @@ function createEmptyState(documentRef, importStatus = {}) {
 export function createLibraryView(documentRef, state) {
   const books = state.library?.books || state.books || [];
   const view = createElement(documentRef, "div", {
-    className: "r3-screen r3-library-screen",
+    className: `r3-screen r3-library-screen${books.length ? " has-books" : " is-empty"}`,
     attrs: { "data-screen": "library" }
   });
 
@@ -77,7 +77,7 @@ export function createLibraryView(documentRef, state) {
     return view;
   }
 
-  const listSection = createElement(documentRef, "section", { className: "r3-section" });
+  const listSection = createElement(documentRef, "section", { className: "r3-section r3-library-collection" });
   listSection.appendChild(createSectionHeader(documentRef, "All Books"));
   const list = createElement(documentRef, "div", { className: "r3-book-list" });
   books.forEach((book) => {

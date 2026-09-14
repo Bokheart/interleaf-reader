@@ -22,6 +22,12 @@
   --r3-space-4: 16px;
   --r3-space-5: 20px;
   --r3-space-6: 24px;
+  --r3-space-7: 32px;
+  --r3-space-8: 40px;
   --r3-radius: 8px;
   --r3-radius-lg: 12px;
+  --r3-layout-gutter: clamp(16px, 3vw, 48px);
+  --r3-content-max: 1440px;
+  --r3-reading-measure: 760px;
+  --r3-navigation-rail-width: clamp(184px, 18vw, 224px);
 }
