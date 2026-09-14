@@ -68,7 +68,7 @@ What changed, and why?
 - [ ] PROJECT_STATE
 - [ ] HANDOFF
 - [ ] DECISION_LOG
-- [ ] OPEN_SOURCE_RELEASE_CHECKLIST
+- [ ] OPEN_SOURCE_RELEASE_CHECKLIST (archived)
 - [ ] Not needed
 
 ## What Was Not Implemented

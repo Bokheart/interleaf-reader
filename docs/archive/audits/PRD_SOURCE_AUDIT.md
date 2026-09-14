@@ -423,9 +423,9 @@ Proposed outlines for the two PRD documents. English PRD is canonical; Chinese P
 | `docs/ROADMAP.md` | Phase list |
 | `docs/ARCHITECTURE.md` | Module boundaries |
 | `docs/DATA_MODEL.md` | Intended stable shapes |
-| `docs/VOCABULARY_PERSONALIZATION_PLAN.md` | Personalization design; **status header stale** |
+| `docs/archive/proposals/VOCABULARY_PERSONALIZATION_PLAN.md` | Personalization design; **status header stale** |
 | `docs/VOCABULARY_INTERACTION_SEMANTICS.md` | Known/Save/Hide/Mastered semantics |
-| `docs/VOCABULARY_DATASET_PLAN.md` | Dataset safety and pipeline |
+| `docs/archive/proposals/VOCABULARY_DATASET_PLAN.md` | Dataset safety and pipeline |
 | `README.md` | **Stale** vs handoff |
 
 ### Requested but absent

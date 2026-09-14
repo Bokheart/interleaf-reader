@@ -382,7 +382,7 @@ Diagnostics do not prove complete user behavior.
 Deployment setup belongs in:
 
 ```text
-docs/GITHUB_PAGES_DEPLOYMENT.md
+docs/archive/legacy/GITHUB_PAGES_DEPLOYMENT.md
 ```
 
 Current deployment status belongs in:

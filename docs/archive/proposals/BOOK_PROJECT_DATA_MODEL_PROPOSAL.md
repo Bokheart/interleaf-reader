@@ -6,7 +6,7 @@ This document proposes a future conceptual data model for multilingual Book Proj
 
 It is product and architecture guidance only. It does not implement storage, change IndexedDB, add translation behavior, or change the current English Study Mode reading loop.
 
-The proposal builds on `docs/MULTILINGUAL_BOOK_PROJECT_STRATEGY.md`:
+The proposal builds on `docs/archive/proposals/MULTILINGUAL_BOOK_PROJECT_STRATEGY.md`:
 
 - a **Book Project** is the future container for a source book and related language versions
 - translation versions may be user-provided, AI-generated, edited AI output, or imported with unknown provenance

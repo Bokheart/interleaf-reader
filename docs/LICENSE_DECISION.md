@@ -114,7 +114,7 @@ Avoid:
 * “commercial use allowed”;
 * wording that suggests a public discussion or pull request grants permission.
 
-The historical filename `docs/OPEN_SOURCE_RELEASE_CHECKLIST.md` may remain temporarily for compatibility, but the document title and content must use source-available terminology.
+The historical filename `docs/OPEN_SOURCE_RELEASE_CHECKLIST.md` has been archived to `docs/archive/legacy/OPEN_SOURCE_RELEASE_CHECKLIST.md`. The document title and content must use source-available terminology.
 
 ---
 
@@ -234,7 +234,7 @@ When maintainer contact, legal review, or license scope changes, review and upda
 * `CONTRIBUTING.md`
 * `PRIVACY.md`
 * `docs/PROJECT_STATE.md`
-* `docs/OPEN_SOURCE_RELEASE_CHECKLIST.md`
+* `docs/archive/legacy/OPEN_SOURCE_RELEASE_CHECKLIST.md`
 * `docs/DECISION_LOG.md`
 
 A change to explanatory wording must not silently change the legal meaning of `LICENSE`.

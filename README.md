@@ -199,7 +199,7 @@ Interleaf Reader can be served as a static browser application.
 
 Deployment guidance:
 
-[`docs/GITHUB_PAGES_DEPLOYMENT.md`](docs/GITHUB_PAGES_DEPLOYMENT.md)
+[`docs/archive/legacy/GITHUB_PAGES_DEPLOYMENT.md`](docs/archive/legacy/GITHUB_PAGES_DEPLOYMENT.md) *(archived)*
 
 Current deployment and verification status:
 

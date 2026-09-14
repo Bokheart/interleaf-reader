@@ -1,6 +1,6 @@
 # Interleaf Reader — Source-Available Release Checklist
 
-> The filename `docs/OPEN_SOURCE_RELEASE_CHECKLIST.md` is retained for compatibility. Interleaf Reader currently uses a custom source-available, non-commercial license and must not be described as OSI open source.
+> This checklist was historically stored at `docs/OPEN_SOURCE_RELEASE_CHECKLIST.md` and is now archived at `docs/archive/legacy/OPEN_SOURCE_RELEASE_CHECKLIST.md`. Interleaf Reader currently uses a custom source-available, non-commercial license and must not be described as OSI open source.
 
 This checklist tracks what must be decided, documented, tested, and reviewed before Interleaf Reader is promoted as a public source-available GitHub project.
 
@@ -34,7 +34,7 @@ The GitHub repository and remote branch exist. That does not mean the project is
 - [x] `PRIVACY.md`
 - [x] `CONTRIBUTING.md`
 - [x] `docs/LICENSE_DECISION.md`
-- [x] `docs/OPEN_SOURCE_RELEASE_CHECKLIST.md`
+- [x] `docs/archive/legacy/OPEN_SOURCE_RELEASE_CHECKLIST.md`
 - [x] GitHub issue templates
 - [x] GitHub pull-request template
 - [ ] `CODE_OF_CONDUCT.md` decision
@@ -140,7 +140,7 @@ The GitHub repository and remote branch exist. That does not mean the project is
 - [ ] HTTPS verified
 - [ ] Relative paths verified under the chosen base URL
 - [ ] `/pwa-reader/` verified at the deployed URL
-- [x] Deployment preparation documented in `docs/GITHUB_PAGES_DEPLOYMENT.md`
+- [x] Deployment preparation documented in `docs/archive/legacy/GITHUB_PAGES_DEPLOYMENT.md`
 - [x] `.nojekyll` present
 - [x] Root `index.html` redirects to `./pwa-reader/`
 - [x] Minimal manifest exists

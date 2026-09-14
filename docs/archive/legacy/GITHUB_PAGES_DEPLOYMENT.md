@@ -77,4 +77,4 @@ After Pages finishes deploying:
 - Browser storage quota can affect large EPUBs.
 - Future absolute paths could break project-site subpath deployment.
 
-Before implementing a service worker, follow `docs/PWA_OFFLINE_CACHE_PLAN.md`. The first service worker should cache only the app shell, not user EPUBs or private files.
+Before implementing a service worker, follow `docs/archive/proposals/PWA_OFFLINE_CACHE_PLAN.md`. The first service worker should cache only the app shell, not user EPUBs or private files.

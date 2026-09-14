@@ -283,7 +283,7 @@ Current status details belong in `PROJECT_STATE.md`, not here.
   * Current deployment status belongs in `PROJECT_STATE.md`, not this decision.
 * **Supersedes:** None
 * **Superseded by:** None
-* **Related documents:** `docs/MILESTONES.md`, `docs/GITHUB_PAGES_DEPLOYMENT.md`, `docs/PWA_OFFLINE_CACHE_PLAN.md`
+* **Related documents:** `docs/MILESTONES.md`, `docs/archive/legacy/GITHUB_PAGES_DEPLOYMENT.md`, `docs/archive/proposals/PWA_OFFLINE_CACHE_PLAN.md`
 
 ---
 
@@ -394,7 +394,7 @@ Current status details belong in `PROJECT_STATE.md`, not here.
   * This direction is not current implementation scope.
 * **Supersedes:** None
 * **Superseded by:** None
-* **Related documents:** `docs/MULTILINGUAL_BOOK_PROJECT_STRATEGY.md`, `docs/BOOK_PROJECT_DATA_MODEL_PROPOSAL.md`
+* **Related documents:** `docs/archive/proposals/MULTILINGUAL_BOOK_PROJECT_STRATEGY.md`, `docs/archive/proposals/BOOK_PROJECT_DATA_MODEL_PROPOSAL.md`
 
 ---
 
@@ -412,7 +412,7 @@ Current status details belong in `PROJECT_STATE.md`, not here.
   * Storage schema, migration, repair UX, and tests remain undecided.
 * **Supersedes:** None
 * **Superseded by:** None
-* **Related documents:** `docs/BOOK_PROJECT_DATA_MODEL_PROPOSAL.md`, `docs/DATA_MODEL.md`
+* **Related documents:** `docs/archive/proposals/BOOK_PROJECT_DATA_MODEL_PROPOSAL.md`, `docs/DATA_MODEL.md`
 
 ---
 

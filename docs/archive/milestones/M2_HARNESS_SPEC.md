@@ -130,8 +130,8 @@ Existing baseline evidence:
   - `docs/USER_GUIDE_CN.md`
   - `docs/USER_GUIDE_BILINGUAL.md`
 - Multilingual strategy docs already exist:
-  - `docs/MULTILINGUAL_BOOK_PROJECT_STRATEGY.md`
-  - `docs/BOOK_PROJECT_DATA_MODEL_PROPOSAL.md`
+  - `docs/archive/proposals/MULTILINGUAL_BOOK_PROJECT_STRATEGY.md`
+  - `docs/archive/proposals/BOOK_PROJECT_DATA_MODEL_PROPOSAL.md`
 - Those multilingual docs are future-direction docs, not M2 implementation instructions.
 - `selectedLevel`, level baseline support, and vocabulary profile storage already exist.
 - Vocabulary Level selector + `?` help has been implemented.
