@@ -633,34 +633,6 @@ body {
   margin-inline: auto;
 }
 
-.r3-reader-content {
-  overflow-wrap: anywhere;
-  font-family: var(--r3-font-serif);
-  font-size: clamp(1rem, 0.96rem + 0.25vw, 1.16rem);
-  line-height: 1.75;
-}
-
-.r3-reader-content > :first-child {
-  margin-top: 0;
-}
-
-.r3-reader-content > :last-child {
-  margin-bottom: 0;
-}
-
-.r3-reader-content img,
-.r3-reader-content svg,
-.r3-reader-content video {
-  max-width: 100%;
-  height: auto;
-}
-
-.r3-reader-content table {
-  display: block;
-  max-width: 100%;
-  overflow-x: auto;
-}
-
 .r3-reader-chapter-nav {
   width: min(100%, var(--r3-reading-measure));
   margin-inline: auto;
