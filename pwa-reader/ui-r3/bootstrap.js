@@ -38,13 +38,13 @@ function findFirst(root, predicate) {
 
 function findReaderScrollElement(root) {
   if (typeof root.querySelector === "function") {
-    const match = root.querySelector(".r3-main");
+    const match = root.querySelector(".r3-reader-scroll");
     if (match) {
       return match;
     }
   }
 
-  return findFirst(root, (node) => classListContains(node, "r3-main"));
+  return findFirst(root, (node) => classListContains(node, "r3-reader-scroll"));
 }
 
 function readScrollMetrics(element) {
@@ -56,7 +56,20 @@ function readScrollMetrics(element) {
 }
 
 function mountAppShell(root, store, documentRef, controller) {
+  let previousState = null;
+
   const render = (state) => {
+    const previousReaderScroll = findReaderScrollElement(root);
+    const shouldPreserveReaderScroll = (
+      previousState?.activeScreen === R3_ROUTES.READER
+      && state.activeScreen === R3_ROUTES.READER
+      && previousState.activeBookId === state.activeBookId
+      && previousState.activeChapterId === state.activeChapterId
+    );
+    const preservedReaderScrollTop = shouldPreserveReaderScroll
+      ? previousReaderScroll?.scrollTop
+      : null;
+
     root.dataset.r3Initialized = state.initialized ? "true" : "false";
     root.dataset.r3SavedBookCount = String(state.savedBookCount || 0);
     root.dataset.r3ActiveScreen = state.activeScreen || "";
@@ -68,8 +81,13 @@ function mountAppShell(root, store, documentRef, controller) {
       root.replaceChildren(view);
     }
     if (state.activeScreen === R3_ROUTES.READER) {
-      controller.applyReaderScrollRestoration?.(findReaderScrollElement(root));
+      const readerScroll = findReaderScrollElement(root);
+      if (Number.isFinite(preservedReaderScrollTop)) {
+        readerScroll.scrollTop = preservedReaderScrollTop;
+      }
+      controller.applyReaderScrollRestoration?.(readerScroll);
     }
+    previousState = state;
   };
 
   render(store.getState());
@@ -186,7 +204,7 @@ function bindAppShellEvents(root, controller) {
   });
 
   root.addEventListener("scroll", (event) => {
-    if (!classListContains(event.target, "r3-main")) {
+    if (!classListContains(event.target, "r3-reader-scroll")) {
       return;
     }
 

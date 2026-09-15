@@ -3,6 +3,7 @@ import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 
+import { r3Actions } from "../pwa-reader/ui-r3/actions.js";
 import { bootstrapR3App } from "../pwa-reader/ui-r3/bootstrap.js";
 import { createR3Controller } from "../pwa-reader/ui-r3/controller.js";
 import { R3_OVERLAYS, R3_ROUTES } from "../pwa-reader/ui-r3/routes.js";
@@ -638,6 +639,17 @@ test("App Shell switches active bottom navigation between Home and Library", () 
   assert.equal(libraryActive[0].dataset.route, R3_ROUTES.LIBRARY);
 });
 
+test("App Shell gives Reader a dedicated frame without global navigation", () => {
+  const documentRef = createMockDocument();
+  const shell = createAppShellView(documentRef, createShellState({ activeScreen: R3_ROUTES.READER }));
+  const primaryNavigation = findAll(shell, (node) => (
+    node.tagName === "NAV" && node.getAttribute("aria-label") === "Primary"
+  ));
+
+  assert.equal(shell.className.includes("r3-app-frame--reader"), true);
+  assert.equal(primaryNavigation.length, 0);
+});
+
 test("App Shell renders the real Reader state instead of the old placeholder", () => {
   const documentRef = createMockDocument();
   const shell = createAppShellView(documentRef, createShellState({
@@ -673,6 +685,32 @@ test("App Shell renders the real Reader state instead of the old placeholder", (
   assert.ok(contentsButton);
   assert.equal(previousButton.disabled, false);
   assert.equal(nextButton.disabled, false);
+});
+
+test("Reader uses a dedicated scroll workspace without generic card treatment", () => {
+  const documentRef = createMockDocument();
+  const shell = createAppShellView(documentRef, createShellState({
+    activeScreen: R3_ROUTES.READER,
+    reader: {
+      status: "ready",
+      bookTitle: "The Wind in the Willows",
+      chapterTitle: "The River Bank",
+      html: "<article><p>Real fixture chapter text.</p></article>",
+      chapterIndex: 1,
+      chapterCount: 3,
+      progressLabel: "The River Bank · 2 / 3",
+      hasPrevious: true,
+      hasNext: true,
+      toc: [],
+      error: null
+    }
+  }));
+  const scrollWorkspace = findAll(shell, (node) => node.className.includes("r3-reader-scroll"))[0];
+  const article = findAll(shell, (node) => node.className.includes("r3-reader-article"))[0];
+
+  assert.ok(scrollWorkspace);
+  assert.equal(article.parentNode, scrollWorkspace);
+  assert.equal(article.className.includes("r3-card"), false);
 });
 
 test("App Shell renders Reader Contents with current chapter and selectable rows", () => {
@@ -714,6 +752,40 @@ test("App Shell renders Reader Contents with current chapter and selectable rows
   assert.equal(currentRows.length, 1);
   assert.equal(currentRows[0].dataset.chapterIndex, "1");
   assert.ok(closeButton);
+});
+
+test("Reader Contents is a modal overlay outside the chapter scroll flow", () => {
+  const documentRef = createMockDocument();
+  const shell = createAppShellView(documentRef, createShellState({
+    activeScreen: R3_ROUTES.READER,
+    openOverlay: R3_OVERLAYS.CONTENTS,
+    reader: {
+      status: "ready",
+      bookTitle: "The Wind in the Willows",
+      chapterTitle: "The River Bank",
+      html: "<article><p>Real fixture chapter text.</p></article>",
+      chapterIndex: 1,
+      chapterCount: 3,
+      progressLabel: "The River Bank · 2 / 3",
+      hasPrevious: true,
+      hasNext: true,
+      toc: [
+        { id: "chapter-1", title: "The Open Road", index: 0, isCurrent: false, isReadable: true },
+        { id: "chapter-2", title: "The River Bank", index: 1, isCurrent: true, isReadable: true }
+      ],
+      error: null
+    }
+  }));
+  const readerScreen = findAll(shell, (node) => node.className.includes("r3-reader-screen"))[0];
+  const scrollWorkspace = findAll(shell, (node) => node.className.includes("r3-reader-scroll"))[0];
+  const overlay = findAll(shell, (node) => node.className.includes("r3-reader-overlay"))[0];
+  const contents = findAll(shell, (node) => node.className.includes("r3-reader-contents"))[0];
+
+  assert.ok(overlay);
+  assert.equal(overlay.parentNode, readerScreen);
+  assert.notEqual(overlay.parentNode, scrollWorkspace);
+  assert.equal(contents.getAttribute("role"), "dialog");
+  assert.equal(contents.getAttribute("aria-modal"), "true");
 });
 
 test("Controller initializes Home and Library data through books adapter DTOs", async () => {
@@ -888,6 +960,100 @@ test("Bootstrap binds one file-change, delegated click, reader-scroll, and lifec
   assert.equal(documentRef.listeners.filter((entry) => entry.type === "visibilitychange").length, 1);
 });
 
+test("Bootstrap records progress from the dedicated Reader scroll workspace", async () => {
+  const documentRef = createMockDocument();
+  const store = createR3Store(createShellState({
+    activeScreen: R3_ROUTES.READER,
+    reader: {
+      status: "ready",
+      bookTitle: "The Wind in the Willows",
+      chapterTitle: "The River Bank",
+      html: "<article><p>Real fixture chapter text.</p></article>",
+      chapterIndex: 1,
+      chapterCount: 3,
+      progressLabel: "The River Bank · 2 / 3",
+      hasPrevious: true,
+      hasNext: true,
+      toc: [],
+      error: null
+    }
+  }));
+  const recordedMetrics = [];
+  const controller = {
+    async initialize() {},
+    applyReaderScrollRestoration() {},
+    recordReaderScroll(metrics) {
+      recordedMetrics.push(metrics);
+    },
+    flushReaderProgress() {}
+  };
+
+  const app = await bootstrapR3App({ document: documentRef, store, controller });
+  const scrollWorkspace = findAll(app.root, (node) => node.className.includes("r3-reader-scroll"))[0];
+
+  assert.ok(scrollWorkspace);
+  scrollWorkspace.scrollTop = 180;
+  scrollWorkspace.scrollHeight = 1200;
+  scrollWorkspace.clientHeight = 600;
+  app.root.eventListeners.get("scroll")[0]({ target: scrollWorkspace });
+
+  assert.deepEqual(recordedMetrics, [{ scrollTop: 180, scrollHeight: 1200, clientHeight: 600 }]);
+});
+
+test("Bootstrap preserves Reader scroll while Contents opens and closes", async () => {
+  const documentRef = createMockDocument();
+  const store = createR3Store(createShellState({
+    activeScreen: R3_ROUTES.READER,
+    activeBookId: "book-one",
+    activeChapterId: "chapter-2",
+    activeChapterIndex: 1,
+    reader: {
+      status: "ready",
+      bookTitle: "The Wind in the Willows",
+      chapterTitle: "The River Bank",
+      html: "<article><p>Real fixture chapter text.</p></article>",
+      chapterIndex: 1,
+      chapterCount: 3,
+      progressLabel: "The River Bank · 2 / 3",
+      hasPrevious: true,
+      hasNext: true,
+      toc: [
+        { id: "chapter-1", title: "The Open Road", index: 0, isCurrent: false, isReadable: true },
+        { id: "chapter-2", title: "The River Bank", index: 1, isCurrent: true, isReadable: true }
+      ],
+      error: null
+    }
+  }));
+  const controller = {
+    async initialize() {},
+    openReaderContents() {
+      store.dispatch(r3Actions.setReaderState({ toc: store.getState().reader.toc }));
+      store.dispatch(r3Actions.openOverlay(R3_OVERLAYS.CONTENTS));
+    },
+    closeOverlay() {
+      store.dispatch(r3Actions.closeOverlay());
+    },
+    applyReaderScrollRestoration() {},
+    recordReaderScroll() {},
+    flushReaderProgress() {}
+  };
+
+  const app = await bootstrapR3App({ document: documentRef, store, controller });
+  const clickListener = app.root.eventListeners.get("click")[0];
+  const initialScroller = findAll(app.root, (node) => node.className.includes("r3-reader-scroll"))[0];
+  initialScroller.scrollTop = 180;
+  initialScroller.scrollHeight = 1200;
+  initialScroller.clientHeight = 600;
+
+  clickListener({ target: findByDataAction(app.root, "reader-contents")[0] });
+  const openScroller = findAll(app.root, (node) => node.className.includes("r3-reader-scroll"))[0];
+  assert.equal(openScroller.scrollTop, 180);
+
+  clickListener({ target: findByDataAction(app.root, "reader-close-contents")[0] });
+  const closedScroller = findAll(app.root, (node) => node.className.includes("r3-reader-scroll"))[0];
+  assert.equal(closedScroller.scrollTop, 180);
+});
+
 test("Bootstrap delegates Reader Contents actions to the controller", async () => {
   const documentRef = createMockDocument();
   const calls = [];
@@ -979,6 +1145,7 @@ test("R3 scoped CSS separates the fluid application shell from the bounded readi
   const css = await readFile(new URL("../pwa-reader/ui-r3/styles/base.css", import.meta.url), "utf8");
   const tokens = await readFile(new URL("../pwa-reader/ui-r3/styles/tokens.css", import.meta.url), "utf8");
   const appFrameRule = css.match(/\.r3-app-frame\s*\{([^}]*)\}/s)?.[1] || "";
+  const readerScreenRule = css.match(/\.r3-screen\.r3-reader-screen\s*\{([^}]*)\}/s)?.[1] || "";
   const readerArticleRule = css.match(/\.r3-reader-article\s*\{([^}]*)\}/s)?.[1] || "";
 
   assert.match(css, /overflow-x:\s*hidden/);
@@ -987,5 +1154,7 @@ test("R3 scoped CSS separates the fluid application shell from the bounded readi
   assert.match(tokens, /--r3-content-max:/);
   assert.match(tokens, /--r3-reading-measure:/);
   assert.match(tokens, /--r3-navigation-rail-width:/);
+  assert.match(readerScreenRule, /grid-template-rows:\s*auto minmax\(0, 1fr\) auto/);
+  assert.match(readerScreenRule, /gap:\s*0/);
   assert.match(readerArticleRule, /max-width:\s*var\(--r3-reading-measure\)/);
 });

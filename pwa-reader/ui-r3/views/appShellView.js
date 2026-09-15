@@ -32,8 +32,9 @@ function createImportInput(documentRef) {
 }
 
 export function createAppShellView(documentRef, state) {
+  const isReader = state.activeScreen === R3_ROUTES.READER;
   const frame = createElement(documentRef, "div", {
-    className: "r3-app-frame",
+    className: `r3-app-frame${isReader ? " r3-app-frame--reader" : ""}`,
     dataset: {
       activeScreen: state.activeScreen,
       initialized: state.initialized ? "true" : "false"
@@ -46,7 +47,7 @@ export function createAppShellView(documentRef, state) {
   }));
 
   const main = createElement(documentRef, "main", {
-    className: "r3-main",
+    className: `r3-main${isReader ? " r3-main--reader" : ""}`,
     attrs: {
       "aria-live": state.loading?.isLoading ? "polite" : undefined
     }
@@ -70,7 +71,9 @@ export function createAppShellView(documentRef, state) {
 
   main.appendChild(createActiveScreen(documentRef, state));
   frame.appendChild(main);
-  frame.appendChild(createBottomNavigation(documentRef, state.activeScreen));
+  if (!isReader) {
+    frame.appendChild(createBottomNavigation(documentRef, state.activeScreen));
+  }
   frame.appendChild(createImportInput(documentRef));
   return frame;
 }
