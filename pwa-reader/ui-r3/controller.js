@@ -4,6 +4,7 @@ import * as readerAdapter from "../adapters/readerAdapter.js";
 import * as settingsAdapter from "../adapters/settingsAdapter.js";
 import * as vocabularyAdapter from "../adapters/vocabularyAdapter.js";
 import { loadChapterContent, loadEpubFromFile } from "../epubLoader.js";
+import { normalizeTerm } from "../vocabEngine.js";
 import {
   formatChapterProgress,
   getAdjacentChapterIndex,
@@ -197,6 +198,99 @@ export function createR3Controller(options = {}) {
   let activeReader = null;
   let refreshSequence = 0;
   let readerSequence = 0;
+  let vocabularyOperation = null;
+  let pendingVocabularyOperations = 0;
+
+  async function renderWithVocabulary(reader, chapter, options = {}) {
+    // Vocabulary is optional: failure must leave the original chapter readable.
+    let vocabulary = { items: [], profile: {} };
+    let vocabularyMessage = "";
+    try {
+      if (reader.readingMode === "english-study" && adapters.vocabulary.getReaderVocabulary) {
+        if (options.waitForVocabularyOperation !== false) {
+          await vocabularyOperation;
+        }
+        vocabulary = await adapters.vocabulary.getReaderVocabulary();
+      }
+    } catch (error) {
+      vocabularyMessage = "Vocabulary assistance is unavailable. You can keep reading.";
+    }
+    const rendered = adapters.modes.renderChapter(chapter, reader.readingMode, {
+      vocabularyItems: vocabulary.items,
+      protectedTerms: [],
+      isBuiltInGuide: Boolean(reader.book?.isBuiltInGuide)
+    });
+    return { rendered, vocabulary, vocabularyMessage };
+  }
+
+  function closeVocabularyBubble() {
+    if (!store.getState().reader.vocabularyBubble) return store.getState();
+    return store.dispatch(r3Actions.setReaderState({ vocabularyBubble: null }));
+  }
+
+  function toggleVocabularyBubble(term, anchor = {}) {
+    const state = store.getState();
+    const key = normalizeTerm(term);
+    if (!activeReader || state.reader.status !== "ready" || state.openOverlay) return state;
+    const item = adapters.vocabulary.getTermMetadata?.(key, state.reader.vocabularyItems || []);
+    if (!item) return state;
+    if (state.reader.vocabularyBubble?.term === key) return closeVocabularyBubble();
+    return store.dispatch(r3Actions.setReaderState({
+      vocabularyBubble: { term: key, item, x: getFiniteNumber(anchor.x), y: getFiniteNumber(anchor.y) }
+    }));
+  }
+
+  async function setReaderVocabularyState(nextState) {
+    const state = store.getState();
+    const bubble = state.reader.vocabularyBubble;
+    if (!activeReader || !bubble || !["known", "learning", "hidden"].includes(nextState)) return state;
+    const reader = activeReader;
+    const sequence = readerSequence;
+    const chapter = getCurrentReaderChapter(reader);
+    const term = bubble.term;
+    const previousOperation = vocabularyOperation;
+    pendingVocabularyOperations += 1;
+    store.dispatch(r3Actions.setReaderState({ vocabularySaving: true, vocabularyMessage: "" }));
+    // Serialize the write and its Reader refresh so an older snapshot cannot apply last.
+    const operation = Promise.resolve(previousOperation)
+      .catch(() => null)
+      .then(async () => {
+        try {
+          await adapters.vocabulary.setTermState(term, nextState);
+        } catch (error) {
+          if (activeReader === reader && sequence === readerSequence) {
+            store.dispatch(r3Actions.setReaderState({ vocabularyMessage: "Could not save this vocabulary choice. Please try again." }));
+          }
+          return store.getState();
+        }
+        if (activeReader !== reader || sequence !== readerSequence) return store.getState();
+        const result = await renderWithVocabulary(reader, chapter, { waitForVocabularyOperation: false });
+        if (activeReader !== reader || sequence !== readerSequence) return store.getState();
+        reader.vocabularyProfile = result.vocabulary.profile;
+        const currentBubble = store.getState().reader.vocabularyBubble;
+        const items = result.rendered.vocabularyPreview || [];
+        return store.dispatch(r3Actions.setReaderState({
+          html: result.rendered.html,
+          vocabularyItems: items,
+          learningWords: result.vocabulary.profile.learningWords || [],
+          vocabularyMessage: result.vocabularyMessage,
+          vocabularyBubble: currentBubble && items.some(item => normalizeTerm(item.term) === currentBubble.term) ? currentBubble : null
+        }));
+      });
+    vocabularyOperation = operation;
+
+    try {
+      return await operation;
+    } finally {
+      pendingVocabularyOperations -= 1;
+      if (vocabularyOperation === operation) {
+        vocabularyOperation = null;
+      }
+      if (pendingVocabularyOperations === 0) {
+        store.dispatch(r3Actions.setReaderState({ vocabularySaving: false }));
+      }
+    }
+  }
 
   function clearPendingScrollSave(reader = activeReader) {
     if (!reader?.pendingScrollTimer) {
@@ -398,6 +492,9 @@ export function createR3Controller(options = {}) {
 
     store.dispatch(r3Actions.setReaderState({
       status: "loading",
+      vocabularyBubble: null,
+      vocabularyItems: [],
+      vocabularyMessage: "",
       bookTitle: reader.book?.title || reader.restoration?.savedBook?.title || "Untitled Book",
       chapterTitle: chapter.title || "",
       html: "",
@@ -437,11 +534,9 @@ export function createR3Controller(options = {}) {
           }
         : null;
 
-      const rendered = adapters.modes.renderChapter(loadedChapter, reader.readingMode, {
-        vocabularyItems: [],
-        protectedTerms: [],
-        isBuiltInGuide: Boolean(reader.book?.isBuiltInGuide)
-      });
+      const { rendered, vocabulary, vocabularyMessage } = await renderWithVocabulary(reader, loadedChapter);
+      if (sequence !== readerSequence || activeReader !== reader) return store.getState();
+      reader.vocabularyProfile = vocabulary.profile;
 
       const currentState = store.getState();
       const shouldUpdateToc = currentState.openOverlay === R3_OVERLAYS.CONTENTS
@@ -451,6 +546,10 @@ export function createR3Controller(options = {}) {
       const nextState = store.dispatch(r3Actions.setReaderState(
         {
           ...getReaderStateFromChapter(reader, loadedChapter, chapterIndex, rendered),
+          vocabularyItems: rendered.vocabularyPreview || [],
+          learningWords: vocabulary.profile.learningWords || [],
+          vocabularyMessage,
+          vocabularyBubble: null,
           toc: shouldUpdateToc ? buildReaderToc(reader) : []
         }
       ));
@@ -757,6 +856,7 @@ export function createR3Controller(options = {}) {
     }
 
     store.dispatch(r3Actions.setReaderState({
+      vocabularyBubble: null,
       toc: buildReaderToc(activeReader)
     }));
     return store.dispatch(r3Actions.openOverlay(R3_OVERLAYS.CONTENTS));
@@ -834,6 +934,9 @@ export function createR3Controller(options = {}) {
     flushReaderProgress,
     openReaderContents,
     selectReaderChapter,
+    toggleVocabularyBubble,
+    closeVocabularyBubble,
+    setReaderVocabularyState,
 
     setActiveChapter(chapterId, chapterIndex = -1) {
       return store.dispatch(r3Actions.setActiveChapter(chapterId, chapterIndex));

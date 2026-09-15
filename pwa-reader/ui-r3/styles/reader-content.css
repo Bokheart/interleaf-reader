@@ -178,3 +178,60 @@
   font-size: inherit;
   white-space: inherit;
 }
+
+.r3-reader-content .vocab-hit {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--r3-color-accent);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.r3-reader-content .vocab-hit:focus-visible {
+  outline: 2px solid var(--r3-color-accent);
+  outline-offset: 2px;
+}
+
+.r3-vocabulary-bubble {
+  position: fixed;
+  z-index: 6;
+  width: min(320px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  overflow: auto;
+  padding: 16px;
+  border: 1px solid var(--r3-color-border-strong);
+  border-radius: var(--r3-radius-lg);
+  background: var(--r3-color-surface);
+  box-shadow: var(--r3-shadow-card);
+  font: 0.94rem/1.5 var(--r3-font-ui);
+}
+
+.r3-vocabulary-bubble h2 {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 1.1rem;
+}
+
+.r3-vocabulary-bubble p { margin: 12px 0; }
+.r3-vocabulary-actions { display: flex; gap: 8px; }
+.r3-vocabulary-actions button { flex: 1; min-height: 44px; }
+.r3-vocabulary-message {
+  position: absolute;
+  bottom: 72px;
+  left: 12px;
+  right: 12px;
+  padding: 8px 12px;
+  background: var(--r3-color-surface);
+  border: 1px solid var(--r3-color-border);
+  font-size: 0.85rem;
+}

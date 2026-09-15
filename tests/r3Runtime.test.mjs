@@ -1040,6 +1040,132 @@ test("R3 controller delegates open-book orchestration and exposes local UI actio
   assert.equal(state.openOverlay, null);
 });
 
+test("R3 controller serializes vocabulary writes through their rendered refresh", async () => {
+  const delayedLearningRefresh = createDeferred();
+  const learningRefreshStarted = createDeferred();
+  const { adapters, readerRuntime } = createAdapters();
+  const item = { term: "mutter", chineseMeaning: "低声嘟囔", englishDefinition: "to speak quietly" };
+  const termStates = [];
+  let persistedState = "";
+  let vocabularyReadCount = 0;
+
+  const snapshotVocabulary = () => ({
+    profile: {
+      knownWords: persistedState === "known" ? [item.term] : [],
+      learningWords: persistedState === "learning" ? [item.term] : [],
+      ignoredWords: persistedState === "hidden" ? [item.term] : []
+    },
+    items: ["known", "hidden"].includes(persistedState) ? [] : [item]
+  });
+
+  adapters.modes.resolveModeFromProgress = () => "english-study";
+  adapters.modes.renderChapter = (chapter, mode, options) => ({
+    html: `<p>${chapter.title} rendered in ${mode}: ${options.vocabularyItems.map(entry => entry.term).join(",")}</p>`,
+    vocabularyPreview: options.vocabularyItems
+  });
+  adapters.vocabulary.getReaderVocabulary = async () => {
+    vocabularyReadCount += 1;
+    const snapshot = snapshotVocabulary();
+    if (vocabularyReadCount === 2) {
+      learningRefreshStarted.resolve();
+      await delayedLearningRefresh.promise;
+    }
+    return snapshot;
+  };
+  adapters.vocabulary.getTermMetadata = (term, items) => items.find(entry => entry.term === term) || null;
+  adapters.vocabulary.setTermState = async (term, nextState) => {
+    assert.equal(term, item.term);
+    termStates.push(nextState);
+    persistedState = nextState;
+  };
+
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters, readerRuntime });
+  await controller.resumeBook("recent");
+  controller.toggleVocabularyBubble(item.term, { x: 24, y: 48 });
+
+  const learningOperation = controller.setReaderVocabularyState("learning");
+  await learningRefreshStarted.promise;
+  const knownOperation = controller.setReaderVocabularyState("known");
+
+  // Let an incorrectly unlocked Known operation finish before releasing the
+  // older Learning refresh. A correctly serialized operation remains queued.
+  await new Promise(resolve => setImmediate(resolve));
+  const savingBeforeLearningRefreshCompletes = store.getState().reader.vocabularySaving;
+
+  delayedLearningRefresh.resolve();
+  await Promise.all([learningOperation, knownOperation]);
+
+  const state = store.getState();
+  assert.deepEqual(termStates, ["learning", "known"]);
+  assert.equal(persistedState, "known");
+  assert.equal(state.reader.html.includes(item.term), false);
+  assert.deepEqual(state.reader.vocabularyItems, []);
+  assert.deepEqual(state.reader.learningWords, []);
+  assert.equal(state.reader.vocabularyBubble, null);
+  assert.equal(savingBeforeLearningRefreshCompletes, true);
+  assert.equal(state.reader.vocabularySaving, false);
+});
+
+test("R3 bootstrap preserves an open vocabulary bubble through same-chapter scroll restoration", async () => {
+  const frameCallbacks = [];
+  const documentRef = createMockDocument();
+  documentRef.defaultView = {
+    innerWidth: 393,
+    innerHeight: 852,
+    addEventListener() {},
+    requestAnimationFrame(callback) {
+      frameCallbacks.push(callback);
+      return frameCallbacks.length;
+    }
+  };
+  const { adapters, readerRuntime } = createAdapters();
+  const item = { term: "mutter", chineseMeaning: "低声嘟囔", englishDefinition: "to speak quietly" };
+  adapters.modes.resolveModeFromProgress = () => "english-study";
+  adapters.modes.renderChapter = (chapter, mode, options) => ({
+    html: `<p>${chapter.title} rendered in ${mode}</p>`,
+    vocabularyPreview: options.vocabularyItems
+  });
+  adapters.vocabulary.getReaderVocabulary = async () => ({
+    profile: { knownWords: [], learningWords: [], ignoredWords: [] },
+    items: [item]
+  });
+  adapters.vocabulary.getTermMetadata = (term, items) => items.find(entry => entry.term === term) || null;
+
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters, readerRuntime });
+  const app = await bootstrapR3App({ document: documentRef, store, controller });
+  await app.controller.resumeBook("recent");
+  const findByClass = (root, className) => {
+    const stack = [root];
+    while (stack.length) {
+      const current = stack.shift();
+      if (String(current.className || "").split(/\s+/).includes(className)) return current;
+      stack.push(...(current.children || []));
+    }
+    return null;
+  };
+  const previousScroll = findByClass(app.root, "r3-reader-scroll");
+  previousScroll.scrollTop = 120;
+
+  app.controller.toggleVocabularyBubble("mutter", { x: 24, y: 48 });
+  const restoredScroll = findByClass(app.root, "r3-reader-scroll");
+  const scrollListener = app.root.eventListeners.get("scroll")[0];
+  scrollListener({ target: previousScroll });
+  scrollListener({ target: restoredScroll });
+
+  assert.equal(restoredScroll.scrollTop, 120);
+  assert.equal(app.store.getState().reader.vocabularyBubble.term, "mutter");
+
+  frameCallbacks.splice(0).forEach(callback => callback());
+  restoredScroll.scrollTop = 160;
+  restoredScroll.scrollHeight = 1000;
+  restoredScroll.clientHeight = 200;
+  scrollListener({ target: restoredScroll });
+  assert.equal(app.store.getState().reader.vocabularyBubble, null);
+  await app.controller.flushReaderProgress();
+});
+
 test("R3 bootstrap mounts exactly one development root and prevents duplicate initialization", async () => {
   const documentRef = createMockDocument();
   const { calls, adapters } = createAdapters();

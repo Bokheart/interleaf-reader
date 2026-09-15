@@ -57,6 +57,7 @@ function readScrollMetrics(element) {
 
 function mountAppShell(root, store, documentRef, controller) {
   let previousState = null;
+  let readerScrollPreservationSequence = 0;
 
   const render = (state) => {
     const previousReaderScroll = findReaderScrollElement(root);
@@ -69,6 +70,12 @@ function mountAppShell(root, store, documentRef, controller) {
     const preservedReaderScrollTop = shouldPreserveReaderScroll
       ? previousReaderScroll?.scrollTop
       : null;
+    const preservationSequence = String(++readerScrollPreservationSequence);
+    if (Number.isFinite(preservedReaderScrollTop)) {
+      root.dataset.r3ReaderScrollPreservation = preservationSequence;
+    } else {
+      delete root.dataset.r3ReaderScrollPreservation;
+    }
 
     root.dataset.r3Initialized = state.initialized ? "true" : "false";
     root.dataset.r3SavedBookCount = String(state.savedBookCount || 0);
@@ -84,8 +91,27 @@ function mountAppShell(root, store, documentRef, controller) {
       const readerScroll = findReaderScrollElement(root);
       if (Number.isFinite(preservedReaderScrollTop)) {
         readerScroll.scrollTop = preservedReaderScrollTop;
+        const clearPreservation = () => {
+          if (root.dataset.r3ReaderScrollPreservation === preservationSequence) {
+            delete root.dataset.r3ReaderScrollPreservation;
+          }
+        };
+        const windowRef = documentRef.defaultView || globalThis.window;
+        if (typeof windowRef?.requestAnimationFrame === "function") {
+          windowRef.requestAnimationFrame(clearPreservation);
+        } else {
+          clearPreservation();
+        }
       }
       controller.applyReaderScrollRestoration?.(readerScroll);
+      const bubble = root.querySelector?.(".r3-vocabulary-bubble");
+      if (bubble && state.reader.vocabularyBubble) {
+        const { x, y } = state.reader.vocabularyBubble;
+        const windowRef = documentRef.defaultView || globalThis.window;
+        const box = bubble.getBoundingClientRect();
+        bubble.style.left = `${Math.max(12, Math.min(x, windowRef.innerWidth - box.width - 12))}px`;
+        bubble.style.top = `${Math.max(12, Math.min(y + 12, windowRef.innerHeight - box.height - 12))}px`;
+      }
     }
     previousState = state;
   };
@@ -127,8 +153,24 @@ function bindAppShellEvents(root, controller) {
 
   root.dataset.r3ShellEventsBound = "true";
   root.addEventListener("click", (event) => {
+    const hit = event.target.closest?.(".r3-reader-content .vocab-hit[data-vocab-term]");
+    if (hit) {
+      const box = hit.getBoundingClientRect();
+      controller.toggleVocabularyBubble?.(hit.dataset.vocabTerm, { x: box.left, y: box.bottom });
+      return;
+    }
     const actionElement = findActionElement(event.target, root);
     const action = actionElement?.dataset?.action;
+
+    if (action === "vocabulary-close") {
+      controller.closeVocabularyBubble?.();
+      return;
+    }
+    if (action === "vocabulary-state") {
+      controller.setReaderVocabularyState?.(actionElement.dataset.vocabularyState);
+      return;
+    }
+    if (!event.target.closest?.(".r3-vocabulary-bubble")) controller.closeVocabularyBubble?.();
 
     if (!action) {
       return;
@@ -207,9 +249,18 @@ function bindAppShellEvents(root, controller) {
     if (!classListContains(event.target, "r3-reader-scroll")) {
       return;
     }
+    if (root.dataset.r3ReaderScrollPreservation) {
+      return;
+    }
 
     controller.recordReaderScroll?.(readScrollMetrics(event.target));
+    controller.closeVocabularyBubble?.();
   }, true);
+
+  root.addEventListener("keydown", event => {
+    if (event.key === "Escape") controller.closeVocabularyBubble?.();
+  });
+  root.ownerDocument?.defaultView?.addEventListener("resize", () => controller.closeVocabularyBubble?.());
 }
 
 function bindPageLifecycleEvents(documentRef, controller) {

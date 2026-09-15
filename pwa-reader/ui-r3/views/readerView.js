@@ -109,6 +109,39 @@ function createReaderContentsOverlay(documentRef, reader = {}) {
   return overlay;
 }
 
+function createVocabularyBubble(documentRef, reader) {
+  const { term, item } = reader.vocabularyBubble;
+  const bubble = createElement(documentRef, "section", {
+    className: "r3-vocabulary-bubble",
+    attrs: { role: "dialog", "aria-label": "Vocabulary note" }
+  });
+  const header = createElement(documentRef, "div", { className: "r3-section-header" });
+  header.appendChild(createElement(documentRef, "h2", { text: item.term }));
+  header.appendChild(createReaderButton(documentRef, "vocabulary-close", "Close"));
+  bubble.appendChild(header);
+  if (item.chineseMeaning) bubble.appendChild(createElement(documentRef, "p", {
+    text: item.chineseMeaning, attrs: { lang: "zh-CN" }
+  }));
+  if (item.englishDefinition) bubble.appendChild(createElement(documentRef, "p", {
+    text: item.englishDefinition, attrs: { lang: "en" }
+  }));
+  const actions = createElement(documentRef, "div", { className: "r3-vocabulary-actions" });
+  const saved = (reader.learningWords || []).includes(term);
+  for (const [state, label] of [["known", "Known"], ["learning", saved ? "Saved" : "Save"], ["hidden", "Hide"]]) {
+    actions.appendChild(createActionButton(documentRef, {
+      className: "r3-secondary-button",
+      label,
+      dataset: { action: "vocabulary-state", vocabularyState: state },
+      disabled: reader.vocabularySaving || (state === "learning" && saved)
+    }));
+  }
+  bubble.appendChild(actions);
+  if (reader.vocabularyMessage) bubble.appendChild(createElement(documentRef, "p", {
+    text: reader.vocabularyMessage, attrs: { role: "status" }
+  }));
+  return bubble;
+}
+
 export function createReaderView(documentRef, state) {
   const reader = state.reader || {};
   const hasContents = state.openOverlay === R3_OVERLAYS.CONTENTS;
@@ -153,6 +186,16 @@ export function createReaderView(documentRef, state) {
   const footer = createElement(documentRef, "footer", { className: "r3-reader-footer" });
   footer.appendChild(nav);
   view.appendChild(footer);
+
+  if (reader.vocabularyBubble && !hasContents) {
+    view.appendChild(createVocabularyBubble(documentRef, reader));
+  } else if (reader.vocabularyMessage) {
+    view.appendChild(createElement(documentRef, "p", {
+      className: "r3-vocabulary-message",
+      text: reader.vocabularyMessage,
+      attrs: { role: "status" }
+    }));
+  }
 
   if (hasContents) {
     view.appendChild(createReaderContentsOverlay(documentRef, reader));

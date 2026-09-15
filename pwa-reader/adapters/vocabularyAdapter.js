@@ -1,4 +1,5 @@
-import { normalizeTerm, buildVocabularyPreview } from "../vocabEngine.js";
+import { normalizeTerm, buildVocabularyPreview, loadVocabularyData, filterVocabularyPreviewItems } from "../vocabEngine.js";
+import { loadEffectiveKnownWordsForProfile } from "../levelBaselineEngine.js";
 import {
   addLearningWord,
   getVocabularyProfile as getStoredVocabularyProfile,
@@ -15,6 +16,8 @@ const STATE_TO_FIELD = Object.freeze({
 
 export function createVocabularyAdapter(deps = {}) {
   const api = {
+    loadVocabularyData: deps.loadVocabularyData || loadVocabularyData,
+    loadEffectiveKnownWordsForProfile: deps.loadEffectiveKnownWordsForProfile || loadEffectiveKnownWordsForProfile,
     buildVocabularyPreview: deps.buildVocabularyPreview || buildVocabularyPreview,
     getVocabularyProfile: deps.getVocabularyProfile || getStoredVocabularyProfile,
     markWordKnown: deps.markWordKnown || markWordKnown,
@@ -23,7 +26,26 @@ export function createVocabularyAdapter(deps = {}) {
     restoreVocabularyWord: deps.restoreVocabularyWord || restoreVocabularyWord
   };
 
+  let vocabularyDataPromise = null;
+
   return {
+    async getReaderVocabulary() {
+      if (!vocabularyDataPromise) {
+        vocabularyDataPromise = Promise.resolve().then(() => api.loadVocabularyData()).catch(error => {
+          vocabularyDataPromise = null;
+          throw error;
+        });
+      }
+      const [items, profile] = await Promise.all([vocabularyDataPromise, api.getVocabularyProfile()]);
+      const personalization = await api.loadEffectiveKnownWordsForProfile(profile);
+      const excluded = new Set([...(profile.knownWords || []), ...(profile.ignoredWords || [])].map(normalizeTerm));
+      return {
+        profile,
+        items: filterVocabularyPreviewItems(items, personalization, { keepLearningWords: true })
+          .filter(item => !excluded.has(normalizeTerm(item.term)))
+      };
+    },
+
     getChapterPreview(chapter = {}, vocabularyItems = [], options = {}) {
       return api.buildVocabularyPreview(chapter.plainText || "", vocabularyItems, options);
     },
@@ -81,6 +103,7 @@ export function createVocabularyAdapter(deps = {}) {
 const vocabularyAdapter = createVocabularyAdapter();
 
 export const getChapterPreview = vocabularyAdapter.getChapterPreview;
+export const getReaderVocabulary = vocabularyAdapter.getReaderVocabulary;
 export const getVocabularyProfile = vocabularyAdapter.getVocabularyProfile;
 export const setTermState = vocabularyAdapter.setTermState;
 export const listVocabulary = vocabularyAdapter.listVocabulary;
