@@ -190,6 +190,7 @@ export function createR3Controller(options = {}) {
     setTimeout: options.timers?.setTimeout || globalThis.setTimeout?.bind(globalThis),
     clearTimeout: options.timers?.clearTimeout || globalThis.clearTimeout?.bind(globalThis)
   };
+  const collectVocabularyOccurrences = options.collectVocabularyOccurrences;
   const scrollSaveDelayMs = Number.isFinite(Number(options.scrollSaveDelayMs))
     ? Math.max(0, Number(options.scrollSaveDelayMs))
     : 600;
@@ -223,6 +224,110 @@ export function createR3Controller(options = {}) {
     return { rendered, vocabulary, vocabularyMessage };
   }
 
+  function getVocabularyTermState(profile = {}, term = "") {
+    const key = normalizeTerm(term);
+    if ((profile.knownWords || []).some(word => normalizeTerm(word) === key)) return "known";
+    if ((profile.learningWords || []).some(word => normalizeTerm(word) === key)) return "learning";
+    if ((profile.ignoredWords || []).some(word => normalizeTerm(word) === key)) return "hidden";
+    return null;
+  }
+
+  function openVocabularyPreview(occurrencesByTerm = {}) {
+    const state = store.getState();
+    const chapter = getCurrentReaderChapter();
+    if (!activeReader || !chapter || state.reader.status !== "ready") return state;
+
+    const items = adapters.vocabulary.getChapterPreview?.(
+      chapter,
+      activeReader.vocabularyItems || []
+    ) || [];
+    const liveTerms = new Set((state.reader.vocabularyItems || []).map(item => normalizeTerm(item.term)));
+    store.dispatch(r3Actions.setReaderState({
+      vocabularyBubble: null,
+      vocabularyPreview: {
+        chapterId: chapter.id,
+        detailsOpen: false,
+        rows: items.map(item => ({
+          ...item,
+          state: getVocabularyTermState(activeReader.vocabularyProfile, item.term),
+          isExpanded: false,
+          contextOpen: false,
+          occurrences: Array.isArray(occurrencesByTerm[normalizeTerm(item.term)])
+            ? occurrencesByTerm[normalizeTerm(item.term)].map(occurrence => ({ ...occurrence }))
+            : [],
+          hasLiveAnnotation: Array.isArray(occurrencesByTerm[normalizeTerm(item.term)])
+            ? occurrencesByTerm[normalizeTerm(item.term)].length > 0
+            : liveTerms.has(normalizeTerm(item.term))
+        }))
+      }
+    }));
+    return store.dispatch(r3Actions.openOverlay(R3_OVERLAYS.VOCABULARY_PREVIEW));
+  }
+
+  function closeVocabularyPreview() {
+    const state = store.getState();
+    if (state.openOverlay !== R3_OVERLAYS.VOCABULARY_PREVIEW) return state;
+    store.dispatch(r3Actions.setReaderState({ vocabularyPreview: null }));
+    return store.dispatch(r3Actions.closeOverlay());
+  }
+
+  function updateVocabularyPreview(updater) {
+    const state = store.getState();
+    const preview = state.reader.vocabularyPreview;
+    if (state.openOverlay !== R3_OVERLAYS.VOCABULARY_PREVIEW || !preview) return state;
+    return store.dispatch(r3Actions.setReaderState({ vocabularyPreview: updater(preview) }));
+  }
+
+  function toggleVocabularyPreviewRow(term) {
+    const key = normalizeTerm(term);
+    return updateVocabularyPreview(preview => preview.detailsOpen ? preview : ({
+      ...preview,
+      rows: preview.rows.map(row => normalizeTerm(row.term) === key
+        ? { ...row, isExpanded: !row.isExpanded, contextOpen: row.isExpanded ? false : row.contextOpen }
+        : row)
+    }));
+  }
+
+  function toggleVocabularyPreviewDetails(nextOpen) {
+    return updateVocabularyPreview(preview => {
+      const detailsOpen = typeof nextOpen === "boolean" ? nextOpen : !preview.detailsOpen;
+      return {
+        ...preview,
+        detailsOpen,
+        rows: detailsOpen
+          ? preview.rows
+          : preview.rows.map(row => ({ ...row, isExpanded: false, contextOpen: false }))
+      };
+    });
+  }
+
+  function toggleVocabularyPreviewContext(term) {
+    const key = normalizeTerm(term);
+    return updateVocabularyPreview(preview => ({
+      ...preview,
+      rows: preview.rows.map(row => normalizeTerm(row.term) === key
+        ? { ...row, contextOpen: !row.contextOpen }
+        : row)
+    }));
+  }
+
+  function goToVocabularyPreviewOccurrence(term, occurrenceIndex = 0) {
+    const state = store.getState();
+    const key = normalizeTerm(term);
+    const row = state.reader.vocabularyPreview?.rows?.find(item => normalizeTerm(item.term) === key);
+    const index = Number(occurrenceIndex);
+    const hasOccurrence = Array.isArray(row?.occurrences)
+      ? row.occurrences.some(occurrence => Number(occurrence.occurrenceIndex) === index)
+      : row?.hasLiveAnnotation && index === 0;
+    if (state.openOverlay !== R3_OVERLAYS.VOCABULARY_PREVIEW || !hasOccurrence) return false;
+    closeVocabularyPreview();
+    return true;
+  }
+
+  function goToVocabularyPreviewTerm(term) {
+    return goToVocabularyPreviewOccurrence(term, 0);
+  }
+
   function closeVocabularyBubble() {
     if (!store.getState().reader.vocabularyBubble) return store.getState();
     return store.dispatch(r3Actions.setReaderState({ vocabularyBubble: null }));
@@ -240,14 +345,18 @@ export function createR3Controller(options = {}) {
     }));
   }
 
-  async function setReaderVocabularyState(nextState) {
+  async function setReaderVocabularyState(nextState, requestedTerm = null) {
     const state = store.getState();
     const bubble = state.reader.vocabularyBubble;
-    if (!activeReader || !bubble || !["known", "learning", "hidden"].includes(nextState)) return state;
+    const preview = state.openOverlay === R3_OVERLAYS.VOCABULARY_PREVIEW
+      ? state.reader.vocabularyPreview
+      : null;
+    const term = normalizeTerm(requestedTerm || bubble?.term);
+    const previewRow = preview?.rows?.find(item => normalizeTerm(item.term) === term);
+    if (!activeReader || (!bubble && !previewRow) || !["known", "learning", "hidden"].includes(nextState)) return state;
     const reader = activeReader;
     const sequence = readerSequence;
     const chapter = getCurrentReaderChapter(reader);
-    const term = bubble.term;
     const previousOperation = vocabularyOperation;
     pendingVocabularyOperations += 1;
     store.dispatch(r3Actions.setReaderState({ vocabularySaving: true, vocabularyMessage: "" }));
@@ -267,14 +376,43 @@ export function createR3Controller(options = {}) {
         const result = await renderWithVocabulary(reader, chapter, { waitForVocabularyOperation: false });
         if (activeReader !== reader || sequence !== readerSequence) return store.getState();
         reader.vocabularyProfile = result.vocabulary.profile;
+        reader.vocabularyItems = result.vocabulary.items;
         const currentBubble = store.getState().reader.vocabularyBubble;
         const items = result.rendered.vocabularyPreview || [];
-        return store.dispatch(r3Actions.setReaderState({
+        store.dispatch(r3Actions.setReaderState({
           html: result.rendered.html,
           vocabularyItems: items,
           learningWords: result.vocabulary.profile.learningWords || [],
           vocabularyMessage: result.vocabularyMessage,
           vocabularyBubble: currentBubble && items.some(item => normalizeTerm(item.term) === currentBubble.term) ? currentBubble : null
+        }));
+        let occurrencesByTerm = {};
+        try {
+          occurrencesByTerm = collectVocabularyOccurrences?.() || {};
+        } catch (error) {
+          occurrencesByTerm = {};
+        }
+        const currentPreview = store.getState().reader.vocabularyPreview;
+        const vocabularyPreview = currentPreview?.chapterId === chapter?.id
+          ? {
+              ...currentPreview,
+              rows: currentPreview.rows.map(item => {
+                const itemTerm = normalizeTerm(item.term);
+                const occurrences = Array.isArray(occurrencesByTerm[itemTerm])
+                  ? occurrencesByTerm[itemTerm].map(occurrence => ({ ...occurrence }))
+                  : [];
+                return {
+                  ...item,
+                  state: itemTerm === term ? nextState : item.state,
+                  occurrences,
+                  contextOpen: occurrences.length ? item.contextOpen : false,
+                  hasLiveAnnotation: occurrences.length > 0
+                };
+              })
+            }
+          : currentPreview;
+        return store.dispatch(r3Actions.setReaderState({
+          vocabularyPreview
         }));
       });
     vocabularyOperation = operation;
@@ -482,6 +620,10 @@ export function createR3Controller(options = {}) {
       return store.getState();
     }
 
+    if (store.getState().openOverlay === R3_OVERLAYS.VOCABULARY_PREVIEW) {
+      store.dispatch(r3Actions.closeOverlay());
+    }
+
     const sequence = ++readerSequence;
     const chapter = chapters[chapterIndex];
     const previousReaderState = captureValidReaderState(reader);
@@ -493,6 +635,7 @@ export function createR3Controller(options = {}) {
     store.dispatch(r3Actions.setReaderState({
       status: "loading",
       vocabularyBubble: null,
+      vocabularyPreview: null,
       vocabularyItems: [],
       vocabularyMessage: "",
       bookTitle: reader.book?.title || reader.restoration?.savedBook?.title || "Untitled Book",
@@ -537,6 +680,7 @@ export function createR3Controller(options = {}) {
       const { rendered, vocabulary, vocabularyMessage } = await renderWithVocabulary(reader, loadedChapter);
       if (sequence !== readerSequence || activeReader !== reader) return store.getState();
       reader.vocabularyProfile = vocabulary.profile;
+      reader.vocabularyItems = vocabulary.items;
 
       const currentState = store.getState();
       const shouldUpdateToc = currentState.openOverlay === R3_OVERLAYS.CONTENTS
@@ -550,6 +694,7 @@ export function createR3Controller(options = {}) {
           learningWords: vocabulary.profile.learningWords || [],
           vocabularyMessage,
           vocabularyBubble: null,
+          vocabularyPreview: null,
           toc: shouldUpdateToc ? buildReaderToc(reader) : []
         }
       ));
@@ -934,6 +1079,13 @@ export function createR3Controller(options = {}) {
     flushReaderProgress,
     openReaderContents,
     selectReaderChapter,
+    openVocabularyPreview,
+    closeVocabularyPreview,
+    toggleVocabularyPreviewRow,
+    toggleVocabularyPreviewDetails,
+    toggleVocabularyPreviewContext,
+    goToVocabularyPreviewOccurrence,
+    goToVocabularyPreviewTerm,
     toggleVocabularyBubble,
     closeVocabularyBubble,
     setReaderVocabularyState,

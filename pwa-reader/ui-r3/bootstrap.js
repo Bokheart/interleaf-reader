@@ -1,5 +1,6 @@
 import { createR3Controller } from "./controller.js";
 import { createR3Store } from "./store.js";
+import { normalizeTerm } from "../vocabEngine.js";
 import { R3_ROUTES } from "./routes.js";
 import { createAppShellView } from "./views/appShellView.js";
 
@@ -34,6 +35,87 @@ function findFirst(root, predicate) {
     stack.push(...(current.children || []));
   }
   return null;
+}
+
+function getVocabularySnippet(hit) {
+  const contentTags = new Set(["P", "LI", "BLOCKQUOTE", "FIGCAPTION", "TD", "TH"]);
+  let context = hit?.parentNode;
+  while (context && !contentTags.has(String(context.tagName || "").toUpperCase())) {
+    context = context.parentNode;
+  }
+  const text = String(context?.textContent || hit?.textContent || "").replace(/\s+/g, " ").trim();
+  if (text.length <= 180) return text;
+  const termText = String(hit?.textContent || hit?.dataset?.vocabTerm || "");
+  let termOffset = -1;
+  if (context?.ownerDocument?.createRange) {
+    const range = context.ownerDocument.createRange();
+    range.selectNodeContents(context);
+    range.setEndBefore(hit);
+    termOffset = String(range.toString()).replace(/\s+/g, " ").trimStart().length;
+  }
+  if (termOffset < 0) {
+    const key = normalizeTerm(hit?.dataset?.vocabTerm || termText);
+    const stack = [...(context?.children || [])];
+    let occurrenceIndex = 0;
+    while (stack.length) {
+      const node = stack.shift();
+      if (node === hit) break;
+      if (classListContains(node, "vocab-hit") && normalizeTerm(node.dataset?.vocabTerm) === key) {
+        occurrenceIndex += 1;
+      }
+      stack.unshift(...(node.children || []));
+    }
+    const lowerText = text.toLocaleLowerCase();
+    const lowerTerm = termText.toLocaleLowerCase();
+    let searchFrom = 0;
+    for (let index = 0; index <= occurrenceIndex; index += 1) {
+      termOffset = lowerText.indexOf(lowerTerm, searchFrom);
+      if (termOffset < 0) break;
+      searchFrom = termOffset + lowerTerm.length;
+    }
+  }
+  termOffset = Math.max(0, termOffset);
+  const start = Math.max(0, Math.min(termOffset - 70, text.length - 174));
+  const excerpt = text.slice(start, start + 174).trim();
+  return `${start > 0 ? "…" : ""}${excerpt}${start + 174 < text.length ? "…" : ""}`;
+}
+
+export function collectVocabularyOccurrences(root) {
+  const occurrences = {};
+  const stack = root ? [root] : [];
+  while (stack.length) {
+    const node = stack.shift();
+    if (classListContains(node, "vocab-hit")) {
+      const term = normalizeTerm(node.dataset?.vocabTerm);
+      if (term) {
+        const termOccurrences = occurrences[term] || [];
+        termOccurrences.push({
+          occurrenceIndex: termOccurrences.length,
+          snippet: getVocabularySnippet(node)
+        });
+        occurrences[term] = termOccurrences;
+      }
+    }
+    stack.push(...(node.children || []));
+  }
+  return occurrences;
+}
+
+export function scrollToVocabularyHit(root, term, occurrenceIndex = 0) {
+  const key = normalizeTerm(term);
+  const matches = [];
+  const stack = root ? [root] : [];
+  while (stack.length) {
+    const node = stack.shift();
+    if (classListContains(node, "vocab-hit") && normalizeTerm(node.dataset?.vocabTerm) === key) {
+      matches.push(node);
+    }
+    stack.push(...(node.children || []));
+  }
+  const hit = matches[Number(occurrenceIndex)];
+  if (!hit || typeof hit.scrollIntoView !== "function") return false;
+  hit.scrollIntoView({ block: "center", behavior: "smooth" });
+  return true;
 }
 
 function findReaderScrollElement(root) {
@@ -170,6 +252,33 @@ function bindAppShellEvents(root, controller) {
       controller.setReaderVocabularyState?.(actionElement.dataset.vocabularyState);
       return;
     }
+    if (action === "vocabulary-preview-state") {
+      controller.setReaderVocabularyState?.(
+        actionElement.dataset.vocabularyState,
+        actionElement.dataset.vocabularyTerm
+      );
+      return;
+    }
+    if (action === "vocabulary-preview-row-toggle") {
+      controller.toggleVocabularyPreviewRow?.(actionElement.dataset.vocabularyTerm);
+      return;
+    }
+    if (action === "vocabulary-preview-details") {
+      controller.toggleVocabularyPreviewDetails?.(actionElement.dataset.detailsOpen !== "true");
+      return;
+    }
+    if (action === "vocabulary-preview-context") {
+      controller.toggleVocabularyPreviewContext?.(actionElement.dataset.vocabularyTerm);
+      return;
+    }
+    if (action === "vocabulary-preview-passage") {
+      const term = actionElement.dataset.vocabularyTerm;
+      const occurrenceIndex = Number(actionElement.dataset.occurrenceIndex);
+      if (controller.goToVocabularyPreviewOccurrence?.(term, occurrenceIndex)) {
+        scrollToVocabularyHit(root, term, occurrenceIndex);
+      }
+      return;
+    }
     if (!event.target.closest?.(".r3-vocabulary-bubble")) controller.closeVocabularyBubble?.();
 
     if (!action) {
@@ -211,6 +320,16 @@ function bindAppShellEvents(root, controller) {
 
     if (action === "reader-contents") {
       controller.openReaderContents?.();
+      return;
+    }
+
+    if (action === "vocabulary-preview-open") {
+      controller.openVocabularyPreview?.(collectVocabularyOccurrences(root));
+      return;
+    }
+
+    if (action === "vocabulary-preview-close") {
+      controller.closeVocabularyPreview?.();
       return;
     }
 
@@ -258,7 +377,9 @@ function bindAppShellEvents(root, controller) {
   }, true);
 
   root.addEventListener("keydown", event => {
-    if (event.key === "Escape") controller.closeVocabularyBubble?.();
+    if (event.key !== "Escape") return;
+    controller.closeVocabularyPreview?.();
+    controller.closeVocabularyBubble?.();
   });
   root.ownerDocument?.defaultView?.addEventListener("resize", () => controller.closeVocabularyBubble?.());
 }
@@ -299,7 +420,11 @@ export async function bootstrapR3App(options = {}) {
   root.className = root.className || "r3-root";
 
   const store = options.store || createR3Store();
-  const controller = options.controller || createR3Controller({ store, adapters: options.adapters });
+  const controller = options.controller || createR3Controller({
+    store,
+    adapters: options.adapters,
+    collectVocabularyOccurrences: () => collectVocabularyOccurrences(root)
+  });
   const unsubscribe = mountAppShell(root, store, documentRef, controller);
   bindAppShellEvents(root, controller);
   bindPageLifecycleEvents(documentRef, controller);

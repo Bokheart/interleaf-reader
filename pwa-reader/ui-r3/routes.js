@@ -12,6 +12,7 @@ export const R3_ROUTES = Object.freeze({
 
 export const R3_OVERLAYS = Object.freeze({
   CONTENTS: "reader.overlay.contents",
+  VOCABULARY_PREVIEW: "reader.overlay.vocabularyPreview",
   PREVIEW: "reader.overlay.preview",
   POPOVER: "reader.overlay.popover",
   PROGRESS: "reader.overlay.progress",

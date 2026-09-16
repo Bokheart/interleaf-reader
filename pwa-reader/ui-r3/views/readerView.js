@@ -1,6 +1,7 @@
 import {
   createActionButton,
-  createElement
+  createElement,
+  createIconButton
 } from "../components/dom.js";
 import { R3_OVERLAYS } from "../routes.js";
 
@@ -109,6 +110,138 @@ function createReaderContentsOverlay(documentRef, reader = {}) {
   return overlay;
 }
 
+function createVocabularyStateButton(documentRef, row, reader, state, label, icon) {
+  const button = createIconButton(documentRef, {
+    className: `r3-icon-button r3-vocabulary-state-button${row.state === state ? " is-selected" : ""}`,
+    label,
+    icon,
+    dataset: {
+      action: "vocabulary-preview-state",
+      vocabularyState: state,
+      vocabularyTerm: row.term
+    },
+    disabled: reader.vocabularySaving
+  });
+  button.setAttribute("aria-pressed", row.state === state ? "true" : "false");
+  return button;
+}
+
+function appendMetadataRow(documentRef, container, label, value, options = {}) {
+  if (!value) return;
+  const line = createElement(documentRef, "div", { className: `r3-vocabulary-metadata${options.className ? ` ${options.className}` : ""}` });
+  if (label) line.appendChild(createElement(documentRef, "span", { className: "r3-vocabulary-metadata-label", text: label }));
+  line.appendChild(createElement(documentRef, "p", { text: value, attrs: options.lang ? { lang: options.lang } : {} }));
+  container.appendChild(line);
+}
+
+function createVocabularyPreviewRow(documentRef, row = {}, reader = {}, index = 0) {
+  const item = createElement(documentRef, "article", { className: "r3-vocabulary-preview-row" });
+  const expanded = Boolean(reader.vocabularyPreview?.detailsOpen || row.isExpanded);
+  const summary = createElement(documentRef, "div", { className: "r3-vocabulary-preview-summary" });
+  summary.appendChild(createElement(documentRef, "span", { className: "r3-vocabulary-preview-index", text: String(index + 1).padStart(2, "0") }));
+  const termButton = createElement(documentRef, "button", {
+    className: "r3-vocabulary-preview-term",
+    attrs: { type: "button", "aria-expanded": expanded ? "true" : "false" },
+    dataset: { action: "vocabulary-preview-row-toggle", vocabularyTerm: row.term }
+  });
+  termButton.appendChild(createElement(documentRef, "span", { text: row.term || "Vocabulary term" }));
+  if (expanded && row.type && row.type !== "unknown") {
+    termButton.appendChild(createElement(documentRef, "span", { className: "r3-vocabulary-preview-type", text: row.type.replaceAll("_", " ") }));
+  }
+  summary.appendChild(termButton);
+  const actions = createElement(documentRef, "div", { className: "r3-vocabulary-preview-actions" });
+  actions.appendChild(createVocabularyStateButton(documentRef, row, reader, "known", "Known", "checkCircle"));
+  actions.appendChild(createVocabularyStateButton(documentRef, row, reader, "learning", "Save to Learning", "bookmark"));
+  actions.appendChild(createVocabularyStateButton(documentRef, row, reader, "hidden", "Hide", "eyeOff"));
+  summary.appendChild(actions);
+  item.appendChild(summary);
+
+  if (expanded) {
+    const details = createElement(documentRef, "div", { className: "r3-vocabulary-preview-details" });
+    appendMetadataRow(documentRef, details, "", row.chineseMeaning, { lang: "zh-CN", className: "r3-vocabulary-preview-meaning" });
+    appendMetadataRow(documentRef, details, "EN", row.englishDefinition, { lang: "en" });
+    appendMetadataRow(documentRef, details, "IELTS", row.ieltsUsage);
+    appendMetadataRow(documentRef, details, "USE", row.usageNote);
+    const occurrences = Array.isArray(row.occurrences) ? row.occurrences : [];
+    const contextButton = createActionButton(documentRef, {
+      className: "r3-vocabulary-context-toggle",
+      label: `Context ${occurrences.length}× ${row.contextOpen ? "↓" : "→"}`,
+      dataset: { action: "vocabulary-preview-context", vocabularyTerm: row.term },
+      disabled: !occurrences.length || reader.vocabularySaving
+    });
+    contextButton.setAttribute("aria-expanded", row.contextOpen ? "true" : "false");
+    details.appendChild(contextButton);
+    if (row.contextOpen && occurrences.length) {
+      const contextList = createElement(documentRef, "ol", { className: "r3-vocabulary-context-list" });
+      occurrences.forEach(occurrence => {
+        const contextItem = createElement(documentRef, "li");
+        contextItem.appendChild(createElement(documentRef, "p", { text: occurrence.snippet }));
+        contextItem.appendChild(createActionButton(documentRef, {
+          className: "r3-vocabulary-passage-link",
+          label: "View in passage →",
+          dataset: {
+            action: "vocabulary-preview-passage",
+            vocabularyTerm: row.term,
+            occurrenceIndex: occurrence.occurrenceIndex
+          },
+          disabled: reader.vocabularySaving
+        }));
+        contextList.appendChild(contextItem);
+      });
+      details.appendChild(contextList);
+    }
+    item.appendChild(details);
+  }
+  return item;
+}
+
+function createVocabularyPreview(documentRef, reader = {}) {
+  const panel = createElement(documentRef, "section", {
+    className: "r3-vocabulary-preview",
+    attrs: { "aria-label": "Vocabulary Preview", "aria-modal": "true", role: "dialog" }
+  });
+  const header = createElement(documentRef, "div", { className: "r3-section-header" });
+  const rows = reader.vocabularyPreview?.rows || [];
+  header.appendChild(createElement(documentRef, "div", { className: "r3-vocabulary-preview-title" }, [
+    createElement(documentRef, "h2", { text: "Vocabulary Preview" }),
+    createElement(documentRef, "p", { className: "r3-muted", text: `${reader.chapterTitle || "Current chapter"} · ${rows.length} ${rows.length === 1 ? "word" : "words"}` })
+  ]));
+  const headerActions = createElement(documentRef, "div", { className: "r3-vocabulary-preview-header-actions" });
+  const detailsButton = createActionButton(documentRef, {
+    className: `r3-vocabulary-details-toggle${reader.vocabularyPreview?.detailsOpen ? " is-selected" : ""}`,
+    label: "Details",
+    dataset: { action: "vocabulary-preview-details", detailsOpen: reader.vocabularyPreview?.detailsOpen ? "true" : "false" }
+  });
+  detailsButton.setAttribute("aria-pressed", reader.vocabularyPreview?.detailsOpen ? "true" : "false");
+  headerActions.appendChild(detailsButton);
+  headerActions.appendChild(createReaderButton(documentRef, "vocabulary-preview-close", "Close"));
+  header.appendChild(headerActions);
+  panel.appendChild(header);
+
+  const list = createElement(documentRef, "div", { className: "r3-vocabulary-preview-list" });
+  if (!rows.length) list.appendChild(createElement(documentRef, "p", {
+    className: "r3-muted",
+    text: "No tracked vocabulary is available for this chapter."
+  }));
+  rows.forEach((row, index) => list.appendChild(createVocabularyPreviewRow(documentRef, row, reader, index)));
+  panel.appendChild(list);
+  if (reader.vocabularyMessage) panel.appendChild(createElement(documentRef, "p", {
+    text: reader.vocabularyMessage,
+    attrs: { role: "status" }
+  }));
+  return panel;
+}
+
+function createVocabularyPreviewOverlay(documentRef, reader = {}) {
+  const overlay = createElement(documentRef, "div", { className: "r3-reader-overlay" });
+  overlay.appendChild(createElement(documentRef, "div", {
+    className: "r3-reader-scrim",
+    attrs: { "aria-hidden": "true" }
+  }));
+  overlay.appendChild(createVocabularyPreview(documentRef, reader));
+  return overlay;
+}
+
 function createVocabularyBubble(documentRef, reader) {
   const { term, item } = reader.vocabularyBubble;
   const bubble = createElement(documentRef, "section", {
@@ -145,8 +278,10 @@ function createVocabularyBubble(documentRef, reader) {
 export function createReaderView(documentRef, state) {
   const reader = state.reader || {};
   const hasContents = state.openOverlay === R3_OVERLAYS.CONTENTS;
+  const hasVocabularyPreview = state.openOverlay === R3_OVERLAYS.VOCABULARY_PREVIEW;
+  const hasReaderOverlay = hasContents || hasVocabularyPreview;
   const view = createElement(documentRef, "div", {
-    className: `r3-screen r3-reader-screen${hasContents ? " has-contents" : ""}`,
+    className: `r3-screen r3-reader-screen${hasReaderOverlay ? " has-overlay" : ""}`,
     attrs: { "data-screen": "reader" }
   });
 
@@ -161,6 +296,7 @@ export function createReaderView(documentRef, state) {
   }));
   header.appendChild(titleGroup);
   const headerActions = createElement(documentRef, "div", { className: "r3-header-actions" });
+  headerActions.appendChild(createReaderButton(documentRef, "vocabulary-preview-open", "Preview", reader.status !== "ready"));
   headerActions.appendChild(createReaderButton(documentRef, "reader-contents", "Contents", reader.status !== "ready"));
   headerActions.appendChild(createReaderButton(documentRef, "reader-back", "Back"));
   header.appendChild(headerActions);
@@ -187,7 +323,7 @@ export function createReaderView(documentRef, state) {
   footer.appendChild(nav);
   view.appendChild(footer);
 
-  if (reader.vocabularyBubble && !hasContents) {
+  if (reader.vocabularyBubble && !hasReaderOverlay) {
     view.appendChild(createVocabularyBubble(documentRef, reader));
   } else if (reader.vocabularyMessage) {
     view.appendChild(createElement(documentRef, "p", {
@@ -199,6 +335,8 @@ export function createReaderView(documentRef, state) {
 
   if (hasContents) {
     view.appendChild(createReaderContentsOverlay(documentRef, reader));
+  } else if (hasVocabularyPreview) {
+    view.appendChild(createVocabularyPreviewOverlay(documentRef, reader));
   }
 
   return view;

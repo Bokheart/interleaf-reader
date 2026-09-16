@@ -3,9 +3,14 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import { R3_ACTIONS, r3Actions } from "../pwa-reader/ui-r3/actions.js";
-import { bootstrapR3App } from "../pwa-reader/ui-r3/bootstrap.js";
+import {
+  bootstrapR3App,
+  collectVocabularyOccurrences,
+  scrollToVocabularyHit
+} from "../pwa-reader/ui-r3/bootstrap.js";
 import { createR3Controller } from "../pwa-reader/ui-r3/controller.js";
 import { R3_OVERLAYS, R3_ROUTES } from "../pwa-reader/ui-r3/routes.js";
+import { createReaderView } from "../pwa-reader/ui-r3/views/readerView.js";
 import {
   createInitialR3State,
   createR3Store,
@@ -1105,6 +1110,469 @@ test("R3 controller serializes vocabulary writes through their rendered refresh"
   assert.equal(state.reader.vocabularyBubble, null);
   assert.equal(savingBeforeLearningRefreshCompletes, true);
   assert.equal(state.reader.vocabularySaving, false);
+});
+
+test("R3 Preview opens with a snapshot generated for the current chapter", async () => {
+  const { adapters, readerRuntime } = createAdapters();
+  const item = { term: "mutter", chineseMeaning: "低声嘟囔", englishDefinition: "to speak quietly" };
+  const previewCalls = [];
+  adapters.modes.resolveModeFromProgress = () => "english-study";
+  adapters.modes.renderChapter = (chapter, mode, options) => ({
+    html: `<p>${chapter.title} rendered in ${mode}</p>`,
+    vocabularyPreview: options.vocabularyItems
+  });
+  adapters.vocabulary.getReaderVocabulary = async () => ({
+    profile: { knownWords: [], learningWords: [item.term], ignoredWords: [] },
+    items: [item]
+  });
+  adapters.vocabulary.getChapterPreview = (chapter, items) => {
+    previewCalls.push({ chapter, items });
+    return items;
+  };
+
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters, readerRuntime });
+  await controller.resumeBook("recent");
+  const state = controller.openVocabularyPreview({
+    mutter: [
+      { occurrenceIndex: 0, snippet: "…she began to mutter under her breath…" },
+      { occurrenceIndex: 1, snippet: "…mutter another warning…" }
+    ]
+  });
+
+  assert.equal(state.openOverlay, R3_OVERLAYS.VOCABULARY_PREVIEW);
+  assert.equal(previewCalls.length, 1);
+  assert.equal(previewCalls[0].chapter.id, "chapter-2");
+  assert.equal(state.reader.vocabularyPreview.detailsOpen, false);
+  assert.deepEqual(state.reader.vocabularyPreview.rows, [{
+    ...item,
+    state: "learning",
+    isExpanded: false,
+    contextOpen: false,
+    occurrences: [
+      { occurrenceIndex: 0, snippet: "…she began to mutter under her breath…" },
+      { occurrenceIndex: 1, snippet: "…mutter another warning…" }
+    ],
+    hasLiveAnnotation: true
+  }]);
+});
+
+test("R3 Preview defaults to compact collapsed rows with icon state and no empty-choice copy", () => {
+  const documentRef = createMockDocument();
+  const item = { term: "mutter", chineseMeaning: "低声嘟囔", englishDefinition: "to speak quietly" };
+  const state = createInitialR3State({
+    activeScreen: R3_ROUTES.READER,
+    openOverlay: R3_OVERLAYS.VOCABULARY_PREVIEW,
+    reader: {
+      status: "ready",
+      html: "<p>Chapter text</p>",
+      vocabularyPreview: {
+        chapterId: "chapter-1",
+        detailsOpen: false,
+        rows: [{ ...item, state: "learning", isExpanded: false, contextOpen: false, occurrences: [] }]
+      }
+    }
+  });
+
+  const view = createReaderView(documentRef, state);
+  const stack = [view];
+  const nodes = [];
+  while (stack.length) {
+    const node = stack.shift();
+    nodes.push(node);
+    stack.push(...(node.children || []));
+  }
+  const text = nodes.map(node => node.textContent).filter(Boolean).join(" ");
+  const stateButtons = nodes.filter(node => node.dataset?.action === "vocabulary-preview-state");
+  const rowToggle = nodes.find(node => node.dataset?.action === "vocabulary-preview-row-toggle");
+  const detailsToggle = nodes.find(node => node.dataset?.action === "vocabulary-preview-details");
+
+  assert.match(text, /mutter/);
+  assert.doesNotMatch(text, /低声嘟囔/);
+  assert.doesNotMatch(text, /to speak quietly/);
+  assert.doesNotMatch(text, /No choice yet/);
+  assert.equal(rowToggle.getAttribute("aria-expanded"), "false");
+  assert.equal(detailsToggle.getAttribute("aria-pressed"), "false");
+  assert.deepEqual(stateButtons.map(button => button.getAttribute("aria-label")), ["Known", "Save to Learning", "Hide"]);
+  assert.equal(stateButtons.find(button => button.dataset.vocabularyState === "learning").getAttribute("aria-pressed"), "true");
+});
+
+test("R3 Preview supports independent row expansion and a strong global Details toggle", async () => {
+  const { adapters, readerRuntime } = createAdapters();
+  const items = [{ term: "mutter" }, { term: "linger" }];
+  adapters.modes.resolveModeFromProgress = () => "english-study";
+  adapters.vocabulary.getReaderVocabulary = async () => ({ profile: {}, items });
+  adapters.vocabulary.getChapterPreview = (_chapter, vocabularyItems) => vocabularyItems;
+  adapters.modes.renderChapter = (_chapter, _mode, options) => ({ html: "<p>text</p>", vocabularyPreview: options.vocabularyItems });
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters, readerRuntime });
+  await controller.resumeBook("recent");
+  controller.openVocabularyPreview();
+
+  controller.toggleVocabularyPreviewRow("mutter");
+  controller.toggleVocabularyPreviewRow("linger");
+  let preview = store.getState().reader.vocabularyPreview;
+  assert.deepEqual(preview.rows.map(row => row.isExpanded), [true, true]);
+
+  controller.toggleVocabularyPreviewRow("mutter");
+  preview = store.getState().reader.vocabularyPreview;
+  assert.deepEqual(preview.rows.map(row => row.isExpanded), [false, true]);
+
+  controller.toggleVocabularyPreviewDetails(true);
+  preview = store.getState().reader.vocabularyPreview;
+  assert.equal(preview.detailsOpen, true);
+
+  controller.toggleVocabularyPreviewDetails(false);
+  preview = store.getState().reader.vocabularyPreview;
+  assert.equal(preview.detailsOpen, false);
+  assert.deepEqual(preview.rows.map(row => row.isExpanded), [false, false]);
+});
+
+test("R3 Preview renders only source-backed metadata in expanded rows", () => {
+  const documentRef = createMockDocument();
+  const state = createInitialR3State({
+    activeScreen: R3_ROUTES.READER,
+    openOverlay: R3_OVERLAYS.VOCABULARY_PREVIEW,
+    reader: {
+      status: "ready",
+      chapterTitle: "Chapter 35",
+      html: "<p>Chapter text</p>",
+      vocabularyPreview: {
+        chapterId: "chapter-1",
+        detailsOpen: false,
+        rows: [{
+          term: "mutter",
+          type: "fiction",
+          chineseMeaning: "低声嘟囔",
+          englishDefinition: "to speak quietly",
+          ieltsUsage: "mutter under one's breath",
+          usageNote: "Often signals frustration.",
+          isExpanded: true,
+          contextOpen: false,
+          occurrences: [{ occurrenceIndex: 0, snippet: "…she began to mutter…" }]
+        }]
+      }
+    }
+  });
+  const view = createReaderView(documentRef, state);
+  const stack = [view];
+  const nodes = [];
+  while (stack.length) {
+    const node = stack.shift();
+    nodes.push(node);
+    stack.push(...(node.children || []));
+  }
+  const text = nodes.map(node => node.textContent).filter(Boolean).join(" ");
+  assert.match(text, /Chapter 35 · 1 word/);
+  assert.match(text, /fiction/);
+  assert.match(text, /低声嘟囔/);
+  assert.match(text, /EN to speak quietly/);
+  assert.match(text, /IELTS mutter under one's breath/);
+  assert.match(text, /USE Often signals frustration/);
+  assert.doesNotMatch(text, /Example/);
+});
+
+test("R3 Preview Context derives repeated-term snippets from each live hit and preserves indices", () => {
+  const root = createMockElement("main");
+  const paragraph = createMockElement("p");
+  paragraph.textContent = [
+    "Opening context ".repeat(12),
+    "first nearby reluctant",
+    " middle context ".repeat(16),
+    "second nearby reluctant",
+    " closing context ".repeat(12)
+  ].join("");
+  const firstHit = createMockElement("button");
+  firstHit.className = "vocab-hit";
+  firstHit.dataset.vocabTerm = "reluctant";
+  const secondHit = createMockElement("button");
+  secondHit.className = "vocab-hit";
+  secondHit.dataset.vocabTerm = "reluctant";
+  paragraph.appendChild(firstHit);
+  paragraph.appendChild(secondHit);
+  root.appendChild(paragraph);
+
+  const occurrences = collectVocabularyOccurrences(root);
+  assert.deepEqual(occurrences.reluctant.map(occurrence => occurrence.occurrenceIndex), [0, 1]);
+  assert.match(occurrences.reluctant[0].snippet, /first nearby reluctant/);
+  assert.doesNotMatch(occurrences.reluctant[0].snippet, /second nearby reluctant/);
+  assert.match(occurrences.reluctant[1].snippet, /second nearby reluctant/);
+  assert.doesNotMatch(occurrences.reluctant[1].snippet, /first nearby reluctant/);
+
+  let firstScroll = null;
+  let secondScroll = null;
+  firstHit.scrollIntoView = options => { firstScroll = options; };
+  secondHit.scrollIntoView = options => { secondScroll = options; };
+  assert.equal(scrollToVocabularyHit(root, "reluctant", 1), true);
+  assert.equal(firstScroll, null);
+  assert.deepEqual(secondScroll, { block: "center", behavior: "smooth" });
+});
+
+test("R3 Preview keeps a row stable while a persisted state refreshes live annotations", async () => {
+  const { adapters, readerRuntime } = createAdapters();
+  const item = { term: "mutter", chineseMeaning: "低声嘟囔", englishDefinition: "to speak quietly" };
+  let persistedState = "";
+  const persistedStates = [];
+  adapters.modes.resolveModeFromProgress = () => "english-study";
+  adapters.vocabulary.getReaderVocabulary = async () => ({
+    profile: {
+      knownWords: persistedState === "known" ? [item.term] : [],
+      learningWords: persistedState === "learning" ? [item.term] : [],
+      ignoredWords: persistedState === "hidden" ? [item.term] : []
+    },
+    items: ["known", "hidden"].includes(persistedState) ? [] : [item]
+  });
+  adapters.vocabulary.getChapterPreview = (_chapter, items) => items;
+  adapters.vocabulary.setTermState = async (_term, nextState) => {
+    persistedState = nextState;
+    persistedStates.push(nextState);
+  };
+  adapters.modes.renderChapter = (chapter, mode, options) => ({
+    html: `<p>${chapter.title} rendered in ${mode}</p>`,
+    vocabularyPreview: options.vocabularyItems
+  });
+  const collectVocabularyOccurrences = () => ["known", "hidden"].includes(persistedState)
+    ? {}
+    : { mutter: [{ occurrenceIndex: 0, snippet: "Current mutter context." }] };
+
+  const store = createR3Store();
+  const controller = createR3Controller({
+    store,
+    adapters,
+    readerRuntime,
+    collectVocabularyOccurrences
+  });
+  await controller.resumeBook("recent");
+  controller.openVocabularyPreview();
+  controller.toggleVocabularyPreviewRow(item.term);
+  await controller.setReaderVocabularyState("learning", item.term);
+
+  let state = store.getState();
+  assert.equal(state.reader.vocabularyPreview.rows.length, 1);
+  assert.equal(state.reader.vocabularyPreview.rows[0].state, "learning");
+  assert.equal(state.reader.vocabularyPreview.rows[0].isExpanded, true);
+  assert.equal(state.reader.vocabularyPreview.rows[0].hasLiveAnnotation, true);
+  assert.deepEqual(state.reader.vocabularyPreview.rows[0].occurrences, [
+    { occurrenceIndex: 0, snippet: "Current mutter context." }
+  ]);
+
+  await controller.setReaderVocabularyState("hidden", item.term);
+  state = store.getState();
+  assert.equal(state.reader.vocabularyPreview.rows.length, 1);
+  assert.equal(state.reader.vocabularyPreview.rows[0].state, "hidden");
+  assert.equal(state.reader.vocabularyPreview.rows[0].hasLiveAnnotation, false);
+  assert.deepEqual(state.reader.vocabularyPreview.rows[0].occurrences, []);
+
+  await controller.setReaderVocabularyState("learning", item.term);
+
+  state = store.getState();
+  assert.equal(state.openOverlay, R3_OVERLAYS.VOCABULARY_PREVIEW);
+  assert.equal(state.reader.vocabularyPreview.rows.length, 1);
+  assert.equal(state.reader.vocabularyPreview.rows[0].state, "learning");
+  assert.equal(state.reader.vocabularyPreview.rows[0].hasLiveAnnotation, true);
+  assert.deepEqual(state.reader.vocabularyPreview.rows[0].occurrences, [
+    { occurrenceIndex: 0, snippet: "Current mutter context." }
+  ]);
+  assert.deepEqual(persistedStates, ["learning", "hidden", "learning"]);
+
+  controller.closeVocabularyPreview();
+  state = controller.openVocabularyPreview();
+  assert.equal(state.reader.vocabularyPreview.rows.length, 1);
+});
+
+test("R3 Preview clears stale occurrences when post-refresh annotations are unavailable", async () => {
+  const { adapters, readerRuntime } = createAdapters();
+  const item = { term: "mutter" };
+  adapters.modes.resolveModeFromProgress = () => "english-study";
+  adapters.vocabulary.getReaderVocabulary = async () => ({
+    profile: { learningWords: [item.term] },
+    items: [item]
+  });
+  adapters.vocabulary.getChapterPreview = (_chapter, items) => items;
+  adapters.vocabulary.setTermState = async () => {};
+  adapters.modes.renderChapter = (_chapter, _mode, options) => ({
+    html: "<p>Reader remains available</p>",
+    vocabularyPreview: options.vocabularyItems
+  });
+
+  const store = createR3Store();
+  const controller = createR3Controller({
+    store,
+    adapters,
+    readerRuntime,
+    collectVocabularyOccurrences() {
+      throw new Error("Reader annotations unavailable");
+    }
+  });
+  await controller.resumeBook("recent");
+  controller.openVocabularyPreview({
+    mutter: [{ occurrenceIndex: 0, snippet: "Stale mutter context." }]
+  });
+
+  await controller.setReaderVocabularyState("learning", item.term);
+
+  const row = store.getState().reader.vocabularyPreview.rows[0];
+  assert.deepEqual(row.occurrences, []);
+  assert.equal(row.hasLiveAnnotation, false);
+  assert.equal(row.contextOpen, false);
+  assert.equal(controller.goToVocabularyPreviewOccurrence(item.term, 0), false);
+  assert.equal(store.getState().openOverlay, R3_OVERLAYS.VOCABULARY_PREVIEW);
+});
+
+test("R3 Preview invalidates its snapshot when the chapter changes", async () => {
+  const { adapters, readerRuntime } = createAdapters();
+  adapters.modes.resolveModeFromProgress = () => "english-study";
+  adapters.vocabulary.getReaderVocabulary = async () => ({ profile: {}, items: [{ term: "chapter" }] });
+  adapters.vocabulary.getChapterPreview = chapter => [{ term: chapter.id }];
+  adapters.modes.renderChapter = chapter => ({ html: `<p>${chapter.title}</p>`, vocabularyPreview: [] });
+
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters, readerRuntime });
+  await controller.resumeBook("recent");
+  controller.openVocabularyPreview();
+  await controller.goToReaderChapter("previous");
+
+  const state = store.getState();
+  assert.equal(state.activeChapterId, "chapter-1");
+  assert.equal(state.openOverlay, null);
+  assert.equal(state.reader.vocabularyPreview, null);
+});
+
+test("R3 Preview passage navigation only closes for a live annotation", async () => {
+  const { adapters, readerRuntime } = createAdapters();
+  const item = { term: "mutter" };
+  adapters.modes.resolveModeFromProgress = () => "english-study";
+  adapters.vocabulary.getReaderVocabulary = async () => ({ profile: {}, items: [item] });
+  adapters.vocabulary.getChapterPreview = (_chapter, items) => items;
+  adapters.modes.renderChapter = (_chapter, _mode, options) => ({ html: "<p>mutter</p>", vocabularyPreview: options.vocabularyItems });
+
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters, readerRuntime });
+  await controller.resumeBook("recent");
+  controller.openVocabularyPreview({ mutter: [{ occurrenceIndex: 0, snippet: "mutter" }] });
+
+  assert.equal(controller.goToVocabularyPreviewTerm(item.term), true);
+  assert.equal(store.getState().openOverlay, null);
+
+  controller.openVocabularyPreview();
+  store.dispatch(r3Actions.setReaderState({
+    vocabularyPreview: {
+      ...store.getState().reader.vocabularyPreview,
+      rows: [{ ...item, state: "known", hasLiveAnnotation: false }]
+    }
+  }));
+  assert.equal(controller.goToVocabularyPreviewTerm(item.term), false);
+  assert.equal(store.getState().openOverlay, R3_OVERLAYS.VOCABULARY_PREVIEW);
+});
+
+test("R3 Preview Context renders each occurrence and Known removes every passage target", async () => {
+  const documentRef = createMockDocument();
+  const occurrences = [
+    { occurrenceIndex: 0, snippet: "She began to mutter under her breath." },
+    { occurrenceIndex: 1, snippet: "He heard her mutter another warning." }
+  ];
+  const state = createInitialR3State({
+    activeScreen: R3_ROUTES.READER,
+    openOverlay: R3_OVERLAYS.VOCABULARY_PREVIEW,
+    reader: {
+      status: "ready",
+      html: "<p>Chapter text</p>",
+      vocabularyPreview: {
+        chapterId: "chapter-1",
+        detailsOpen: false,
+        rows: [{ term: "mutter", isExpanded: true, contextOpen: true, occurrences }]
+      }
+    }
+  });
+  const view = createReaderView(documentRef, state);
+  const stack = [view];
+  const nodes = [];
+  while (stack.length) {
+    const node = stack.shift();
+    nodes.push(node);
+    stack.push(...(node.children || []));
+  }
+  const passageButtons = nodes.filter(node => node.dataset?.action === "vocabulary-preview-passage");
+  assert.deepEqual(passageButtons.map(button => button.dataset.occurrenceIndex), ["0", "1"]);
+  assert.match(nodes.map(node => node.textContent).join(" "), /Context 2×/);
+
+  const { adapters, readerRuntime } = createAdapters();
+  const item = { term: "mutter" };
+  adapters.modes.resolveModeFromProgress = () => "english-study";
+  adapters.vocabulary.getReaderVocabulary = async () => ({ profile: {}, items: [item] });
+  adapters.vocabulary.getChapterPreview = (_chapter, items) => items;
+  adapters.vocabulary.setTermState = async () => {};
+  adapters.modes.renderChapter = () => ({ html: "<p>mutter</p>", vocabularyPreview: [] });
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters, readerRuntime });
+  await controller.resumeBook("recent");
+  controller.openVocabularyPreview({ mutter: occurrences });
+  await controller.setReaderVocabularyState("known", "mutter");
+  const row = store.getState().reader.vocabularyPreview.rows[0];
+  assert.deepEqual(row.occurrences, []);
+  assert.equal(row.hasLiveAnnotation, false);
+  assert.equal(controller.goToVocabularyPreviewOccurrence("mutter", 1), false);
+  assert.equal(store.getState().openOverlay, R3_OVERLAYS.VOCABULARY_PREVIEW);
+});
+
+test("R3 Preview scrolls to a matching live annotation without replacing native selection", () => {
+  const root = createMockElement("main");
+  const article = createMockElement("article");
+  const hit = createMockElement("button");
+  hit.className = "vocab-hit";
+  hit.dataset.vocabTerm = "mutter";
+  let scrollOptions = null;
+  hit.scrollIntoView = options => { scrollOptions = options; };
+  article.appendChild(hit);
+  root.appendChild(article);
+
+  assert.equal(scrollToVocabularyHit(root, "Mutter"), true);
+  assert.deepEqual(scrollOptions, { block: "center", behavior: "smooth" });
+  assert.equal(scrollToVocabularyHit(root, "missing"), false);
+});
+
+test("R3 Preview open and ordinary close preserve the Reader scroll position", async () => {
+  const frameCallbacks = [];
+  const documentRef = createMockDocument();
+  documentRef.defaultView = {
+    innerWidth: 393,
+    innerHeight: 852,
+    addEventListener() {},
+    requestAnimationFrame(callback) {
+      frameCallbacks.push(callback);
+      return frameCallbacks.length;
+    }
+  };
+  const { adapters, readerRuntime } = createAdapters();
+  adapters.modes.resolveModeFromProgress = () => "english-study";
+  adapters.vocabulary.getReaderVocabulary = async () => ({ profile: {}, items: [{ term: "mutter" }] });
+  adapters.vocabulary.getChapterPreview = (_chapter, items) => items;
+  adapters.modes.renderChapter = (_chapter, _mode, options) => ({ html: "<p>mutter</p>", vocabularyPreview: options.vocabularyItems });
+
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters, readerRuntime });
+  const app = await bootstrapR3App({ document: documentRef, store, controller });
+  await controller.resumeBook("recent");
+  const findScroll = root => {
+    const stack = [root];
+    while (stack.length) {
+      const node = stack.shift();
+      if (String(node.className || "").split(/\s+/).includes("r3-reader-scroll")) return node;
+      stack.push(...(node.children || []));
+    }
+    return null;
+  };
+  let scroll = findScroll(app.root);
+  scroll.scrollTop = 176;
+
+  controller.openVocabularyPreview();
+  scroll = findScroll(app.root);
+  assert.equal(scroll.scrollTop, 176);
+
+  controller.closeVocabularyPreview();
+  scroll = findScroll(app.root);
+  assert.equal(scroll.scrollTop, 176);
+  frameCallbacks.splice(0).forEach(callback => callback());
 });
 
 test("R3 bootstrap preserves an open vocabulary bubble through same-chapter scroll restoration", async () => {
