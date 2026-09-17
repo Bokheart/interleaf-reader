@@ -1,6 +1,7 @@
 import {
   createActionButton,
   createElement,
+  createIcon,
   createIconButton
 } from "../components/dom.js";
 import { R3_OVERLAYS } from "../routes.js";
@@ -134,6 +135,34 @@ function appendMetadataRow(documentRef, container, label, value, options = {}) {
   container.appendChild(line);
 }
 
+function appendHighlightedSnippet(documentRef, container, snippet = "", term = "") {
+  const source = String(snippet || "");
+  const pattern = String(term || "").trim()
+    .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    .replace(/\s+/g, "\\s+");
+  if (!pattern) {
+    container.appendChild(documentRef.createTextNode(source));
+    return;
+  }
+
+  const regex = new RegExp(`(^|[^A-Za-z0-9_])(${pattern})(?=$|[^A-Za-z0-9_])`, "gi");
+  let lastIndex = 0;
+  let match = regex.exec(source);
+  while (match) {
+    const start = match.index + (match[1] || "").length;
+    const end = start + (match[2] || "").length;
+    container.appendChild(documentRef.createTextNode(source.slice(lastIndex, start)));
+    container.appendChild(createElement(documentRef, "mark", {
+      className: "r3-vocabulary-context-term",
+      text: source.slice(start, end)
+    }));
+    lastIndex = end;
+    regex.lastIndex = end;
+    match = regex.exec(source);
+  }
+  container.appendChild(documentRef.createTextNode(source.slice(lastIndex)));
+}
+
 function createVocabularyPreviewRow(documentRef, row = {}, reader = {}, index = 0) {
   const item = createElement(documentRef, "article", { className: "r3-vocabulary-preview-row" });
   const expanded = Boolean(reader.vocabularyPreview?.detailsOpen || row.isExpanded);
@@ -175,7 +204,9 @@ function createVocabularyPreviewRow(documentRef, row = {}, reader = {}, index = 
       const contextList = createElement(documentRef, "ol", { className: "r3-vocabulary-context-list" });
       occurrences.forEach(occurrence => {
         const contextItem = createElement(documentRef, "li");
-        contextItem.appendChild(createElement(documentRef, "p", { text: occurrence.snippet }));
+        const snippet = createElement(documentRef, "p");
+        appendHighlightedSnippet(documentRef, snippet, occurrence.snippet, row.term);
+        contextItem.appendChild(snippet);
         contextItem.appendChild(createActionButton(documentRef, {
           className: "r3-vocabulary-passage-link",
           label: "View in passage →",
@@ -195,6 +226,54 @@ function createVocabularyPreviewRow(documentRef, row = {}, reader = {}, index = 
   return item;
 }
 
+function createVocabularyDetailsSwitch(documentRef, detailsOpen) {
+  const button = createElement(documentRef, "button", {
+    className: "r3-vocabulary-details-switch",
+    attrs: {
+      type: "button",
+      role: "switch",
+      "aria-checked": detailsOpen ? "true" : "false"
+    },
+    dataset: {
+      action: "vocabulary-preview-details",
+      detailsOpen: detailsOpen ? "true" : "false"
+    }
+  });
+  button.appendChild(createElement(documentRef, "span", {
+    className: "r3-vocabulary-details-label",
+    text: "Details"
+  }));
+  const track = createElement(documentRef, "span", {
+    className: "r3-vocabulary-switch-track",
+    attrs: { "aria-hidden": "true" }
+  });
+  track.appendChild(createElement(documentRef, "span", { className: "r3-vocabulary-switch-thumb" }));
+  button.appendChild(track);
+  button.appendChild(createElement(documentRef, "span", {
+    className: "r3-vocabulary-switch-state",
+    text: detailsOpen ? "On" : "Off"
+  }));
+  return button;
+}
+
+function createVocabularyLegend(documentRef) {
+  const legend = createElement(documentRef, "div", {
+    className: "r3-vocabulary-preview-legend",
+    attrs: { "aria-label": "Vocabulary action legend" }
+  });
+  [
+    ["checkCircle", "Known"],
+    ["bookmark", "Save / Learning"],
+    ["eyeOff", "Hide"]
+  ].forEach(([icon, label]) => {
+    const item = createElement(documentRef, "span", { className: "r3-vocabulary-legend-item" });
+    item.appendChild(createIcon(documentRef, icon));
+    item.appendChild(createElement(documentRef, "span", { text: label }));
+    legend.appendChild(item);
+  });
+  return legend;
+}
+
 function createVocabularyPreview(documentRef, reader = {}) {
   const panel = createElement(documentRef, "section", {
     className: "r3-vocabulary-preview",
@@ -207,14 +286,14 @@ function createVocabularyPreview(documentRef, reader = {}) {
     createElement(documentRef, "p", { className: "r3-muted", text: `${reader.chapterTitle || "Current chapter"} · ${rows.length} ${rows.length === 1 ? "word" : "words"}` })
   ]));
   const headerActions = createElement(documentRef, "div", { className: "r3-vocabulary-preview-header-actions" });
-  const detailsButton = createActionButton(documentRef, {
-    className: `r3-vocabulary-details-toggle${reader.vocabularyPreview?.detailsOpen ? " is-selected" : ""}`,
-    label: "Details",
-    dataset: { action: "vocabulary-preview-details", detailsOpen: reader.vocabularyPreview?.detailsOpen ? "true" : "false" }
-  });
-  detailsButton.setAttribute("aria-pressed", reader.vocabularyPreview?.detailsOpen ? "true" : "false");
-  headerActions.appendChild(detailsButton);
-  headerActions.appendChild(createReaderButton(documentRef, "vocabulary-preview-close", "Close"));
+  const detailsOpen = Boolean(reader.vocabularyPreview?.detailsOpen);
+  headerActions.appendChild(createVocabularyDetailsSwitch(documentRef, detailsOpen));
+  headerActions.appendChild(createIconButton(documentRef, {
+    className: "r3-icon-button r3-vocabulary-preview-back",
+    label: "Back to reader",
+    icon: "chevronLeft",
+    dataset: { action: "vocabulary-preview-close" }
+  }));
   header.appendChild(headerActions);
   panel.appendChild(header);
 
@@ -225,6 +304,7 @@ function createVocabularyPreview(documentRef, reader = {}) {
   }));
   rows.forEach((row, index) => list.appendChild(createVocabularyPreviewRow(documentRef, row, reader, index)));
   panel.appendChild(list);
+  panel.appendChild(createVocabularyLegend(documentRef));
   if (reader.vocabularyMessage) panel.appendChild(createElement(documentRef, "p", {
     text: reader.vocabularyMessage,
     attrs: { role: "status" }
@@ -236,7 +316,8 @@ function createVocabularyPreviewOverlay(documentRef, reader = {}) {
   const overlay = createElement(documentRef, "div", { className: "r3-reader-overlay" });
   overlay.appendChild(createElement(documentRef, "div", {
     className: "r3-reader-scrim",
-    attrs: { "aria-hidden": "true" }
+    attrs: { "aria-hidden": "true" },
+    dataset: { action: "vocabulary-preview-close" }
   }));
   overlay.appendChild(createVocabularyPreview(documentRef, reader));
   return overlay;

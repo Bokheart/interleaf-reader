@@ -202,6 +202,25 @@
   outline-offset: 2px;
 }
 
+.r3-reader-content .vocab-hit.is-passage-target {
+  color: var(--r3-color-text);
+  background: var(--r3-color-accent-soft);
+  border-radius: 0.2em;
+  outline: 3px solid var(--r3-color-accent);
+  outline-offset: 3px;
+  animation: r3-passage-target-pulse 600ms ease-in-out 2;
+}
+
+@keyframes r3-passage-target-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(109, 76, 255, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 7px rgba(109, 76, 255, 0.2);
+  }
+}
+
 .r3-vocabulary-bubble {
   position: fixed;
   z-index: 6;
@@ -265,4 +284,10 @@
   background: var(--r3-color-surface);
   border: 1px solid var(--r3-color-border);
   font-size: 0.85rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .r3-reader-content .vocab-hit.is-passage-target {
+    animation: none;
+  }
 }

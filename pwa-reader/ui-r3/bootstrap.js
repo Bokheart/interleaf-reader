@@ -2,7 +2,7 @@ import { createR3Controller } from "./controller.js";
 import { createR3Store } from "./store.js";
 import { normalizeWord } from "../levelBaselineEngine.js";
 import { normalizeTerm } from "../vocabEngine.js";
-import { R3_ROUTES } from "./routes.js";
+import { R3_OVERLAYS, R3_ROUTES } from "./routes.js";
 import { createAppShellView } from "./views/appShellView.js";
 
 let autoBootstrapScheduled = false;
@@ -164,7 +164,30 @@ export function scrollToVocabularyHit(root, term, occurrenceIndex = 0) {
   }
   const hit = matches[Number(occurrenceIndex)];
   if (!hit || typeof hit.scrollIntoView !== "function") return false;
-  hit.scrollIntoView({ block: "center", behavior: "smooth" });
+  const windowRef = hit.ownerDocument?.defaultView;
+  const reducedMotion = windowRef?.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches === true;
+  hit.scrollIntoView({ block: "center", behavior: reducedMotion ? "auto" : "smooth" });
+  if (hit.classList?.add) {
+    hit.classList.add("is-passage-target");
+  } else if (!classListContains(hit, "is-passage-target")) {
+    hit.className = `${hit.className || ""} is-passage-target`.trim();
+  }
+  if (typeof windowRef?.clearTimeout === "function" && hit.__r3PassageTargetTimer) {
+    windowRef.clearTimeout(hit.__r3PassageTargetTimer);
+  }
+  if (typeof windowRef?.setTimeout === "function") {
+    hit.__r3PassageTargetTimer = windowRef.setTimeout(() => {
+      if (hit.classList?.remove) {
+        hit.classList.remove("is-passage-target");
+      } else {
+        hit.className = String(hit.className || "")
+          .split(/\s+/)
+          .filter(className => className && className !== "is-passage-target")
+          .join(" ");
+      }
+      hit.__r3PassageTargetTimer = null;
+    }, 1200);
+  }
   return true;
 }
 
@@ -177,6 +200,14 @@ function findReaderScrollElement(root) {
   }
 
   return findFirst(root, (node) => classListContains(node, "r3-reader-scroll"));
+}
+
+function findVocabularyPreviewScrollElement(root) {
+  if (typeof root.querySelector === "function") {
+    const match = root.querySelector(".r3-vocabulary-preview-list");
+    if (match) return match;
+  }
+  return findFirst(root, node => classListContains(node, "r3-vocabulary-preview-list"));
 }
 
 function readScrollMetrics(element) {
@@ -193,6 +224,7 @@ function mountAppShell(root, store, documentRef, controller) {
 
   const render = (state) => {
     const previousReaderScroll = findReaderScrollElement(root);
+    const previousPreviewScroll = findVocabularyPreviewScrollElement(root);
     const shouldPreserveReaderScroll = (
       previousState?.activeScreen === R3_ROUTES.READER
       && state.activeScreen === R3_ROUTES.READER
@@ -201,6 +233,15 @@ function mountAppShell(root, store, documentRef, controller) {
     );
     const preservedReaderScrollTop = shouldPreserveReaderScroll
       ? previousReaderScroll?.scrollTop
+      : null;
+    const shouldPreservePreviewScroll = (
+      previousState?.openOverlay === R3_OVERLAYS.VOCABULARY_PREVIEW
+      && state.openOverlay === R3_OVERLAYS.VOCABULARY_PREVIEW
+      && previousState.activeBookId === state.activeBookId
+      && previousState.activeChapterId === state.activeChapterId
+    );
+    const preservedPreviewScrollTop = shouldPreservePreviewScroll
+      ? previousPreviewScroll?.scrollTop
       : null;
     const preservationSequence = String(++readerScrollPreservationSequence);
     if (Number.isFinite(preservedReaderScrollTop)) {
@@ -218,6 +259,10 @@ function mountAppShell(root, store, documentRef, controller) {
     if (root.textContent !== view.textContent) {
       root.textContent = view.textContent;
       root.replaceChildren(view);
+    }
+    if (Number.isFinite(preservedPreviewScrollTop)) {
+      const previewScroll = findVocabularyPreviewScrollElement(root);
+      if (previewScroll) previewScroll.scrollTop = preservedPreviewScrollTop;
     }
     if (state.activeScreen === R3_ROUTES.READER) {
       const readerScroll = findReaderScrollElement(root);
