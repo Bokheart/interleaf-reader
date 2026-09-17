@@ -6,6 +6,7 @@ import { R3_ACTIONS, r3Actions } from "../pwa-reader/ui-r3/actions.js";
 import {
   bootstrapR3App,
   collectVocabularyOccurrences,
+  getReaderSelectionTerm,
   scrollToVocabularyHit
 } from "../pwa-reader/ui-r3/bootstrap.js";
 import { createR3Controller } from "../pwa-reader/ui-r3/controller.js";
@@ -1045,6 +1046,74 @@ test("R3 controller delegates open-book orchestration and exposes local UI actio
   assert.equal(state.openOverlay, null);
 });
 
+test("R3 Selection Save accepts one normalized Reader text node and rejects unsafe ranges", () => {
+  const documentRef = createMockDocument();
+  const content = createMockElement("div");
+  content.className = "r3-reader-content";
+  const paragraph = createMockElement("p");
+  const textNode = {
+    nodeType: 3,
+    textContent: "  “Personal\nphrase!”  ",
+    parentNode: null
+  };
+  content.appendChild(paragraph);
+  paragraph.appendChild(textNode);
+  const range = { startContainer: textNode, endContainer: textNode };
+  const selection = {
+    isCollapsed: false,
+    rangeCount: 1,
+    getRangeAt: () => range,
+    toString: () => textNode.textContent,
+    removeAllRanges() {
+      throw new Error("native selection must not be cleared");
+    }
+  };
+  documentRef.getSelection = () => selection;
+
+  assert.equal(getReaderSelectionTerm(documentRef), "personal phrase");
+
+  range.endContainer = { nodeType: 3, parentNode: paragraph };
+  assert.equal(getReaderSelectionTerm(documentRef), "");
+
+  range.endContainer = textNode;
+  textNode.textContent = "a".repeat(81);
+  assert.equal(getReaderSelectionTerm(documentRef), "");
+
+  const hit = createMockElement("button");
+  hit.className = "vocab-hit";
+  hit.appendChild(textNode);
+  paragraph.appendChild(hit);
+  textNode.textContent = "personal";
+  assert.equal(getReaderSelectionTerm(documentRef), "");
+});
+
+test("R3 controller saves explicit selected text through the existing Learning refresh", async () => {
+  const { adapters, readerRuntime } = createAdapters();
+  let savedTerm = "";
+  adapters.modes.resolveModeFromProgress = () => "english-study";
+  adapters.vocabulary.getReaderVocabulary = async () => ({
+    profile: { knownWords: [], ignoredWords: [], learningWords: savedTerm ? [savedTerm] : [] },
+    items: savedTerm ? [{ term: savedTerm }] : []
+  });
+  adapters.vocabulary.setTermState = async (term, state) => {
+    assert.equal(state, "learning");
+    savedTerm = term;
+  };
+  adapters.modes.renderChapter = (chapter, mode, options) => ({
+    html: `<p>${chapter.title} ${options.vocabularyItems.map(item => item.term).join(" ")}</p>`,
+    vocabularyPreview: options.vocabularyItems
+  });
+
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters, readerRuntime });
+  await controller.resumeBook("recent");
+  await controller.setReaderVocabularyState("learning", "personal phrase");
+
+  assert.equal(savedTerm, "personal phrase");
+  assert.deepEqual(store.getState().reader.learningWords, ["personal phrase"]);
+  assert.match(store.getState().reader.html, /personal phrase/);
+});
+
 test("R3 controller serializes vocabulary writes through their rendered refresh", async () => {
   const delayedLearningRefresh = createDeferred();
   const learningRefreshStarted = createDeferred();
@@ -1575,6 +1644,79 @@ test("R3 Preview open and ordinary close preserve the Reader scroll position", a
   frameCallbacks.splice(0).forEach(callback => callback());
 });
 
+test("R3 bootstrap shows Selection Save DOM-locally without clearing native selection", async () => {
+  const documentRef = createMockDocument();
+  documentRef.defaultView = {
+    innerWidth: 393,
+    innerHeight: 852,
+    addEventListener() {},
+    requestAnimationFrame(callback) {
+      callback();
+      return 1;
+    }
+  };
+  let saved = null;
+  let nativeSelectionClears = 0;
+  const controller = {
+    async initialize() {},
+    setReaderVocabularyState(state, term) {
+      saved = { state, term };
+    }
+  };
+  const store = createR3Store(createInitialR3State({
+    activeScreen: R3_ROUTES.READER,
+    activeBookId: "recent",
+    activeChapterId: "chapter-1",
+    activeChapterIndex: 0,
+    reader: {
+      status: "ready",
+      html: "<p>Personal phrase appears here.</p>",
+      bookTitle: "Recent Book",
+      chapterTitle: "Chapter 1",
+      chapterIndex: 0,
+      chapterCount: 1,
+      progressLabel: "Chapter 1 / 1",
+      hasPrevious: false,
+      hasNext: false
+    }
+  }));
+  const app = await bootstrapR3App({ document: documentRef, store, controller });
+  const findBy = predicate => {
+    const stack = [app.root];
+    while (stack.length) {
+      const node = stack.shift();
+      if (predicate(node)) return node;
+      stack.push(...(node.children || []));
+    }
+    return null;
+  };
+  const content = findBy(node => String(node.className || "").split(/\s+/).includes("r3-reader-content"));
+  const textNode = { nodeType: 3, textContent: "Personal phrase", parentNode: content };
+  content.children.push(textNode);
+  const nativeSelection = {
+    isCollapsed: false,
+    rangeCount: 1,
+    getRangeAt: () => ({ startContainer: textNode, endContainer: textNode }),
+    toString: () => textNode.textContent,
+    removeAllRanges() {
+      nativeSelectionClears += 1;
+    }
+  };
+  documentRef.getSelection = () => nativeSelection;
+
+  documentRef.listeners.find(listener => listener.type === "selectionchange").listener();
+
+  const bar = findBy(node => node.dataset?.role === "reader-selection-save");
+  const saveButton = findBy(node => node.dataset?.action === "reader-selection-save");
+  assert.equal(bar.hidden, false);
+  assert.equal(saveButton.dataset.selectionTerm, "personal phrase");
+  assert.equal(nativeSelectionClears, 0);
+
+  app.root.eventListeners.get("click")[0]({ target: saveButton });
+  assert.deepEqual(saved, { state: "learning", term: "personal phrase" });
+  assert.equal(nativeSelectionClears, 0);
+});
+
 test("R3 bootstrap preserves an open vocabulary bubble through same-chapter scroll restoration", async () => {
   const frameCallbacks = [];
   const documentRef = createMockDocument();
@@ -1644,7 +1786,7 @@ test("R3 bootstrap mounts exactly one development root and prevents duplicate in
   assert.equal(first, second);
   assert.equal(documentRef.querySelectorAll("#r3-root").length, 1);
   assert.equal(calls.listBooks, 1);
-  assert.equal(documentRef.listenerCount, 1);
+  assert.equal(documentRef.listenerCount, 2);
   assert.equal(first.root.dataset.r3Initialized, "true");
   assert.equal(first.root.dataset.r3SavedBookCount, "2");
   assert.equal(first.root.dataset.r3ActiveScreen, R3_ROUTES.HOME);

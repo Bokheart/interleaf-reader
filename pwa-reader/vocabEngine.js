@@ -48,7 +48,8 @@ function normalizeVocabularyItem(item) {
     exampleSentence: item.exampleSentence || "",
     sourceSentence: item.sourceSentence || "",
     priority: Number.isFinite(item.priority) ? item.priority : 50,
-    source: item.source || ""
+    source: item.source || "",
+    ...(item.personalization ? { personalization: { ...item.personalization } } : {})
   };
 }
 
@@ -175,6 +176,12 @@ export function findVocabularyMatches(plainText, vocabularyItems, options = {}) 
 
   return matches
     .sort((a, b) => {
+      const learningRank = Number(Boolean(b.item.personalization?.boostedByLearningWords))
+        - Number(Boolean(a.item.personalization?.boostedByLearningWords));
+      if (learningRank !== 0) {
+        return learningRank;
+      }
+
       if (b.item.priority !== a.item.priority) {
         return b.item.priority - a.item.priority;
       }

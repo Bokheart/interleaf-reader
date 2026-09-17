@@ -275,6 +275,28 @@ function createVocabularyBubble(documentRef, reader) {
   return bubble;
 }
 
+function createSelectionSaveBar(documentRef) {
+  const bar = createElement(documentRef, "section", {
+    className: "r3-selection-save-bar",
+    attrs: {
+      "aria-label": "Selected text action",
+      hidden: true
+    },
+    dataset: { role: "reader-selection-save" }
+  });
+  bar.hidden = true;
+  bar.appendChild(createElement(documentRef, "span", {
+    className: "r3-selection-save-term",
+    dataset: { role: "reader-selection-term" }
+  }));
+  bar.appendChild(createActionButton(documentRef, {
+    className: "r3-action-button",
+    label: "Save to Learning",
+    dataset: { action: "reader-selection-save" }
+  }));
+  return bar;
+}
+
 export function createReaderView(documentRef, state) {
   const reader = state.reader || {};
   const hasContents = state.openOverlay === R3_OVERLAYS.CONTENTS;
@@ -322,6 +344,7 @@ export function createReaderView(documentRef, state) {
   const footer = createElement(documentRef, "footer", { className: "r3-reader-footer" });
   footer.appendChild(nav);
   view.appendChild(footer);
+  view.appendChild(createSelectionSaveBar(documentRef));
 
   if (reader.vocabularyBubble && !hasReaderOverlay) {
     view.appendChild(createVocabularyBubble(documentRef, reader));

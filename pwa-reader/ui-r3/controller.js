@@ -353,7 +353,8 @@ export function createR3Controller(options = {}) {
       : null;
     const term = normalizeTerm(requestedTerm || bubble?.term);
     const previewRow = preview?.rows?.find(item => normalizeTerm(item.term) === term);
-    if (!activeReader || (!bubble && !previewRow) || !["known", "learning", "hidden"].includes(nextState)) return state;
+    const isSelectionSave = nextState === "learning" && Boolean(requestedTerm) && Boolean(term);
+    if (!activeReader || (!bubble && !previewRow && !isSelectionSave) || !["known", "learning", "hidden"].includes(nextState)) return state;
     const reader = activeReader;
     const sequence = readerSequence;
     const chapter = getCurrentReaderChapter(reader);

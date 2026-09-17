@@ -151,6 +151,26 @@ assert.deepEqual(
   "ranks high-priority phrasal verbs above low-priority single words"
 );
 
+const learningRankedItems = filterVocabularyPreviewItems(
+  [
+    { term: "ordinary", priority: 95 },
+    { term: "personal phrase" }
+  ],
+  {
+    normalizedProfile: { learningWords: ["personal phrase"] },
+    effectiveKnownWords: new Set()
+  }
+);
+assert.deepEqual(
+  buildVocabularyPreview(
+    "An ordinary example contains a personal phrase.",
+    learningRankedItems,
+    { limit: 1 }
+  ).map(item => item.term),
+  ["personal phrase"],
+  "ranks Learning terms ahead of ordinary curated Preview candidates"
+);
+
 const previewItems = [
   {
     term: "relentless",

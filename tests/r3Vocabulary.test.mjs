@@ -29,6 +29,34 @@ test("Reader reads the current global profile again after state changes", async 
   assert.equal((await adapter.getReaderVocabulary()).items.length, 1);
 });
 
+test("Reader merges non-curated Learning terms without replacing curated metadata", async () => {
+  const profile = {
+    knownWords: [],
+    ignoredWords: [],
+    learningWords: ["personal phrase", "ANXIOUS"]
+  };
+  const adapter = createVocabularyAdapter({
+    getVocabularyProfile: async () => profile,
+    loadVocabularyData: async () => [
+      { term: "Anxious", englishDefinition: "worried", priority: 90 },
+      { term: "ordinary", priority: 80 }
+    ],
+    loadEffectiveKnownWordsForProfile: async profile => getVocabularyPersonalizationState([], profile)
+  });
+
+  const result = await adapter.getReaderVocabulary();
+  const anxious = result.items.find(item => item.term === "Anxious");
+  const personal = result.items.find(item => item.term === "personal phrase");
+
+  assert.equal(anxious.englishDefinition, "worried");
+  assert.equal(result.items.filter(item => item.term.toLowerCase() === "anxious").length, 1);
+  assert.deepEqual(
+    { term: personal.term, englishDefinition: personal.englishDefinition },
+    { term: "personal phrase", englishDefinition: undefined }
+  );
+  assert.equal(personal.personalization.boostedByLearningWords, true);
+});
+
 test("Failed vocabulary loading can be retried on the next chapter", async () => {
   let fail = true;
   const adapter = createVocabularyAdapter({

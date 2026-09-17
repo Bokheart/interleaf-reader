@@ -39,9 +39,17 @@ export function createVocabularyAdapter(deps = {}) {
       const [items, profile] = await Promise.all([vocabularyDataPromise, api.getVocabularyProfile()]);
       const personalization = await api.loadEffectiveKnownWordsForProfile(profile);
       const excluded = new Set([...(profile.knownWords || []), ...(profile.ignoredWords || [])].map(normalizeTerm));
+      const curatedTerms = new Set(items.map(item => normalizeTerm(item.term)));
+      const personalLearningItems = [...new Set((profile.learningWords || []).map(normalizeTerm))]
+        .filter(term => term && !curatedTerms.has(term))
+        .map(term => ({ term }));
       return {
         profile,
-        items: filterVocabularyPreviewItems(items, personalization, { keepLearningWords: true })
+        items: filterVocabularyPreviewItems(
+          [...items, ...personalLearningItems],
+          personalization,
+          { keepLearningWords: true }
+        )
           .filter(item => !excluded.has(normalizeTerm(item.term)))
       };
     },

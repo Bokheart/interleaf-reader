@@ -225,6 +225,37 @@
 .r3-vocabulary-bubble p { margin: 12px 0; }
 .r3-vocabulary-actions { display: flex; gap: 8px; }
 .r3-vocabulary-actions button { flex: 1; min-height: 44px; }
+
+.r3-selection-save-bar {
+  position: absolute;
+  z-index: 4;
+  bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  width: min(420px, calc(100% - 24px));
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--r3-color-surface);
+  border: 1px solid var(--r3-color-border);
+  border-radius: var(--r3-radius);
+  box-shadow: var(--r3-shadow-card);
+  transform: translateX(-50%);
+  font: 0.94rem/1.4 var(--r3-font-ui);
+}
+
+.r3-selection-save-bar[hidden] {
+  display: none;
+}
+
+.r3-selection-save-term {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .r3-vocabulary-message {
   position: absolute;
   bottom: 72px;

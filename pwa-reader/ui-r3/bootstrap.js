@@ -1,10 +1,12 @@
 import { createR3Controller } from "./controller.js";
 import { createR3Store } from "./store.js";
+import { normalizeWord } from "../levelBaselineEngine.js";
 import { normalizeTerm } from "../vocabEngine.js";
 import { R3_ROUTES } from "./routes.js";
 import { createAppShellView } from "./views/appShellView.js";
 
 let autoBootstrapScheduled = false;
+const READER_SELECTION_MAX_LENGTH = 80;
 
 function findOrCreateRoot(documentRef) {
   let root = documentRef.getElementById("r3-root");
@@ -35,6 +37,54 @@ function findFirst(root, predicate) {
     stack.push(...(current.children || []));
   }
   return null;
+}
+
+function findAncestorWithClass(node, className) {
+  let current = node?.parentElement || node?.parentNode;
+  while (current) {
+    if (classListContains(current, className)) {
+      return current;
+    }
+    current = current.parentElement || current.parentNode;
+  }
+  return null;
+}
+
+export function getReaderSelectionTerm(documentRef, maxLength = READER_SELECTION_MAX_LENGTH) {
+  const selection = documentRef?.getSelection?.() || documentRef?.defaultView?.getSelection?.();
+  if (!selection || selection.isCollapsed || selection.rangeCount !== 1) {
+    return "";
+  }
+
+  const range = selection.getRangeAt(0);
+  const textNode = range?.startContainer;
+  if (!textNode || textNode !== range.endContainer || textNode.nodeType !== 3) {
+    return "";
+  }
+  if (!findAncestorWithClass(textNode, "r3-reader-content")
+      || findAncestorWithClass(textNode, "vocab-hit")) {
+    return "";
+  }
+
+  const term = normalizeTerm(normalizeWord(selection.toString()));
+  const limit = Number.isFinite(Number(maxLength)) ? Number(maxLength) : READER_SELECTION_MAX_LENGTH;
+  return term && term.length <= limit ? term : "";
+}
+
+function updateReaderSelectionBar(root, term = "") {
+  const bar = findFirst(root, node => node.dataset?.role === "reader-selection-save");
+  if (!bar) return;
+  const termLabel = findFirst(bar, node => node.dataset?.role === "reader-selection-term");
+  const saveButton = findFirst(bar, node => node.dataset?.action === "reader-selection-save");
+  bar.hidden = !term;
+  if (termLabel) termLabel.textContent = term ? `“${term}”` : "";
+  if (saveButton) {
+    if (term) {
+      saveButton.dataset.selectionTerm = term;
+    } else {
+      delete saveButton.dataset.selectionTerm;
+    }
+  }
 }
 
 function getVocabularySnippet(hit) {
@@ -234,6 +284,29 @@ function bindAppShellEvents(root, controller) {
   }
 
   root.dataset.r3ShellEventsBound = "true";
+  let selectionUpdateScheduled = false;
+  const syncReaderSelection = () => {
+    selectionUpdateScheduled = false;
+    const hasBlockingUi = findFirst(root, node => (
+      classListContains(node, "r3-vocabulary-bubble")
+      || classListContains(node, "r3-reader-overlay")
+    ));
+    updateReaderSelectionBar(root, hasBlockingUi ? "" : getReaderSelectionTerm(root.ownerDocument));
+  };
+  const scheduleReaderSelectionSync = () => {
+    if (selectionUpdateScheduled) return;
+    selectionUpdateScheduled = true;
+    const windowRef = root.ownerDocument?.defaultView;
+    if (typeof windowRef?.requestAnimationFrame === "function") {
+      windowRef.requestAnimationFrame(syncReaderSelection);
+    } else {
+      syncReaderSelection();
+    }
+  };
+
+  root.ownerDocument?.addEventListener?.("selectionchange", scheduleReaderSelectionSync);
+  root.addEventListener("pointerup", scheduleReaderSelectionSync, { passive: true });
+  root.addEventListener("keyup", scheduleReaderSelectionSync);
   root.addEventListener("click", (event) => {
     const hit = event.target.closest?.(".r3-reader-content .vocab-hit[data-vocab-term]");
     if (hit) {
@@ -257,6 +330,14 @@ function bindAppShellEvents(root, controller) {
         actionElement.dataset.vocabularyState,
         actionElement.dataset.vocabularyTerm
       );
+      return;
+    }
+    if (action === "reader-selection-save") {
+      const term = actionElement.dataset.selectionTerm;
+      updateReaderSelectionBar(root);
+      if (term) {
+        controller.setReaderVocabularyState?.("learning", term);
+      }
       return;
     }
     if (action === "vocabulary-preview-row-toggle") {
