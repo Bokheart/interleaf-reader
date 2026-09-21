@@ -279,21 +279,25 @@ function createVocabularyPreview(documentRef, reader = {}) {
     className: "r3-vocabulary-preview",
     attrs: { "aria-label": "Vocabulary Preview", "aria-modal": "true", role: "dialog" }
   });
-  const header = createElement(documentRef, "div", { className: "r3-section-header" });
+  const header = createElement(documentRef, "div", {
+    className: "r3-section-header r3-vocabulary-preview-header"
+  });
   const rows = reader.vocabularyPreview?.rows || [];
-  header.appendChild(createElement(documentRef, "div", { className: "r3-vocabulary-preview-title" }, [
-    createElement(documentRef, "h2", { text: "Vocabulary Preview" }),
-    createElement(documentRef, "p", { className: "r3-muted", text: `${reader.chapterTitle || "Current chapter"} · ${rows.length} ${rows.length === 1 ? "word" : "words"}` })
-  ]));
-  const headerActions = createElement(documentRef, "div", { className: "r3-vocabulary-preview-header-actions" });
-  const detailsOpen = Boolean(reader.vocabularyPreview?.detailsOpen);
-  headerActions.appendChild(createVocabularyDetailsSwitch(documentRef, detailsOpen));
-  headerActions.appendChild(createIconButton(documentRef, {
+  const heading = createElement(documentRef, "div", { className: "r3-vocabulary-preview-heading" });
+  heading.appendChild(createIconButton(documentRef, {
     className: "r3-icon-button r3-vocabulary-preview-back",
     label: "Back to reader",
     icon: "chevronLeft",
     dataset: { action: "vocabulary-preview-close" }
   }));
+  heading.appendChild(createElement(documentRef, "div", { className: "r3-vocabulary-preview-title" }, [
+    createElement(documentRef, "h2", { text: "Vocabulary Preview" }),
+    createElement(documentRef, "p", { className: "r3-muted", text: `${reader.chapterTitle || "Current chapter"} · ${rows.length} ${rows.length === 1 ? "word" : "words"}` })
+  ]));
+  header.appendChild(heading);
+  const headerActions = createElement(documentRef, "div", { className: "r3-vocabulary-preview-header-actions" });
+  const detailsOpen = Boolean(reader.vocabularyPreview?.detailsOpen);
+  headerActions.appendChild(createVocabularyDetailsSwitch(documentRef, detailsOpen));
   header.appendChild(headerActions);
   panel.appendChild(header);
 
@@ -331,7 +335,6 @@ function createVocabularyBubble(documentRef, reader) {
   });
   const header = createElement(documentRef, "div", { className: "r3-section-header" });
   header.appendChild(createElement(documentRef, "h2", { text: item.term }));
-  header.appendChild(createReaderButton(documentRef, "vocabulary-close", "Close"));
   bubble.appendChild(header);
   if (item.chineseMeaning) bubble.appendChild(createElement(documentRef, "p", {
     text: item.chineseMeaning, attrs: { lang: "zh-CN" }
@@ -370,11 +373,14 @@ function createSelectionSaveBar(documentRef) {
     className: "r3-selection-save-term",
     dataset: { role: "reader-selection-term" }
   }));
-  bar.appendChild(createActionButton(documentRef, {
-    className: "r3-action-button",
-    label: "Save to Learning",
+  const saveButton = createActionButton(documentRef, {
+    className: "r3-action-button r3-selection-save-action",
+    icon: "bookmark",
+    label: "Save",
     dataset: { action: "reader-selection-save" }
-  }));
+  });
+  saveButton.setAttribute("aria-label", "Save selected text to Learning");
+  bar.appendChild(saveButton);
   return bar;
 }
 

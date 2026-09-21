@@ -7,6 +7,7 @@ import { createAppShellView } from "./views/appShellView.js";
 
 let autoBootstrapScheduled = false;
 const READER_SELECTION_MAX_LENGTH = 80;
+const READER_SELECTION_MAX_TOKENS = 8;
 const VOCABULARY_TAB_IDS = Object.freeze(["learning", "known", "hidden"]);
 const VOCABULARY_TOAST_DURATION_MS = 2800;
 const VOCABULARY_ERROR_TOAST_DURATION_MS = 4200;
@@ -80,7 +81,13 @@ export function getReaderSelectionTerm(documentRef, maxLength = READER_SELECTION
 
   const term = normalizeTerm(normalizeWord(selection.toString()));
   const limit = Number.isFinite(Number(maxLength)) ? Number(maxLength) : READER_SELECTION_MAX_LENGTH;
-  return term && term.length <= limit ? term : "";
+  const lexicalTokens = term.match(/[a-z0-9]+(?:['’-][a-z0-9]+)*/gi) || [];
+  return term
+    && term.length <= limit
+    && lexicalTokens.length >= 1
+    && lexicalTokens.length <= READER_SELECTION_MAX_TOKENS
+    ? term
+    : "";
 }
 
 function updateReaderSelectionBar(root, term = "") {
@@ -163,7 +170,7 @@ export function collectVocabularyOccurrences(root) {
   return occurrences;
 }
 
-export function scrollToVocabularyHit(root, term, occurrenceIndex = 0) {
+function findVocabularyHit(root, term, occurrenceIndex = 0) {
   const key = normalizeTerm(term);
   const matches = [];
   const stack = root ? [root] : [];
@@ -174,32 +181,49 @@ export function scrollToVocabularyHit(root, term, occurrenceIndex = 0) {
     }
     stack.push(...(node.children || []));
   }
-  const hit = matches[Number(occurrenceIndex)];
+  return matches[Number(occurrenceIndex)] || null;
+}
+
+function removePassageTarget(node) {
+  if (node?.classList?.remove) {
+    node.classList.remove("is-passage-target");
+  } else if (node) {
+    node.className = String(node.className || "")
+      .split(/\s+/)
+      .filter(className => className && className !== "is-passage-target")
+      .join(" ");
+  }
+  if (node?.dataset) delete node.dataset.passageOccurrenceIndex;
+}
+
+function clearPassageTargets(root) {
+  const stack = root ? [root] : [];
+  while (stack.length) {
+    const node = stack.shift();
+    if (classListContains(node, "is-passage-target")) removePassageTarget(node);
+    stack.push(...(node.children || []));
+  }
+}
+
+function applyPassageTarget(node, occurrenceIndex = 0) {
+  if (!node) return false;
+  if (node.classList?.add) {
+    node.classList.add("is-passage-target");
+  } else if (!classListContains(node, "is-passage-target")) {
+    node.className = `${node.className || ""} is-passage-target`.trim();
+  }
+  node.dataset.passageOccurrenceIndex = String(Number(occurrenceIndex) || 0);
+  return true;
+}
+
+export function scrollToVocabularyHit(root, term, occurrenceIndex = 0) {
+  const hit = findVocabularyHit(root, term, occurrenceIndex);
   if (!hit || typeof hit.scrollIntoView !== "function") return false;
+  clearPassageTargets(root);
   const windowRef = hit.ownerDocument?.defaultView;
   const reducedMotion = windowRef?.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches === true;
   hit.scrollIntoView({ block: "center", behavior: reducedMotion ? "auto" : "smooth" });
-  if (hit.classList?.add) {
-    hit.classList.add("is-passage-target");
-  } else if (!classListContains(hit, "is-passage-target")) {
-    hit.className = `${hit.className || ""} is-passage-target`.trim();
-  }
-  if (typeof windowRef?.clearTimeout === "function" && hit.__r3PassageTargetTimer) {
-    windowRef.clearTimeout(hit.__r3PassageTargetTimer);
-  }
-  if (typeof windowRef?.setTimeout === "function") {
-    hit.__r3PassageTargetTimer = windowRef.setTimeout(() => {
-      if (hit.classList?.remove) {
-        hit.classList.remove("is-passage-target");
-      } else {
-        hit.className = String(hit.className || "")
-          .split(/\s+/)
-          .filter(className => className && className !== "is-passage-target")
-          .join(" ");
-      }
-      hit.__r3PassageTargetTimer = null;
-    }, 1200);
-  }
+  applyPassageTarget(hit, occurrenceIndex);
   return true;
 }
 
@@ -341,6 +365,9 @@ function mountAppShell(root, store, documentRef, controller, options = {}) {
     const previousReaderScroll = findReaderScrollElement(root);
     const previousPreviewScroll = findVocabularyPreviewScrollElement(root);
     const previousVocabularyScroll = findVocabularyScrollElement(root);
+    const previousPassageTarget = findFirst(root, node => (
+      classListContains(node, "is-passage-target")
+    ));
     const shouldPreserveReaderScroll = (
       previousState?.activeScreen === R3_ROUTES.READER
       && state.activeScreen === R3_ROUTES.READER
@@ -349,6 +376,12 @@ function mountAppShell(root, store, documentRef, controller, options = {}) {
     );
     const preservedReaderScrollTop = shouldPreserveReaderScroll
       ? previousReaderScroll?.scrollTop
+      : null;
+    const preservedPassageLocator = shouldPreserveReaderScroll && previousPassageTarget
+      ? {
+          term: previousPassageTarget.dataset?.vocabTerm || "",
+          occurrenceIndex: Number(previousPassageTarget.dataset?.passageOccurrenceIndex) || 0
+        }
       : null;
     const shouldPreservePreviewScroll = (
       previousState?.openOverlay === R3_OVERLAYS.VOCABULARY_PREVIEW
@@ -402,6 +435,16 @@ function mountAppShell(root, store, documentRef, controller, options = {}) {
     }
     if (state.activeScreen === R3_ROUTES.READER) {
       const readerScroll = findReaderScrollElement(root);
+      if (preservedPassageLocator?.term) {
+        applyPassageTarget(
+          findVocabularyHit(
+            root,
+            preservedPassageLocator.term,
+            preservedPassageLocator.occurrenceIndex
+          ),
+          preservedPassageLocator.occurrenceIndex
+        );
+      }
       if (Number.isFinite(preservedReaderScrollTop)) {
         readerScroll.scrollTop = preservedReaderScrollTop;
         const clearPreservation = () => {
@@ -447,6 +490,15 @@ function findActionElement(start, boundary) {
     current = current.parentNode;
   }
   return current?.dataset?.action ? current : null;
+}
+
+function findAncestorByClass(start, boundary, className) {
+  let current = start;
+  while (current && current !== boundary) {
+    if (classListContains(current, className)) return current;
+    current = current.parentNode;
+  }
+  return classListContains(current, className) ? current : null;
 }
 
 function getImportInput(root) {
@@ -619,10 +671,6 @@ function bindAppShellEvents(root, controller, browserEffects) {
       return;
     }
 
-    if (action === "vocabulary-close") {
-      controller.closeVocabularyBubble?.();
-      return;
-    }
     if (action === "vocabulary-state") {
       controller.setReaderVocabularyState?.(actionElement.dataset.vocabularyState);
       return;
@@ -636,7 +684,6 @@ function bindAppShellEvents(root, controller, browserEffects) {
     }
     if (action === "reader-selection-save") {
       const term = actionElement.dataset.selectionTerm;
-      updateReaderSelectionBar(root);
       if (term) {
         controller.setReaderVocabularyState?.("learning", term);
       }
@@ -662,7 +709,11 @@ function bindAppShellEvents(root, controller, browserEffects) {
       }
       return;
     }
-    if (!event.target.closest?.(".r3-vocabulary-bubble")) controller.closeVocabularyBubble?.();
+    if (findAncestorByClass(event.target, root, "r3-vocabulary-bubble")) {
+      controller.closeVocabularyBubble?.();
+      return;
+    }
+    controller.closeVocabularyBubble?.();
 
     if (!action) {
       return;

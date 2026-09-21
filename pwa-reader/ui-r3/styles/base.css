@@ -707,6 +707,26 @@ body {
   margin: 0;
 }
 
+.r3-vocabulary-preview-header {
+  align-items: flex-start;
+}
+
+.r3-vocabulary-preview-heading {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--r3-space-2);
+}
+
+.r3-vocabulary-preview-title {
+  min-width: 0;
+}
+
+.r3-vocabulary-preview-back {
+  flex: 0 0 auto;
+}
+
 .r3-vocabulary-preview-list {
   min-height: 0;
   overflow-y: auto;

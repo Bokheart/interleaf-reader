@@ -1072,7 +1072,7 @@ test("R3 controller delegates open-book orchestration and exposes local UI actio
   assert.equal(state.openOverlay, null);
 });
 
-test("R3 Selection Save accepts one normalized Reader text node and rejects unsafe ranges", () => {
+test("R3 Selection Save accepts 1-8 lexical tokens and rejects sentences or unsafe ranges", () => {
   const documentRef = createMockDocument();
   const content = createMockElement("div");
   content.className = "r3-reader-content";
@@ -1096,15 +1096,28 @@ test("R3 Selection Save accepts one normalized Reader text node and rejects unsa
   };
   documentRef.getSelection = () => selection;
 
-  assert.equal(getReaderSelectionTerm(documentRef), "personal phrase");
+  const eligibleSelections = [
+    ["reverie", "reverie"],
+    ["  Look\nup  ", "look up"],
+    ["once in a blue moon", "once in a blue moon"],
+    ["one two three four five six seven eight", "one two three four five six seven eight"],
+    ["x".repeat(80), "x".repeat(80)]
+  ];
+  for (const [selectionText, expected] of eligibleSelections) {
+    textNode.textContent = selectionText;
+    assert.equal(getReaderSelectionTerm(documentRef), expected);
+  }
+
+  textNode.textContent = "one two three four five six seven eight nine";
+  assert.equal(getReaderSelectionTerm(documentRef), "");
+
+  textNode.textContent = "x".repeat(81);
+  assert.equal(getReaderSelectionTerm(documentRef), "");
 
   range.endContainer = { nodeType: 3, parentNode: paragraph };
   assert.equal(getReaderSelectionTerm(documentRef), "");
 
   range.endContainer = textNode;
-  textNode.textContent = "a".repeat(81);
-  assert.equal(getReaderSelectionTerm(documentRef), "");
-
   const hit = createMockElement("button");
   hit.className = "vocab-hit";
   hit.appendChild(textNode);
@@ -1143,6 +1156,38 @@ test("R3 controller saves explicit selected text through the existing Learning r
   assert.match(store.getState().reader.html, /personal phrase/);
   controller.toggleVocabularyBubble("personal phrase", { x: 20, y: 40 });
   assert.equal(store.getState().reader.vocabularyBubble.item.term, "personal phrase");
+});
+
+test("R3 controller replaces and toggles vocabulary bubbles by term", async () => {
+  const { adapters, readerRuntime } = createAdapters();
+  const items = [
+    { term: "mutter", englishDefinition: "to speak quietly" },
+    { term: "linger", englishDefinition: "to remain" }
+  ];
+  adapters.modes.resolveModeFromProgress = () => "english-study";
+  adapters.vocabulary.getReaderVocabulary = async () => ({
+    profile: { knownWords: [], learningWords: [], ignoredWords: [] },
+    items
+  });
+  adapters.vocabulary.getTermMetadata = (term, vocabularyItems) => (
+    vocabularyItems.find(item => item.term === term) || null
+  );
+  adapters.modes.renderChapter = (_chapter, _mode, options) => ({
+    html: "<p>mutter linger</p>",
+    vocabularyPreview: options.vocabularyItems
+  });
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters, readerRuntime });
+
+  await controller.resumeBook("recent");
+  controller.toggleVocabularyBubble("mutter", { x: 20, y: 40 });
+  assert.equal(store.getState().reader.vocabularyBubble.term, "mutter");
+
+  controller.toggleVocabularyBubble("linger", { x: 32, y: 52 });
+  assert.equal(store.getState().reader.vocabularyBubble.term, "linger");
+
+  controller.toggleVocabularyBubble("linger", { x: 32, y: 52 });
+  assert.equal(store.getState().reader.vocabularyBubble, null);
 });
 
 test("R3 controller serializes vocabulary writes through their rendered refresh", async () => {
@@ -1287,6 +1332,9 @@ test("R3 Preview defaults to compact collapsed rows with icon state and no empty
   const rowToggle = nodes.find(node => node.dataset?.action === "vocabulary-preview-row-toggle");
   const detailsToggle = nodes.find(node => node.dataset?.action === "vocabulary-preview-details");
   const backButton = nodes.find(node => node.getAttribute?.("aria-label") === "Back to reader");
+  const previewHeading = nodes.find(node => (
+    String(node.className || "").split(/\s+/).includes("r3-vocabulary-preview-heading")
+  ));
   const previewScrim = nodes.find(node => (
     String(node.className || "").split(/\s+/).includes("r3-reader-scrim")
     && node.dataset?.action === "vocabulary-preview-close"
@@ -1302,7 +1350,17 @@ test("R3 Preview defaults to compact collapsed rows with icon state and no empty
   assert.equal(detailsToggle.getAttribute("role"), "switch");
   assert.equal(detailsToggle.getAttribute("aria-checked"), "false");
   assert.ok(backButton);
+  assert.equal(backButton.dataset.action, "vocabulary-preview-close");
+  assert.doesNotMatch(backButton.textContent, /Close/i);
+  assert.equal(previewHeading.children[0], backButton);
+  assert.equal(previewHeading.children[1].className, "r3-vocabulary-preview-title");
+  assert.equal(detailsToggle.parentNode.className, "r3-vocabulary-preview-header-actions");
+  assert.notEqual(detailsToggle.parentNode, previewHeading);
   assert.ok(previewScrim);
+  assert.equal(nodes.some(node => (
+    node.dataset?.action === "vocabulary-preview-close"
+    && /Close/i.test(node.textContent || "")
+  )), false);
   assert.deepEqual(stateButtons.map(button => button.getAttribute("aria-label")), ["Known", "Save to Learning", "Hide"]);
   assert.equal(stateButtons.find(button => button.dataset.vocabularyState === "learning").getAttribute("aria-pressed"), "true");
 });
@@ -1336,6 +1394,79 @@ test("R3 Preview supports independent row expansion and a strong global Details 
   preview = store.getState().reader.vocabularyPreview;
   assert.equal(preview.detailsOpen, false);
   assert.deepEqual(preview.rows.map(row => row.isExpanded), [false, false]);
+});
+
+test("R3 vocabulary bubble dismisses from non-actions without swallowing state controls", async () => {
+  const documentRef = createMockDocument();
+  const store = createR3Store(createInitialR3State({
+    initialized: true,
+    activeScreen: R3_ROUTES.READER,
+    activeBookId: "recent",
+    activeChapterId: "chapter-2",
+    reader: {
+      status: "ready",
+      chapterTitle: "Chapter 2",
+      html: "<p>Reader text</p>",
+      learningWords: [],
+      vocabularyBubble: {
+        term: "mutter",
+        item: {
+          term: "mutter",
+          englishDefinition: "to speak quietly"
+        },
+        x: 24,
+        y: 48
+      }
+    }
+  }));
+  let closeCalls = 0;
+  const stateCalls = [];
+  const controller = {
+    async initialize() {},
+    applyReaderScrollRestoration() {},
+    recordReaderScroll() {},
+    flushReaderProgress() {},
+    closeVocabularyPreview() {},
+    closeVocabularyBubble() {
+      closeCalls += 1;
+    },
+    setReaderVocabularyState(state) {
+      stateCalls.push(state);
+    }
+  };
+  const app = await bootstrapR3App({ document: documentRef, store, controller });
+  const nodes = [];
+  const stack = [app.root];
+  while (stack.length) {
+    const node = stack.shift();
+    nodes.push(node);
+    stack.push(...(node.children || []));
+  }
+  const bubble = nodes.find(node => (
+    String(node.className || "").split(/\s+/).includes("r3-vocabulary-bubble")
+  ));
+  const bubbleHeading = bubble.children[0].children[0];
+  const stateButtons = nodes.filter(node => node.dataset?.action === "vocabulary-state");
+  const outsideReaderHeader = nodes.find(node => (
+    String(node.className || "").split(/\s+/).includes("r3-reader-title-group")
+  ));
+  const clickListener = app.root.eventListeners.get("click")[0];
+
+  assert.equal(nodes.some(node => node.dataset?.action === "vocabulary-close"), false);
+  assert.deepEqual(stateButtons.map(node => node.children[0].textContent), ["Known", "Save", "Hide"]);
+
+  clickListener({ target: bubbleHeading });
+  assert.equal(closeCalls, 1);
+
+  stateButtons.forEach(button => clickListener({ target: button }));
+  assert.deepEqual(stateCalls, ["known", "learning", "hidden"]);
+  assert.equal(closeCalls, 1);
+
+  clickListener({ target: outsideReaderHeader });
+  assert.equal(closeCalls, 2);
+
+  app.root.eventListeners.get("keydown")[0]({ key: "Escape", target: app.root });
+  assert.equal(closeCalls, 3);
 });
 
 test("R3 Preview renders only source-backed metadata in expanded rows", () => {
@@ -1632,37 +1763,242 @@ test("R3 Preview Context renders each occurrence and Known removes every passage
 test("R3 Preview scrolls to a matching live annotation without replacing native selection", () => {
   const root = createMockElement("main");
   const article = createMockElement("article");
-  const hit = createMockElement("button");
-  hit.className = "vocab-hit";
-  hit.dataset.vocabTerm = "mutter";
+  const firstHit = createMockElement("button");
+  firstHit.className = "vocab-hit";
+  firstHit.dataset.vocabTerm = "mutter";
+  const secondHit = createMockElement("button");
+  secondHit.className = "vocab-hit";
+  secondHit.dataset.vocabTerm = "mutter";
   let scrollOptions = null;
-  let pulseCleanup = null;
-  let pulseDuration = null;
-  hit.ownerDocument = {
+  let timeoutCalls = 0;
+  const ownerDocument = {
     defaultView: {
-      setTimeout(callback, delay) {
-        pulseCleanup = callback;
-        pulseDuration = delay;
-        return 1;
-      },
-      clearTimeout() {}
+      matchMedia: () => ({ matches: false }),
+      setTimeout() {
+        timeoutCalls += 1;
+      }
     }
   };
-  hit.scrollIntoView = options => { scrollOptions = options; };
-  article.appendChild(hit);
+  firstHit.ownerDocument = ownerDocument;
+  secondHit.ownerDocument = ownerDocument;
+  firstHit.scrollIntoView = options => { scrollOptions = options; };
+  secondHit.scrollIntoView = options => { scrollOptions = options; };
+  article.appendChild(firstHit);
+  article.appendChild(secondHit);
   root.appendChild(article);
 
   assert.equal(scrollToVocabularyHit(root, "Mutter"), true);
   assert.deepEqual(scrollOptions, { block: "center", behavior: "smooth" });
-  assert.match(hit.className, /is-passage-target/);
-  assert.equal(pulseDuration, 1200);
-  pulseCleanup();
-  assert.doesNotMatch(hit.className, /is-passage-target/);
-  hit.ownerDocument.defaultView.matchMedia = () => ({ matches: true });
-  assert.equal(scrollToVocabularyHit(root, "mutter"), true);
+  assert.match(firstHit.className, /is-passage-target/);
+  assert.doesNotMatch(secondHit.className, /is-passage-target/);
+  assert.equal(timeoutCalls, 0);
+
+  assert.equal(scrollToVocabularyHit(root, "mutter", 1), true);
+  assert.doesNotMatch(firstHit.className, /is-passage-target/);
+  assert.match(secondHit.className, /is-passage-target/);
+  assert.equal(secondHit.dataset.passageOccurrenceIndex, "1");
+
+  ownerDocument.defaultView.matchMedia = () => ({ matches: true });
+  assert.equal(scrollToVocabularyHit(root, "mutter", 0), true);
   assert.deepEqual(scrollOptions, { block: "center", behavior: "auto" });
-  pulseCleanup();
+  assert.match(firstHit.className, /is-passage-target/);
+  assert.doesNotMatch(secondHit.className, /is-passage-target/);
   assert.equal(scrollToVocabularyHit(root, "missing"), false);
+  assert.match(firstHit.className, /is-passage-target/);
+});
+
+test("R3 passage locator survives same-chapter rerenders and clears on chapter change", async () => {
+  const documentRef = createMockDocument();
+  documentRef.defaultView = {
+    innerWidth: 393,
+    innerHeight: 852,
+    addEventListener() {},
+    requestAnimationFrame(callback) {
+      callback();
+      return 1;
+    },
+    matchMedia: () => ({ matches: true })
+  };
+  const createElement = documentRef.createElement.bind(documentRef);
+  documentRef.createElement = tagName => {
+    const element = createElement(tagName);
+    if (String(tagName).toLowerCase() === "div") {
+      let html = "";
+      Object.defineProperty(element, "innerHTML", {
+        configurable: true,
+        get() {
+          return html;
+        },
+        set(value) {
+          html = String(value || "");
+          element.children = [];
+          if (!html.includes("data-vocab-term=\"mutter\"")) return;
+          for (let index = 0; index < 2; index += 1) {
+            const hit = createElement("button");
+            hit.className = "vocab-hit";
+            hit.dataset.vocabTerm = "mutter";
+            hit.scrollIntoView = () => {};
+            element.appendChild(hit);
+          }
+        }
+      });
+    }
+    return element;
+  };
+
+  const store = createR3Store(createInitialR3State({
+    initialized: true,
+    activeScreen: R3_ROUTES.READER,
+    activeBookId: "recent",
+    activeChapterId: "chapter-2",
+    activeChapterIndex: 1,
+    reader: {
+      status: "ready",
+      chapterTitle: "Chapter 2",
+      html: "<button class=\"vocab-hit\" data-vocab-term=\"mutter\">mutter</button>",
+      vocabularyBubble: null
+    }
+  }));
+  const controller = {
+    async initialize() {},
+    applyReaderScrollRestoration() {},
+    recordReaderScroll() {},
+    flushReaderProgress() {}
+  };
+  const app = await bootstrapR3App({ document: documentRef, store, controller });
+  const findHits = () => {
+    const hits = [];
+    const stack = [app.root];
+    while (stack.length) {
+      const node = stack.shift();
+      if (String(node.className || "").split(/\s+/).includes("vocab-hit")) hits.push(node);
+      stack.push(...(node.children || []));
+    }
+    return hits;
+  };
+
+  assert.equal(scrollToVocabularyHit(app.root, "mutter", 1), true);
+  assert.doesNotMatch(findHits()[0].className, /is-passage-target/);
+  assert.match(findHits()[1].className, /is-passage-target/);
+
+  store.dispatch(r3Actions.setReaderState({ vocabularyMessage: "same chapter update" }));
+  assert.doesNotMatch(findHits()[0].className, /is-passage-target/);
+  assert.match(findHits()[1].className, /is-passage-target/);
+  assert.equal(findHits()[1].dataset.passageOccurrenceIndex, "1");
+
+  store.dispatch(r3Actions.navigate(R3_ROUTES.HOME));
+  assert.equal(findHits().length, 0);
+  store.dispatch(r3Actions.navigate(R3_ROUTES.READER));
+  assert.equal(findHits().some(hit => /is-passage-target/.test(hit.className)), false);
+
+  assert.equal(scrollToVocabularyHit(app.root, "mutter", 1), true);
+  store.dispatch(r3Actions.setActiveChapter("chapter-1", 0));
+  assert.equal(findHits().some(hit => /is-passage-target/.test(hit.className)), false);
+});
+
+test("R3 View in passage applies a persistent locator after Preview closes", async () => {
+  const documentRef = createMockDocument();
+  documentRef.defaultView = {
+    innerWidth: 393,
+    innerHeight: 852,
+    addEventListener() {},
+    matchMedia: () => ({ matches: false }),
+    setTimeout() {
+      throw new Error("passage locator must not use a timeout");
+    }
+  };
+  const createElement = documentRef.createElement.bind(documentRef);
+  documentRef.createElement = tagName => {
+    const element = createElement(tagName);
+    if (String(tagName).toLowerCase() === "div") {
+      let html = "";
+      Object.defineProperty(element, "innerHTML", {
+        configurable: true,
+        get() {
+          return html;
+        },
+        set(value) {
+          html = String(value || "");
+          element.children = [];
+          if (!html.includes("data-vocab-term=\"mutter\"")) return;
+          for (let index = 0; index < 2; index += 1) {
+            const hit = createElement("button");
+            hit.className = "vocab-hit";
+            hit.dataset.vocabTerm = "mutter";
+            hit.scrollIntoView = () => {};
+            element.appendChild(hit);
+          }
+        }
+      });
+    }
+    return element;
+  };
+
+  const store = createR3Store(createInitialR3State({
+    initialized: true,
+    activeScreen: R3_ROUTES.READER,
+    activeBookId: "recent",
+    activeChapterId: "chapter-2",
+    activeChapterIndex: 1,
+    openOverlay: R3_OVERLAYS.VOCABULARY_PREVIEW,
+    reader: {
+      status: "ready",
+      chapterTitle: "Chapter 2",
+      html: "<button class=\"vocab-hit\" data-vocab-term=\"mutter\">mutter</button>",
+      vocabularyPreview: {
+        chapterId: "chapter-2",
+        detailsOpen: false,
+        rows: [{
+          term: "mutter",
+          isExpanded: true,
+          contextOpen: true,
+          hasLiveAnnotation: true,
+          occurrences: [
+            { occurrenceIndex: 0, snippet: "first mutter" },
+            { occurrenceIndex: 1, snippet: "second mutter" }
+          ]
+        }]
+      }
+    }
+  }));
+  const controller = {
+    async initialize() {},
+    applyReaderScrollRestoration() {},
+    recordReaderScroll() {},
+    flushReaderProgress() {},
+    goToVocabularyPreviewOccurrence(term, occurrenceIndex) {
+      if (term !== "mutter" || Number(occurrenceIndex) !== 1) return false;
+      store.dispatch(r3Actions.closeOverlay());
+      return true;
+    }
+  };
+  const app = await bootstrapR3App({ document: documentRef, store, controller });
+  const findAll = predicate => {
+    const matches = [];
+    const stack = [app.root];
+    while (stack.length) {
+      const node = stack.shift();
+      if (predicate(node)) matches.push(node);
+      stack.push(...(node.children || []));
+    }
+    return matches;
+  };
+  const passageButton = findAll(node => (
+    node.dataset?.action === "vocabulary-preview-passage"
+    && node.dataset?.occurrenceIndex === "1"
+  ))[0];
+
+  app.root.eventListeners.get("click")[0]({ target: passageButton });
+
+  const hits = findAll(node => String(node.className || "").split(/\s+/).includes("vocab-hit"));
+  assert.equal(store.getState().openOverlay, null);
+  assert.doesNotMatch(hits[0].className, /is-passage-target/);
+  assert.match(hits[1].className, /is-passage-target/);
+  assert.equal(hits[1].dataset.passageOccurrenceIndex, "1");
+
+  store.dispatch(r3Actions.setReaderState({ vocabularyMessage: "same chapter after locate" }));
+  const rerenderedHits = findAll(node => String(node.className || "").split(/\s+/).includes("vocab-hit"));
+  assert.match(rerenderedHits[1].className, /is-passage-target/);
 });
 
 test("R3 Preview open and ordinary close preserve the Reader scroll position", async () => {
@@ -1797,7 +2133,21 @@ test("R3 bootstrap shows Selection Save DOM-locally without clearing native sele
   const saveButton = findBy(node => node.dataset?.action === "reader-selection-save");
   assert.equal(bar.hidden, false);
   assert.equal(saveButton.dataset.selectionTerm, "personal phrase");
+  assert.equal(saveButton.children.at(-1).textContent, "Save");
+  assert.equal(saveButton.children[0].tagName, "SVG");
+  assert.equal(saveButton.children[0].getAttribute("aria-hidden"), "true");
+  assert.notEqual(saveButton.children.at(-1).textContent, "Save to Learning");
   assert.equal(nativeSelectionClears, 0);
+
+  nativeSelection.toString = () => "one two three four five six seven eight nine";
+  documentRef.listeners.find(listener => listener.type === "selectionchange").listener();
+  assert.equal(bar.hidden, true);
+  assert.equal(saveButton.dataset.selectionTerm, undefined);
+  assert.equal(nativeSelectionClears, 0);
+
+  nativeSelection.toString = () => "personal phrase";
+  documentRef.listeners.find(listener => listener.type === "selectionchange").listener();
+  assert.equal(bar.hidden, false);
 
   app.root.eventListeners.get("click")[0]({ target: saveButton });
   assert.deepEqual(saved, { state: "learning", term: "personal phrase" });
