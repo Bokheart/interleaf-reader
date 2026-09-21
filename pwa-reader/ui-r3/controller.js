@@ -3,6 +3,7 @@ import * as modesAdapter from "../adapters/modesAdapter.js";
 import * as readerAdapter from "../adapters/readerAdapter.js";
 import * as settingsAdapter from "../adapters/settingsAdapter.js";
 import * as vocabularyAdapter from "../adapters/vocabularyAdapter.js";
+import { normalizeManualVocabularyTerm, VOCABULARY_LEVELS } from "../adapters/vocabularyAdapter.js";
 import { loadChapterContent, loadEpubFromFile } from "../epubLoader.js";
 import { normalizeTerm } from "../vocabEngine.js";
 import {
@@ -201,6 +202,185 @@ export function createR3Controller(options = {}) {
   let readerSequence = 0;
   let vocabularyOperation = null;
   let pendingVocabularyOperations = 0;
+  let vocabularyProfileReadSequence = 0;
+
+  function setVocabularyFeedback(message = "", tone = "neutral") {
+    return store.dispatch(r3Actions.setVocabularyState({
+      feedback: { message, tone }
+    }));
+  }
+
+  function readVocabularyLibraryProfile() {
+    const reader = adapters.vocabulary.getLibraryProfile
+      || adapters.vocabulary.getVocabularyProfile;
+    if (typeof reader !== "function") {
+      throw new Error("Vocabulary profile storage is unavailable.");
+    }
+    return reader.call(adapters.vocabulary);
+  }
+
+  async function refreshVocabularyLibrary(options = {}) {
+    const sequence = ++vocabularyProfileReadSequence;
+    if (vocabularyOperation) {
+      await Promise.resolve(vocabularyOperation).catch(() => null);
+    }
+    if (sequence !== vocabularyProfileReadSequence) return store.getState();
+    if (!options.silent) {
+      store.dispatch(r3Actions.setVocabularyState({
+        status: "loading",
+        feedback: { message: "", tone: "neutral" }
+      }));
+    }
+    try {
+      const profile = await readVocabularyLibraryProfile();
+      if (sequence !== vocabularyProfileReadSequence) return store.getState();
+      return store.dispatch(r3Actions.setVocabularyState({
+        status: "ready",
+        profile: profile || {},
+        busy: false
+      }));
+    } catch (error) {
+      if (sequence !== vocabularyProfileReadSequence) return store.getState();
+      return store.dispatch(r3Actions.setVocabularyState({
+        status: "error",
+        busy: false,
+        feedback: {
+          message: error?.message || "Vocabulary Library is unavailable right now.",
+          tone: "error"
+        }
+      }));
+    }
+  }
+
+  function runVocabularyLibraryMutation(mutation, successMessage, options = {}) {
+    vocabularyProfileReadSequence += 1;
+    const previousOperation = vocabularyOperation;
+    pendingVocabularyOperations += 1;
+    store.dispatch(r3Actions.setVocabularyState({
+      busy: true,
+      draft: options.draft ?? store.getState().vocabulary.draft,
+      feedback: { message: "", tone: "neutral" }
+    }));
+    const operation = Promise.resolve(previousOperation)
+      .catch(() => null)
+      .then(async () => {
+        await mutation();
+        const sequence = ++vocabularyProfileReadSequence;
+        const profile = await readVocabularyLibraryProfile();
+        if (sequence !== vocabularyProfileReadSequence) return store.getState();
+        return store.dispatch(r3Actions.setVocabularyState({
+          status: "ready",
+          profile: profile || {},
+          draft: options.clearDraft ? "" : store.getState().vocabulary.draft,
+          feedback: { message: successMessage, tone: "success" }
+        }));
+      })
+      .catch(async error => {
+        const message = error?.message || "Could not update the Vocabulary Library.";
+        const sequence = ++vocabularyProfileReadSequence;
+        try {
+          const profile = await readVocabularyLibraryProfile();
+          if (sequence !== vocabularyProfileReadSequence) return store.getState();
+          return store.dispatch(r3Actions.setVocabularyState({
+            status: "ready",
+            profile: profile || {},
+            feedback: { message, tone: "error" }
+          }));
+        } catch (readError) {
+          if (sequence !== vocabularyProfileReadSequence) return store.getState();
+          return store.dispatch(r3Actions.setVocabularyState({
+            status: "error",
+            feedback: { message, tone: "error" }
+          }));
+        }
+      });
+    vocabularyOperation = operation;
+    return operation.finally(() => {
+      pendingVocabularyOperations -= 1;
+      if (vocabularyOperation === operation) vocabularyOperation = null;
+      if (pendingVocabularyOperations === 0) {
+        store.dispatch(r3Actions.setVocabularyState({ busy: false }));
+      }
+    });
+  }
+
+  function selectVocabularyTab(tab) {
+    if (!["learning", "known", "hidden"].includes(tab)) return store.getState();
+    return store.dispatch(r3Actions.setVocabularyState({ activeTab: tab }));
+  }
+
+  function addVocabularyLearningTerm(input) {
+    const normalized = normalizeManualVocabularyTerm(input);
+    if (!normalized.ok) {
+      return Promise.resolve(store.dispatch(r3Actions.setVocabularyState({
+        draft: String(input ?? ""),
+        feedback: { message: normalized.message, tone: "error" }
+      })));
+    }
+    const profile = store.getState().vocabulary.profile || {};
+    const term = normalized.term;
+    const hasTerm = field => (profile[field] || []).some(item => normalizeTerm(item) === term);
+    if (hasTerm("learningWords")) {
+      return Promise.resolve(store.dispatch(r3Actions.setVocabularyState({
+        draft: String(input ?? ""),
+        feedback: { message: "Already in Learning.", tone: "neutral" }
+      })));
+    }
+    const message = hasTerm("knownWords") || hasTerm("ignoredWords")
+      ? "Moved to Learning."
+      : "Added to Learning.";
+    return runVocabularyLibraryMutation(
+      () => typeof adapters.vocabulary.addLibraryLearningTerm === "function"
+        ? adapters.vocabulary.addLibraryLearningTerm(term)
+        : adapters.vocabulary.setTermState(term, "learning"),
+      message,
+      { draft: String(input ?? ""), clearDraft: true }
+    );
+  }
+
+  function removeVocabularyTerm(term) {
+    const normalized = normalizeManualVocabularyTerm(term);
+    if (!normalized.ok) {
+      return Promise.resolve(setVocabularyFeedback(normalized.message, "error"));
+    }
+    return runVocabularyLibraryMutation(
+      () => typeof adapters.vocabulary.removeLibraryTerm === "function"
+        ? adapters.vocabulary.removeLibraryTerm(normalized.term)
+        : adapters.vocabulary.setTermState(normalized.term, null),
+      "Removed from this list."
+    );
+  }
+
+  function setVocabularyLevel(level) {
+    if (!VOCABULARY_LEVELS.includes(level)) {
+      return Promise.resolve(setVocabularyFeedback("Choose a valid Vocabulary Level.", "error"));
+    }
+    return runVocabularyLibraryMutation(
+      () => adapters.vocabulary.setLibraryLevel(level),
+      `Vocabulary Level set to ${level.replace("level", "Level ")}.`
+    );
+  }
+
+  async function prepareVocabularyExport(kind) {
+    if (vocabularyOperation) await Promise.resolve(vocabularyOperation).catch(() => null);
+    const payload = await adapters.vocabulary.createLibraryExport(kind);
+    if (!payload?.text) {
+      throw new Error(kind.includes("learning") ? "No Learning terms to export." : "No vocabulary terms to export.");
+    }
+    return payload;
+  }
+
+  async function prepareVocabularyBackup() {
+    if (vocabularyOperation) await Promise.resolve(vocabularyOperation).catch(() => null);
+    return adapters.vocabulary.createLibraryBackup();
+  }
+
+  function restoreVocabularyBackup(jsonText) {
+    return runVocabularyLibraryMutation(
+      () => adapters.vocabulary.restoreLibraryBackup(jsonText),
+      "Vocabulary restored"
+    );
+  }
 
   async function renderWithVocabulary(reader, chapter, options = {}) {
     // Vocabulary is optional: failure must leave the original chapter readable.
@@ -1064,15 +1244,28 @@ export function createR3Controller(options = {}) {
     },
 
     async navigate(screen) {
+      if (
+        store.getState().activeScreen === R3_ROUTES.VOCABULARY
+        && screen !== R3_ROUTES.VOCABULARY
+      ) {
+        setVocabularyFeedback();
+      }
       if (screen !== R3_ROUTES.READER && activeReader) {
         await flushReaderProgress();
         cleanupReaderRuntime();
         store.dispatch(r3Actions.clearReader());
         store.dispatch(r3Actions.navigate(screen));
         await refreshShellData({ operation: "shell.refreshAfterReaderExit", silent: true });
+        if (screen === R3_ROUTES.VOCABULARY) {
+          await refreshVocabularyLibrary();
+        }
         return store.getState();
       }
-      return store.dispatch(r3Actions.navigate(screen));
+      store.dispatch(r3Actions.navigate(screen));
+      if (screen === R3_ROUTES.VOCABULARY) {
+        await refreshVocabularyLibrary();
+      }
+      return store.getState();
     },
 
     recordReaderScroll,
@@ -1090,6 +1283,15 @@ export function createR3Controller(options = {}) {
     toggleVocabularyBubble,
     closeVocabularyBubble,
     setReaderVocabularyState,
+    refreshVocabularyLibrary,
+    selectVocabularyTab,
+    addVocabularyLearningTerm,
+    removeVocabularyTerm,
+    setVocabularyLevel,
+    prepareVocabularyExport,
+    prepareVocabularyBackup,
+    restoreVocabularyBackup,
+    setVocabularyFeedback,
 
     setActiveChapter(chapterId, chapterIndex = -1) {
       return store.dispatch(r3Actions.setActiveChapter(chapterId, chapterIndex));

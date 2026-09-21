@@ -29,6 +29,7 @@ class MockElement {
     this.accept = "";
     this.value = "";
     this.files = [];
+    this.scrollTop = 0;
     this._textContent = "";
     this._innerHTML = "";
   }
@@ -117,6 +118,11 @@ class MockElement {
     listeners.push(listener);
     this.eventListeners.set(type, listeners);
   }
+
+  focus(options) {
+    this.ownerDocument.activeElement = this;
+    this.focusOptions = options;
+  }
 }
 
 function createMockDocument() {
@@ -147,7 +153,35 @@ function createMockDocument() {
     }
   };
   documentRef.body = new MockElement("body", documentRef);
+  documentRef.activeElement = documentRef.body;
   return documentRef;
+}
+
+function createTimerHarness() {
+  let nextId = 1;
+  const pending = new Map();
+  return {
+    setTimeout(callback, delay) {
+      const id = nextId;
+      nextId += 1;
+      pending.set(id, { callback, delay });
+      return id;
+    },
+    clearTimeout(id) {
+      pending.delete(id);
+    },
+    get pendingCount() {
+      return pending.size;
+    },
+    get delays() {
+      return [...pending.values()].map(entry => entry.delay);
+    },
+    runAll() {
+      const entries = [...pending.values()];
+      pending.clear();
+      entries.forEach(entry => entry.callback());
+    }
+  };
 }
 
 function findAll(root, predicate) {
@@ -931,7 +965,7 @@ test("Controller refreshes Home and Library from persisted adapter data after le
   assert.equal(state.library.books[0].progressLabel, "Chapter 2 / 3");
 });
 
-test("Unsupported actions are visibly disabled or marked unavailable", () => {
+test("Unsupported actions remain disabled while Vocabulary navigation is enabled", () => {
   const documentRef = createMockDocument();
   const shell = createAppShellView(documentRef, createShellState());
   const unsupported = findByDataAction(shell, "unsupported");
@@ -939,7 +973,9 @@ test("Unsupported actions are visibly disabled or marked unavailable", () => {
 
   assert.ok(unsupported.length >= 3);
   assert.ok(unsupported.every((node) => node.disabled || node.getAttribute("aria-disabled") === "true"));
-  assert.equal(vocabularyNav.getAttribute("aria-disabled"), "true");
+  assert.equal(vocabularyNav.getAttribute("aria-disabled"), null);
+  assert.equal(vocabularyNav.disabled, false);
+  assert.equal(vocabularyNav.dataset.action, "navigate");
 });
 
 test("Bootstrap binds one file-change, delegated click, reader-scroll, and lifecycle path", async () => {
@@ -958,6 +994,141 @@ test("Bootstrap binds one file-change, delegated click, reader-scroll, and lifec
   assert.equal(first.root.eventListeners.get("change").length, 1);
   assert.equal(first.root.eventListeners.get("scroll").length, 1);
   assert.equal(documentRef.listeners.filter((entry) => entry.type === "visibilitychange").length, 1);
+});
+
+test("Bootstrap preserves Vocabulary scroll only across same-route rerenders", async () => {
+  const documentRef = createMockDocument();
+  const store = createR3Store(createShellState({
+    activeScreen: R3_ROUTES.VOCABULARY,
+    vocabulary: {
+      status: "ready",
+      activeTab: "learning",
+      profile: {
+        selectedLevel: "level3",
+        knownWords: ["known"],
+        learningWords: ["learning"],
+        ignoredWords: [],
+        preferredCategories: ["fiction"]
+      },
+      busy: false,
+      draft: "",
+      feedback: { message: "", tone: "neutral" }
+    }
+  }));
+  const controller = {
+    async initialize() {},
+    setVocabularyFeedback(message = "", tone = "neutral") {
+      return store.dispatch(r3Actions.setVocabularyState({
+        feedback: { message, tone }
+      }));
+    },
+    flushReaderProgress() {}
+  };
+  const timers = createTimerHarness();
+  const app = await bootstrapR3App({
+    document: documentRef,
+    store,
+    controller,
+    toastTimers: timers
+  });
+  const findMain = () => findAll(app.root, node => node.className.includes("r3-main"))[0];
+
+  findMain().scrollTop = 428;
+  controller.setVocabularyFeedback("Learning copied", "success");
+  assert.equal(findMain().scrollTop, 428);
+
+  store.dispatch(r3Actions.setVocabularyState({
+    profile: {
+      ...store.getState().vocabulary.profile,
+      learningWords: ["learning", "new term"]
+    }
+  }));
+  assert.equal(findMain().scrollTop, 428);
+
+  controller.setVocabularyFeedback();
+  store.dispatch(r3Actions.navigate(R3_ROUTES.HOME));
+  findMain().scrollTop = 96;
+  store.dispatch(r3Actions.navigate(R3_ROUTES.VOCABULARY));
+  assert.equal(findMain().scrollTop, 0);
+});
+
+test("Vocabulary copy toast preserves route, focus, scroll, and one event lifecycle", async () => {
+  const documentRef = createMockDocument();
+  const store = createR3Store(createShellState({
+    activeScreen: R3_ROUTES.VOCABULARY,
+    vocabulary: {
+      status: "ready",
+      activeTab: "learning",
+      profile: {
+        selectedLevel: "level3",
+        knownWords: [],
+        learningWords: ["quiet phrase"],
+        ignoredWords: [],
+        preferredCategories: ["fiction"]
+      },
+      busy: false,
+      draft: "",
+      feedback: { message: "", tone: "neutral" }
+    }
+  }));
+  const controller = {
+    async initialize() {},
+    async prepareVocabularyExport() {
+      return { kind: "copy", text: "quiet phrase" };
+    },
+    setVocabularyFeedback(message = "", tone = "neutral") {
+      return store.dispatch(r3Actions.setVocabularyState({
+        feedback: { message, tone }
+      }));
+    },
+    flushReaderProgress() {}
+  };
+  const copied = [];
+  const timers = createTimerHarness();
+  const app = await bootstrapR3App({
+    document: documentRef,
+    store,
+    controller,
+    browserEffects: {
+      async copyText(text) {
+        copied.push(text);
+      }
+    },
+    toastTimers: timers
+  });
+  const sameApp = await bootstrapR3App({ document: documentRef, store, controller });
+  const findMain = () => findAll(app.root, node => node.className.includes("r3-main"))[0];
+  const copyButton = findByDataAction(app.root, "vocabulary-copy-learning")[0];
+  const clickListener = app.root.eventListeners.get("click")[0];
+
+  findMain().scrollTop = 512;
+  copyButton.focus();
+  clickListener({ target: copyButton });
+  await new Promise(resolve => setImmediate(resolve));
+
+  const toast = findAll(app.root, node => node.className === "r3-vocabulary-toast")[0];
+  assert.deepEqual(copied, ["quiet phrase"]);
+  assert.equal(toast.textContent, "Learning copied");
+  assert.equal(toast.getAttribute("role"), "status");
+  assert.equal(toast.getAttribute("aria-live"), "polite");
+  assert.equal(store.getState().activeScreen, R3_ROUTES.VOCABULARY);
+  assert.equal(findMain().scrollTop, 512);
+  assert.equal(documentRef.activeElement.dataset.action, "vocabulary-copy-learning");
+  assert.deepEqual(documentRef.activeElement.focusOptions, { preventScroll: true });
+  assert.equal(timers.pendingCount, 1);
+  assert.deepEqual(timers.delays, [2800]);
+  assert.equal(sameApp, app);
+  assert.equal(app.root.eventListeners.get("click").length, 1);
+
+  timers.runAll();
+  assert.equal(findAll(app.root, node => node.className === "r3-vocabulary-toast").length, 0);
+  assert.equal(findMain().scrollTop, 512);
+  assert.equal(documentRef.activeElement.dataset.action, "vocabulary-copy-learning");
+
+  controller.setVocabularyFeedback("Vocabulary copied", "success");
+  assert.equal(timers.pendingCount, 1);
+  app.unsubscribe();
+  assert.equal(timers.pendingCount, 0);
 });
 
 test("Bootstrap records progress from the dedicated Reader scroll workspace", async () => {

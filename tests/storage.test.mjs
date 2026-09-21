@@ -614,6 +614,44 @@ assert.deepEqual(
   "Vocabulary profile restore parses valid JSON through profile normalization"
 );
 assert.throws(
+  () => parseVocabularyProfileBackupJson(JSON.stringify({
+    schemaVersion: 1,
+    exportedAt: "2023-11-14T22:13:20.000Z",
+    selectedLevel: "level3",
+    knownWords: [],
+    learningWords: [],
+    ignoredWords: []
+  })),
+  /Missing vocabulary profile backup field: preferredCategories/,
+  "Vocabulary profile restore rejects incomplete schema-v1 payloads"
+);
+assert.throws(
+  () => parseVocabularyProfileBackupJson(JSON.stringify({
+    schemaVersion: 1,
+    exportedAt: "2023-11-14T22:13:20.000Z",
+    selectedLevel: "level3",
+    knownWords: ["shared term"],
+    learningWords: ["Shared Term"],
+    ignoredWords: [],
+    preferredCategories: ["ielts"]
+  })),
+  /more than one list/,
+  "Vocabulary profile restore rejects normalized cross-list conflicts"
+);
+assert.throws(
+  () => parseVocabularyProfileBackupJson(JSON.stringify({
+    schemaVersion: 1,
+    exportedAt: "2023-11-14T22:13:20.000Z",
+    selectedLevel: "level3",
+    knownWords: "not-an-array",
+    learningWords: [],
+    ignoredWords: [],
+    preferredCategories: ["ielts"]
+  })),
+  /knownWords must be an array/,
+  "Vocabulary profile restore rejects malformed profile field types"
+);
+assert.throws(
   () => parseVocabularyProfileBackupJson("{"),
   /valid JSON/,
   "Vocabulary profile restore rejects malformed JSON"

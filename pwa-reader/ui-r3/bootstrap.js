@@ -7,6 +7,18 @@ import { createAppShellView } from "./views/appShellView.js";
 
 let autoBootstrapScheduled = false;
 const READER_SELECTION_MAX_LENGTH = 80;
+const VOCABULARY_TAB_IDS = Object.freeze(["learning", "known", "hidden"]);
+const VOCABULARY_TOAST_DURATION_MS = 2800;
+const VOCABULARY_ERROR_TOAST_DURATION_MS = 4200;
+
+export function getAdjacentVocabularyTabId(currentTab, key) {
+  const currentIndex = VOCABULARY_TAB_IDS.indexOf(currentTab);
+  if (currentIndex === -1 || !["ArrowLeft", "ArrowRight"].includes(key)) return currentTab;
+  const offset = key === "ArrowRight" ? 1 : -1;
+  return VOCABULARY_TAB_IDS[
+    (currentIndex + offset + VOCABULARY_TAB_IDS.length) % VOCABULARY_TAB_IDS.length
+  ];
+}
 
 function findOrCreateRoot(documentRef) {
   let root = documentRef.getElementById("r3-root");
@@ -210,6 +222,59 @@ function findVocabularyPreviewScrollElement(root) {
   return findFirst(root, node => classListContains(node, "r3-vocabulary-preview-list"));
 }
 
+function findVocabularyScrollElement(root) {
+  return findFirst(root, node => classListContains(node, "r3-main"));
+}
+
+function isWithinRoot(node, root) {
+  let current = node;
+  while (current) {
+    if (current === root) return true;
+    current = current.parentNode;
+  }
+  return false;
+}
+
+function getVocabularyFocusDescriptor(root, documentRef) {
+  const activeElement = documentRef.activeElement;
+  if (!activeElement || !isWithinRoot(activeElement, root)) return null;
+  if (activeElement.id) return { id: activeElement.id };
+  if (activeElement.dataset?.action) {
+    return {
+      action: activeElement.dataset.action,
+      route: activeElement.dataset.route || "",
+      vocabularyTab: activeElement.dataset.vocabularyTab || "",
+      vocabularyTerm: activeElement.dataset.vocabularyTerm || ""
+    };
+  }
+  if (activeElement.dataset?.role) return { role: activeElement.dataset.role };
+  return null;
+}
+
+function findVocabularyFocusTarget(root, descriptor) {
+  if (!descriptor) return null;
+  return findFirst(root, node => {
+    if (descriptor.id) return node.id === descriptor.id;
+    if (descriptor.role) return node.dataset?.role === descriptor.role;
+    return (
+      node.dataset?.action === descriptor.action
+      && (node.dataset?.route || "") === descriptor.route
+      && (node.dataset?.vocabularyTab || "") === descriptor.vocabularyTab
+      && (node.dataset?.vocabularyTerm || "") === descriptor.vocabularyTerm
+    );
+  });
+}
+
+function focusWithoutScrolling(element) {
+  if (!element || element.disabled || typeof element.focus !== "function") return false;
+  try {
+    element.focus({ preventScroll: true });
+  } catch (error) {
+    element.focus();
+  }
+  return true;
+}
+
 function readScrollMetrics(element) {
   return {
     scrollTop: element?.scrollTop || 0,
@@ -218,13 +283,64 @@ function readScrollMetrics(element) {
   };
 }
 
-function mountAppShell(root, store, documentRef, controller) {
+function mountAppShell(root, store, documentRef, controller, options = {}) {
   let previousState = null;
   let readerScrollPreservationSequence = 0;
+  let vocabularyFocusDescriptor = null;
+  let vocabularyToastSignature = "";
+  let vocabularyToastTimer = null;
+  const windowRef = documentRef.defaultView || globalThis.window;
+  const setToastTimeout = options.toastTimers?.setTimeout
+    || windowRef?.setTimeout?.bind(windowRef)
+    || globalThis.setTimeout?.bind(globalThis);
+  const clearToastTimeout = options.toastTimers?.clearTimeout
+    || windowRef?.clearTimeout?.bind(windowRef)
+    || globalThis.clearTimeout?.bind(globalThis);
+
+  const clearVocabularyToastTimer = () => {
+    if (vocabularyToastTimer !== null && typeof clearToastTimeout === "function") {
+      clearToastTimeout(vocabularyToastTimer);
+    }
+    vocabularyToastTimer = null;
+  };
+
+  const syncVocabularyToastTimer = (state) => {
+    const feedback = state.activeScreen === R3_ROUTES.VOCABULARY
+      ? state.vocabulary?.feedback
+      : null;
+    const signature = feedback?.message
+      ? `${feedback.tone || "neutral"}\u0000${feedback.message}`
+      : "";
+    if (signature === vocabularyToastSignature) return;
+
+    clearVocabularyToastTimer();
+    vocabularyToastSignature = signature;
+    if (!signature || typeof setToastTimeout !== "function") return;
+
+    const delay = feedback.tone === "error"
+      ? (options.errorToastDurationMs || VOCABULARY_ERROR_TOAST_DURATION_MS)
+      : (options.toastDurationMs || VOCABULARY_TOAST_DURATION_MS);
+    vocabularyToastTimer = setToastTimeout(() => {
+      vocabularyToastTimer = null;
+      const currentState = store.getState();
+      const currentFeedback = currentState.vocabulary?.feedback;
+      const currentSignature = currentFeedback?.message
+        ? `${currentFeedback.tone || "neutral"}\u0000${currentFeedback.message}`
+        : "";
+      vocabularyToastSignature = "";
+      if (
+        currentState.activeScreen === R3_ROUTES.VOCABULARY
+        && currentSignature === signature
+      ) {
+        controller.setVocabularyFeedback?.("", "neutral");
+      }
+    }, delay);
+  };
 
   const render = (state) => {
     const previousReaderScroll = findReaderScrollElement(root);
     const previousPreviewScroll = findVocabularyPreviewScrollElement(root);
+    const previousVocabularyScroll = findVocabularyScrollElement(root);
     const shouldPreserveReaderScroll = (
       previousState?.activeScreen === R3_ROUTES.READER
       && state.activeScreen === R3_ROUTES.READER
@@ -243,6 +359,19 @@ function mountAppShell(root, store, documentRef, controller) {
     const preservedPreviewScrollTop = shouldPreservePreviewScroll
       ? previousPreviewScroll?.scrollTop
       : null;
+    const shouldPreserveVocabularyScroll = (
+      previousState?.activeScreen === R3_ROUTES.VOCABULARY
+      && state.activeScreen === R3_ROUTES.VOCABULARY
+    );
+    const preservedVocabularyScrollTop = shouldPreserveVocabularyScroll
+      ? previousVocabularyScroll?.scrollTop
+      : null;
+    if (shouldPreserveVocabularyScroll) {
+      vocabularyFocusDescriptor = getVocabularyFocusDescriptor(root, documentRef)
+        || vocabularyFocusDescriptor;
+    } else {
+      vocabularyFocusDescriptor = null;
+    }
     const preservationSequence = String(++readerScrollPreservationSequence);
     if (Number.isFinite(preservedReaderScrollTop)) {
       root.dataset.r3ReaderScrollPreservation = preservationSequence;
@@ -263,6 +392,13 @@ function mountAppShell(root, store, documentRef, controller) {
     if (Number.isFinite(preservedPreviewScrollTop)) {
       const previewScroll = findVocabularyPreviewScrollElement(root);
       if (previewScroll) previewScroll.scrollTop = preservedPreviewScrollTop;
+    }
+    if (Number.isFinite(preservedVocabularyScrollTop)) {
+      const vocabularyScroll = findVocabularyScrollElement(root);
+      if (vocabularyScroll) vocabularyScroll.scrollTop = preservedVocabularyScrollTop;
+    }
+    if (shouldPreserveVocabularyScroll && vocabularyFocusDescriptor) {
+      focusWithoutScrolling(findVocabularyFocusTarget(root, vocabularyFocusDescriptor));
     }
     if (state.activeScreen === R3_ROUTES.READER) {
       const readerScroll = findReaderScrollElement(root);
@@ -290,11 +426,16 @@ function mountAppShell(root, store, documentRef, controller) {
         bubble.style.top = `${Math.max(12, Math.min(y + 12, windowRef.innerHeight - box.height - 12))}px`;
       }
     }
+    syncVocabularyToastTimer(state);
     previousState = state;
   };
 
   render(store.getState());
-  return store.subscribe((state) => render(state));
+  const unsubscribe = store.subscribe((state) => render(state));
+  return () => {
+    clearVocabularyToastTimer();
+    unsubscribe();
+  };
 }
 
 function findActionElement(start, boundary) {
@@ -323,7 +464,61 @@ function getImportInput(root) {
   return null;
 }
 
-function bindAppShellEvents(root, controller) {
+function createBrowserEffects(documentRef) {
+  const windowRef = documentRef.defaultView || globalThis.window;
+  return {
+    async copyText(text) {
+      const clipboard = windowRef?.navigator?.clipboard || globalThis.navigator?.clipboard;
+      if (typeof clipboard?.writeText === "function") {
+        try {
+          await clipboard.writeText(String(text));
+          return;
+        } catch (error) {
+          // Fall through to the local selection copy path when focus or permission blocks Clipboard API.
+        }
+      }
+      const textarea = documentRef.createElement("textarea");
+      textarea.value = String(text);
+      textarea.setAttribute("readonly", "");
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      documentRef.body.appendChild(textarea);
+      textarea.focus?.();
+      textarea.select();
+      const copied = documentRef.execCommand?.("copy");
+      textarea.remove?.();
+      if (!copied) throw new Error("Clipboard access is unavailable.");
+    },
+    downloadText(payload) {
+      const BlobCtor = windowRef?.Blob || globalThis.Blob;
+      const urlApi = windowRef?.URL || globalThis.URL;
+      if (!BlobCtor || typeof urlApi?.createObjectURL !== "function") {
+        throw new Error("File download is unavailable.");
+      }
+      const url = urlApi.createObjectURL(new BlobCtor([payload.text], { type: payload.mimeType }));
+      const anchor = documentRef.createElement("a");
+      anchor.href = url;
+      anchor.download = payload.filename;
+      documentRef.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove?.();
+      urlApi.revokeObjectURL(url);
+    },
+    async readTextFile(file) {
+      if (typeof file?.text === "function") return file.text();
+      const FileReaderCtor = windowRef?.FileReader || globalThis.FileReader;
+      if (!FileReaderCtor) throw new Error("Could not read the selected backup file.");
+      return new Promise((resolve, reject) => {
+        const reader = new FileReaderCtor();
+        reader.onerror = () => reject(reader.error || new Error("Could not read the selected backup file."));
+        reader.onload = () => resolve(String(reader.result || ""));
+        reader.readAsText(file, "utf-8");
+      });
+    }
+  };
+}
+
+function bindAppShellEvents(root, controller, browserEffects) {
   if (root.dataset.r3ShellEventsBound === "true") {
     return;
   }
@@ -348,6 +543,39 @@ function bindAppShellEvents(root, controller) {
       syncReaderSelection();
     }
   };
+  const runVocabularyBrowserAction = async (action) => {
+    controller.setVocabularyFeedback("", "neutral");
+    try {
+      if (action === "backup") {
+        browserEffects.downloadText(await controller.prepareVocabularyBackup());
+        controller.setVocabularyFeedback("Download started", "success");
+        return;
+      }
+      const payload = await controller.prepareVocabularyExport(action);
+      if (payload.kind === "copy") {
+        await browserEffects.copyText(payload.text);
+        controller.setVocabularyFeedback(
+          action === "copy-learning" ? "Learning copied" : "Vocabulary copied",
+          "success"
+        );
+      } else {
+        browserEffects.downloadText(payload);
+        controller.setVocabularyFeedback("Download started", "success");
+      }
+    } catch (error) {
+      const message = action === "copy-learning"
+        ? "Could not copy Learning"
+        : action === "copy-all"
+          ? "Could not copy vocabulary"
+          : "Could not start download";
+      controller.setVocabularyFeedback(message, "error");
+    }
+  };
+  const submitVocabularyTerm = (scope) => {
+    const input = findFirst(scope || root, node => node.dataset?.role === "vocabulary-manual-term")
+      || findFirst(root, node => node.dataset?.role === "vocabulary-manual-term");
+    return controller.addVocabularyLearningTerm?.(input?.value || "");
+  };
 
   root.ownerDocument?.addEventListener?.("selectionchange", scheduleReaderSelectionSync);
   root.addEventListener("pointerup", scheduleReaderSelectionSync, { passive: true });
@@ -361,6 +589,35 @@ function bindAppShellEvents(root, controller) {
     }
     const actionElement = findActionElement(event.target, root);
     const action = actionElement?.dataset?.action;
+
+    if (action === "vocabulary-tab") {
+      controller.selectVocabularyTab?.(actionElement.dataset.vocabularyTab);
+      return;
+    }
+    if (action === "vocabulary-add-submit") {
+      event.preventDefault?.();
+      submitVocabularyTerm(actionElement.parentNode?.parentNode);
+      return;
+    }
+    if (action === "vocabulary-remove") {
+      controller.removeVocabularyTerm?.(actionElement.dataset.vocabularyTerm);
+      return;
+    }
+    if (action === "vocabulary-restore-open") {
+      findFirst(root, node => node.dataset?.role === "vocabulary-restore-input")?.click?.();
+      return;
+    }
+    const vocabularyExportAction = {
+      "vocabulary-copy-learning": "copy-learning",
+      "vocabulary-download-learning": "download-learning",
+      "vocabulary-copy-all": "copy-all",
+      "vocabulary-download-csv": "download-csv",
+      "vocabulary-backup": "backup"
+    }[action];
+    if (vocabularyExportAction) {
+      runVocabularyBrowserAction(vocabularyExportAction);
+      return;
+    }
 
     if (action === "vocabulary-close") {
       controller.closeVocabularyBubble?.();
@@ -413,7 +670,7 @@ function bindAppShellEvents(root, controller) {
 
     if (action === "navigate") {
       const route = actionElement.dataset.route;
-      if (route === R3_ROUTES.HOME || route === R3_ROUTES.LIBRARY) {
+      if ([R3_ROUTES.HOME, R3_ROUTES.LIBRARY, R3_ROUTES.VOCABULARY].includes(route)) {
         controller.navigate(route);
       }
       return;
@@ -479,6 +736,28 @@ function bindAppShellEvents(root, controller) {
 
   root.addEventListener("change", (event) => {
     const actionElement = findActionElement(event.target, root);
+    if (actionElement?.dataset?.action === "vocabulary-level") {
+      controller.setVocabularyLevel?.(actionElement.value);
+      return;
+    }
+    if (actionElement?.dataset?.action === "vocabulary-restore-file") {
+      const file = actionElement.files?.[0];
+      if (file) {
+        browserEffects.readTextFile(file)
+          .then(text => controller.restoreVocabularyBackup?.(text))
+          .then(state => {
+            if (state?.vocabulary?.feedback?.tone === "error") {
+              controller.setVocabularyFeedback("Could not restore vocabulary", "error");
+            }
+          })
+          .catch(() => controller.setVocabularyFeedback(
+            "Could not restore vocabulary",
+            "error"
+          ));
+      }
+      actionElement.value = "";
+      return;
+    }
     if (actionElement?.dataset?.action !== "import-file") {
       return;
     }
@@ -488,6 +767,13 @@ function bindAppShellEvents(root, controller) {
       controller.importBook(file);
     }
     actionElement.value = "";
+  });
+
+  root.addEventListener("submit", event => {
+    const actionElement = findActionElement(event.target, root);
+    if (actionElement?.dataset?.action !== "vocabulary-add") return;
+    event.preventDefault?.();
+    submitVocabularyTerm(actionElement);
   });
 
   root.addEventListener("scroll", (event) => {
@@ -503,6 +789,23 @@ function bindAppShellEvents(root, controller) {
   }, true);
 
   root.addEventListener("keydown", event => {
+    const actionElement = findActionElement(event.target, root);
+    if (
+      actionElement?.dataset?.action === "vocabulary-tab"
+      && ["ArrowLeft", "ArrowRight"].includes(event.key)
+    ) {
+      event.preventDefault?.();
+      const nextTab = getAdjacentVocabularyTabId(
+        actionElement.dataset.vocabularyTab,
+        event.key
+      );
+      controller.selectVocabularyTab?.(nextTab);
+      findFirst(root, node => (
+        node.dataset?.action === "vocabulary-tab"
+        && node.dataset?.vocabularyTab === nextTab
+      ))?.focus?.();
+      return;
+    }
     if (event.key !== "Escape") return;
     controller.closeVocabularyPreview?.();
     controller.closeVocabularyBubble?.();
@@ -551,8 +854,12 @@ export async function bootstrapR3App(options = {}) {
     adapters: options.adapters,
     collectVocabularyOccurrences: () => collectVocabularyOccurrences(root)
   });
-  const unsubscribe = mountAppShell(root, store, documentRef, controller);
-  bindAppShellEvents(root, controller);
+  const unsubscribe = mountAppShell(root, store, documentRef, controller, {
+    toastTimers: options.toastTimers,
+    toastDurationMs: options.toastDurationMs,
+    errorToastDurationMs: options.errorToastDurationMs
+  });
+  bindAppShellEvents(root, controller, options.browserEffects || createBrowserEffects(documentRef));
   bindPageLifecycleEvents(documentRef, controller);
   const app = {
     root,

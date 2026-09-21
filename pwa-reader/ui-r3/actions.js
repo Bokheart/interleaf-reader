@@ -6,6 +6,7 @@ export const R3_ACTIONS = Object.freeze({
   SET_ACTIVE_BOOK: "reader/setActiveBook",
   SET_ACTIVE_CHAPTER: "reader/setActiveChapter",
   SET_READER_STATE: "reader/setState",
+  SET_VOCABULARY_STATE: "vocabulary/setState",
   CLEAR_READER: "reader/clear",
   SET_ACTIVE_MODE: "reader/setActiveMode",
   SET_IMPORT_STATUS: "import/setStatus",
@@ -64,6 +65,13 @@ export const r3Actions = Object.freeze({
     return {
       type: R3_ACTIONS.SET_READER_STATE,
       payload: { reader }
+    };
+  },
+
+  setVocabularyState(vocabulary = {}) {
+    return {
+      type: R3_ACTIONS.SET_VOCABULARY_STATE,
+      payload: { vocabulary }
     };
   },
 

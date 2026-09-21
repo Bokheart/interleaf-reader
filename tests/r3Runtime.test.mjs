@@ -384,6 +384,23 @@ test("R3 store creates the expected initial runtime state", () => {
       status: "empty",
       books: []
     },
+    vocabulary: {
+      status: "idle",
+      activeTab: "learning",
+      profile: {
+        selectedLevel: "level3",
+        knownWords: [],
+        learningWords: [],
+        ignoredWords: [],
+        preferredCategories: []
+      },
+      busy: false,
+      draft: "",
+      feedback: {
+        message: "",
+        tone: "neutral"
+      }
+    },
     importStatus: {
       isImporting: false,
       fileName: null,

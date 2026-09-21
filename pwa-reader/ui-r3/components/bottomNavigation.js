@@ -4,7 +4,7 @@ import { R3_ROUTES } from "../routes.js";
 const NAV_ITEMS = Object.freeze([
   { route: R3_ROUTES.HOME, label: "Home", icon: "home", enabled: true },
   { route: R3_ROUTES.LIBRARY, label: "Library", icon: "library", enabled: true },
-  { route: R3_ROUTES.VOCABULARY, label: "Vocabulary", icon: "vocabulary", enabled: false }
+  { route: R3_ROUTES.VOCABULARY, label: "Vocabulary", icon: "vocabulary", enabled: true }
 ]);
 
 export function createBottomNavigation(documentRef, activeScreen) {

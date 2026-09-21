@@ -4,6 +4,7 @@ import { R3_ROUTES } from "../routes.js";
 import { createHomeView } from "./homeView.js";
 import { createLibraryView } from "./libraryView.js";
 import { createReaderView } from "./readerView.js";
+import { createVocabularyView } from "./vocabularyView.js";
 
 function createActiveScreen(documentRef, state) {
   if (state.activeScreen === R3_ROUTES.LIBRARY) {
@@ -11,6 +12,9 @@ function createActiveScreen(documentRef, state) {
   }
   if (state.activeScreen === R3_ROUTES.READER) {
     return createReaderView(documentRef, state);
+  }
+  if (state.activeScreen === R3_ROUTES.VOCABULARY) {
+    return createVocabularyView(documentRef, state);
   }
   return createHomeView(documentRef, state);
 }
@@ -28,6 +32,27 @@ function createImportInput(documentRef) {
       action: "import-file",
       role: "r3-import-input"
     }
+  });
+}
+
+function createVocabularyToast(documentRef, state) {
+  const feedback = state.vocabulary?.feedback;
+  if (
+    state.activeScreen !== R3_ROUTES.VOCABULARY
+    || !feedback?.message
+  ) {
+    return null;
+  }
+
+  return createElement(documentRef, "p", {
+    className: "r3-vocabulary-toast",
+    text: feedback.message,
+    attrs: {
+      role: "status",
+      "aria-live": "polite",
+      "aria-atomic": "true"
+    },
+    dataset: { tone: feedback.tone || "neutral" }
   });
 }
 
@@ -71,6 +96,10 @@ export function createAppShellView(documentRef, state) {
 
   main.appendChild(createActiveScreen(documentRef, state));
   frame.appendChild(main);
+  const vocabularyToast = createVocabularyToast(documentRef, state);
+  if (vocabularyToast) {
+    frame.appendChild(vocabularyToast);
+  }
   if (!isReader) {
     frame.appendChild(createBottomNavigation(documentRef, state.activeScreen));
   }

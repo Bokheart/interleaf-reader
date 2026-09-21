@@ -55,6 +55,26 @@ function createDefaultReaderState() {
   };
 }
 
+function createDefaultVocabularyState() {
+  return {
+    status: "idle",
+    activeTab: "learning",
+    profile: {
+      selectedLevel: "level3",
+      knownWords: [],
+      learningWords: [],
+      ignoredWords: [],
+      preferredCategories: []
+    },
+    busy: false,
+    draft: "",
+    feedback: {
+      message: "",
+      tone: "neutral"
+    }
+  };
+}
+
 function cloneValue(value) {
   if (Array.isArray(value)) {
     return value.map(cloneValue);
@@ -131,6 +151,7 @@ export function createInitialR3State(overrides = {}) {
     continueReading: null,
     home: createDefaultHomeState("english-study"),
     library: createDefaultLibraryState(),
+    vocabulary: createDefaultVocabularyState(),
     importStatus: createDefaultImportStatus(),
     adapterStatus: { ...DEFAULT_ADAPTER_STATUS },
     loading: {
@@ -220,6 +241,21 @@ export function r3Reducer(state = createInitialR3State(), action = {}) {
           error: action.payload?.reader?.error !== undefined
             ? normalizeError(action.payload.reader.error)
             : state.reader.error
+        }
+      };
+
+    case R3_ACTIONS.SET_VOCABULARY_STATE:
+      return {
+        ...state,
+        vocabulary: {
+          ...state.vocabulary,
+          ...(action.payload?.vocabulary || {}),
+          profile: action.payload?.vocabulary?.profile !== undefined
+            ? cloneValue(action.payload.vocabulary.profile)
+            : state.vocabulary.profile,
+          feedback: action.payload?.vocabulary?.feedback !== undefined
+            ? cloneValue(action.payload.vocabulary.feedback)
+            : state.vocabulary.feedback
         }
       };
 

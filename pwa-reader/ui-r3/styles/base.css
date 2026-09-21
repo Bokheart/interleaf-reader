@@ -1230,3 +1230,213 @@ button[aria-disabled="true"] {
     transition: none;
   }
 }
+
+.r3-vocabulary-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--r3-space-5);
+}
+
+.r3-vocabulary-header h1 {
+  margin: 0;
+  font-family: var(--r3-font-serif);
+  font-size: 2rem;
+  line-height: 1.05;
+}
+
+.r3-vocabulary-header p:last-child {
+  margin-bottom: 0;
+}
+
+.r3-vocabulary-level-control {
+  width: min(100%, 260px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--r3-space-1);
+  font-weight: 700;
+}
+
+.r3-vocabulary-level-control select,
+.r3-vocabulary-add-form input {
+  min-height: 44px;
+  width: 100%;
+  padding: 0 var(--r3-space-3);
+  color: var(--r3-color-text);
+  background: var(--r3-color-surface);
+  border: 1px solid var(--r3-color-border-strong);
+  border-radius: var(--r3-radius);
+  font: inherit;
+}
+
+.r3-vocabulary-level-control small,
+.r3-vocabulary-add-form small {
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.r3-vocabulary-counts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--r3-space-3);
+}
+
+.r3-vocabulary-count-card {
+  min-width: 0;
+  padding: var(--r3-space-4);
+  background: var(--r3-color-surface);
+  border: 1px solid var(--r3-color-border);
+  border-radius: var(--r3-radius-lg);
+  box-shadow: var(--r3-shadow-card);
+}
+
+.r3-vocabulary-count-card strong,
+.r3-vocabulary-count-card span {
+  display: block;
+}
+
+.r3-vocabulary-count-card strong {
+  color: var(--r3-color-accent-ink);
+  font-size: 1.6rem;
+}
+
+.r3-vocabulary-count-card span {
+  color: var(--r3-color-text-muted);
+  font-size: 0.82rem;
+}
+
+.r3-vocabulary-add-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--r3-space-2);
+  font-weight: 700;
+}
+
+.r3-vocabulary-inline-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--r3-space-2);
+}
+
+.r3-vocabulary-inline-controls .r3-primary-button {
+  width: auto;
+  padding: 0 var(--r3-space-4);
+}
+
+.r3-vocabulary-tabs {
+  display: flex;
+  gap: var(--r3-space-1);
+  overflow-x: auto;
+  border-bottom: 1px solid var(--r3-color-border);
+}
+
+.r3-vocabulary-tab {
+  min-height: 44px;
+  padding: 0 var(--r3-space-3);
+  color: var(--r3-color-text-muted);
+  background: transparent;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  font: inherit;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.r3-vocabulary-tab.is-active {
+  color: var(--r3-color-accent-ink);
+  border-bottom-color: var(--r3-color-accent);
+}
+
+.r3-vocabulary-term-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.r3-vocabulary-term-row {
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--r3-space-3);
+  border-bottom: 1px solid var(--r3-color-border);
+}
+
+.r3-vocabulary-term-row:last-child {
+  border-bottom: 0;
+}
+
+.r3-vocabulary-term-row > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.r3-vocabulary-remove {
+  min-height: 38px;
+  padding: 0 var(--r3-space-3);
+}
+
+.r3-vocabulary-empty {
+  padding: var(--r3-space-4) 0;
+  color: var(--r3-color-text-muted);
+}
+
+.r3-vocabulary-action-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--r3-space-2);
+}
+
+.r3-vocabulary-toast {
+  position: fixed;
+  z-index: 20;
+  left: 50%;
+  bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  width: min(calc(100% - 32px), 420px);
+  margin: 0;
+  padding: var(--r3-space-3) var(--r3-space-4);
+  color: var(--r3-color-surface);
+  background: var(--r3-color-accent-ink);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: var(--r3-radius);
+  box-shadow: 0 12px 30px rgba(23, 32, 51, 0.2);
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: center;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.r3-vocabulary-toast[data-tone="error"] {
+  background: var(--r3-color-danger);
+}
+
+@media (max-width: 520px) {
+  .r3-vocabulary-header {
+    align-items: stretch;
+    flex-direction: column;
+    gap: var(--r3-space-3);
+  }
+
+  .r3-vocabulary-level-control {
+    width: 100%;
+  }
+
+  .r3-vocabulary-inline-controls,
+  .r3-vocabulary-action-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .r3-vocabulary-inline-controls .r3-primary-button {
+    width: 100%;
+  }
+}
+
+@media (min-width: 960px) {
+  .r3-vocabulary-toast {
+    bottom: var(--r3-space-6);
+  }
+}

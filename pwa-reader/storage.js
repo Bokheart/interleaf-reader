@@ -389,6 +389,53 @@ export function parseVocabularyProfileBackupJson(jsonText = "") {
     throw new Error(`Unsupported vocabulary profile backup field: ${unsupportedField}`);
   }
 
+  const missingField = VOCABULARY_PROFILE_BACKUP_FIELDS.find(
+    field => !Object.prototype.hasOwnProperty.call(payload, field)
+  );
+  if (missingField) {
+    throw new Error(`Missing vocabulary profile backup field: ${missingField}`);
+  }
+
+  if (typeof payload.exportedAt !== "string" || !Number.isFinite(Date.parse(payload.exportedAt))) {
+    throw new Error("Vocabulary profile backup exportedAt must be a valid date string.");
+  }
+  if (
+    typeof payload.selectedLevel !== "string"
+    || !VALID_VOCABULARY_LEVELS.includes(payload.selectedLevel.trim())
+  ) {
+    throw new Error("Vocabulary profile backup selectedLevel is invalid.");
+  }
+
+  const vocabularyListFields = ["knownWords", "learningWords", "ignoredWords"];
+  for (const field of vocabularyListFields) {
+    if (
+      !Array.isArray(payload[field])
+      || payload[field].some(term => typeof term !== "string" || !normalizeWord(term))
+    ) {
+      throw new Error(`Vocabulary profile backup ${field} must be an array of valid terms.`);
+    }
+  }
+  if (
+    !Array.isArray(payload.preferredCategories)
+    || payload.preferredCategories.some(category => (
+      typeof category !== "string" || !category.trim()
+    ))
+  ) {
+    throw new Error("Vocabulary profile backup preferredCategories must be an array of strings.");
+  }
+
+  const termOwners = new Map();
+  for (const field of vocabularyListFields) {
+    for (const term of payload[field]) {
+      const normalizedTerm = normalizeWord(term);
+      const owner = termOwners.get(normalizedTerm);
+      if (owner && owner !== field) {
+        throw new Error(`Vocabulary term appears in more than one list: ${normalizedTerm}`);
+      }
+      termOwners.set(normalizedTerm, field);
+    }
+  }
+
   const normalizedProfile = normalizeVocabularyProfileForStorage({
     selectedLevel: payload.selectedLevel,
     knownWords: payload.knownWords,
