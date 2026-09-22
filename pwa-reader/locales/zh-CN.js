@@ -342,5 +342,6 @@ export const zhCN = Object.freeze({
   "r3.settings.languageError": "\u65e0\u6cd5\u4fdd\u5b58\u754c\u9762\u8bed\u8a00\u3002",
   "r3.settings.localData.title": "\u672c\u5730\u6570\u636e\u4e0e\u9690\u79c1",
   "r3.settings.localData.body": "\u4e66\u7c4d\u3001\u8fdb\u5ea6\u3001\u8bcd\u6c47\u548c\u504f\u597d\u4fdd\u7559\u5728\u6b64\u6d4f\u89c8\u5668\u548c\u6b64\u8bbe\u5907\u4e2d\u3002",
-  "r3.settings.languageChoices": "\u754c\u9762\u8bed\u8a00\u9009\u9879"
+  "r3.settings.languageChoices": "\u754c\u9762\u8bed\u8a00\u9009\u9879",
+  "r3.reader.modeError": "无法切换阅读模式，请重试。"
 });

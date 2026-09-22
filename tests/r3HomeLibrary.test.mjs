@@ -708,8 +708,8 @@ test("App Shell renders the real Reader state instead of the old placeholder", (
   const readerContent = findAll(shell, (node) => node.className === "r3-reader-content")[0];
   const backButton = findByDataAction(shell, "reader-back")[0];
   const contentsButton = findByDataAction(shell, "reader-contents")[0];
-  const previousButton = findByDataAction(shell, "reader-previous")[0];
-  const nextButton = findByDataAction(shell, "reader-next")[0];
+  const progressButton = findByDataAction(shell, "reader-progress")[0];
+  const modeButton = findByDataAction(shell, "reader-mode")[0];
 
   assert.doesNotMatch(shell.textContent, /Reader restoration prepared/);
   assert.match(shell.textContent, /The Wind in the Willows/);
@@ -717,8 +717,8 @@ test("App Shell renders the real Reader state instead of the old placeholder", (
   assert.equal(readerContent.innerHTML, "<article><p>Real fixture chapter text.</p></article>");
   assert.ok(backButton);
   assert.ok(contentsButton);
-  assert.equal(previousButton.disabled, false);
-  assert.equal(nextButton.disabled, false);
+  assert.equal(progressButton.disabled, false);
+  assert.equal(modeButton.disabled, false);
 });
 
 test("Reader uses a dedicated scroll workspace without generic card treatment", () => {

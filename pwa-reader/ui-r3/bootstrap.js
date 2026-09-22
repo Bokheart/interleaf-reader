@@ -363,6 +363,23 @@ function mountAppShell(root, store, documentRef, controller, options = {}) {
   };
 
   const render = (state) => {
+    // A chrome-only change must not replace prose, selection ranges or the scroll host.
+    if (previousState?.activeScreen === R3_ROUTES.READER
+      && previousState.reader.chromeVisible !== state.reader.chromeVisible
+      && JSON.stringify({ ...previousState, reader: { ...previousState.reader, chromeVisible: state.reader.chromeVisible } }) === JSON.stringify(state)) {
+      const visible = state.reader.chromeVisible !== false;
+      const screen = findFirst(root, node => classListContains(node, "r3-reader-screen"));
+      screen?.setAttribute("data-chrome-visible", String(visible));
+      for (const className of ["r3-reader-header", "r3-reader-footer"]) {
+        const chrome = findFirst(root, node => classListContains(node, className));
+        if (chrome) {
+          chrome.inert = !visible;
+          chrome.setAttribute("aria-hidden", String(!visible));
+        }
+      }
+      previousState = state;
+      return;
+    }
     const previousReaderScroll = findReaderScrollElement(root);
     const previousPreviewScroll = findVocabularyPreviewScrollElement(root);
     const previousVocabularyScroll = findVocabularyScrollElement(root);
@@ -407,6 +424,9 @@ function mountAppShell(root, store, documentRef, controller, options = {}) {
       vocabularyFocusDescriptor = null;
     }
     const preservationSequence = String(++readerScrollPreservationSequence);
+    const readerSurfaceOverlays = [R3_OVERLAYS.CONTENTS, R3_OVERLAYS.PROGRESS, R3_OVERLAYS.MODE];
+    const surfaceFocus = readerSurfaceOverlays.includes(previousState?.openOverlay)
+      ? documentRef.activeElement?.dataset : null;
     if (Number.isFinite(preservedReaderScrollTop)) {
       root.dataset.r3ReaderScrollPreservation = preservationSequence;
     } else {
@@ -471,6 +491,17 @@ function mountAppShell(root, store, documentRef, controller, options = {}) {
         bubble.style.left = `${Math.max(12, Math.min(x, windowRef.innerWidth - box.width - 12))}px`;
         bubble.style.top = `${Math.max(12, Math.min(y + 12, windowRef.innerHeight - box.height - 12))}px`;
       }
+      if (readerSurfaceOverlays.includes(state.openOverlay)) {
+        const sameSurface = previousState?.openOverlay === state.openOverlay;
+        const focusTarget = sameSurface && surfaceFocus?.action
+          ? findFirst(root, node => node.dataset?.action === surfaceFocus.action
+            && node.dataset?.mode === surfaceFocus.mode && node.dataset?.chapterIndex === surfaceFocus.chapterIndex && !node.disabled)
+          : null;
+        focusWithoutScrolling(focusTarget || root.querySelector?.(".r3-reader-overlay button:not(:disabled)"));
+      } else if (readerSurfaceOverlays.includes(previousState?.openOverlay) && !state.openOverlay) {
+        const trigger = { [R3_OVERLAYS.CONTENTS]: "reader-contents", [R3_OVERLAYS.PROGRESS]: "reader-progress", [R3_OVERLAYS.MODE]: "reader-mode" }[previousState.openOverlay];
+        focusWithoutScrolling(findFirst(root, node => node.dataset?.action === trigger));
+      }
     }
     syncVocabularyToastTimer(state);
     previousState = state;
@@ -502,6 +533,23 @@ function findAncestorByClass(start, boundary, className) {
     current = current.parentNode;
   }
   return classListContains(current, className) ? current : null;
+}
+
+function isReaderChromeTap(event, root) {
+  if (event.defaultPrevented || event.detail > 1) return false;
+  const selection = root.ownerDocument?.getSelection?.();
+  if (selection && !selection.isCollapsed && String(selection).length) return false;
+  let current = event.target;
+  while (current && current !== root) {
+    if (["A", "BUTTON", "INPUT", "SELECT", "TEXTAREA", "LABEL", "SUMMARY", "AUDIO", "VIDEO"].includes(current.tagName)
+      || current.isContentEditable || current.getAttribute?.("contenteditable") === "true"
+      || ["button", "link", "slider"].includes(current.getAttribute?.("role"))
+      || current.dataset?.action
+      || ["vocab-hit", "r3-vocabulary-bubble", "r3-selection-save-bar", "r3-reader-overlay"].some(name => classListContains(current, name))) return false;
+    if (classListContains(current, "r3-reader-content")) return true;
+    current = current.parentNode;
+  }
+  return false;
 }
 
 function getImportInput(root) {
@@ -582,9 +630,17 @@ function bindAppShellEvents(root, controller, browserEffects) {
   const t = (key, params = {}) => (
     controller.getTranslation?.(key, params) || getTranslation("en", key, params)
   );
+  const chromeTimers = root.ownerDocument?.defaultView || globalThis;
+  let pendingChromeTap = null;
+  const cancelChromeTap = () => {
+    if (pendingChromeTap !== null) chromeTimers.clearTimeout(pendingChromeTap);
+    pendingChromeTap = null;
+  };
   let selectionUpdateScheduled = false;
   const syncReaderSelection = () => {
     selectionUpdateScheduled = false;
+    const selection = root.ownerDocument?.getSelection?.();
+    if (selection && !selection.isCollapsed && String(selection).length) cancelChromeTap();
     const hasBlockingUi = findFirst(root, node => (
       classListContains(node, "r3-vocabulary-bubble")
       || classListContains(node, "r3-reader-overlay")
@@ -641,6 +697,7 @@ function bindAppShellEvents(root, controller, browserEffects) {
   root.addEventListener("pointerup", scheduleReaderSelectionSync, { passive: true });
   root.addEventListener("keyup", scheduleReaderSelectionSync);
   root.addEventListener("click", (event) => {
+    cancelChromeTap();
     const hit = event.target.closest?.(".r3-reader-content .vocab-hit[data-vocab-term]");
     if (hit) {
       const box = hit.getBoundingClientRect();
@@ -726,11 +783,19 @@ function bindAppShellEvents(root, controller, browserEffects) {
       controller.closeVocabularyBubble?.();
       return;
     }
-    controller.closeVocabularyBubble?.();
-
     if (!action) {
+      if (isReaderChromeTap(event, root)) {
+        // Confirm a single tap, allowing native double-click/selection to cancel it.
+        // This is gesture disambiguation, never an idle auto-hide timer.
+        pendingChromeTap = chromeTimers.setTimeout(() => {
+          pendingChromeTap = null;
+          if (event.target.isConnected !== false && isReaderChromeTap(event, root)) controller.toggleReaderChrome?.();
+        }, 250);
+      }
+      controller.closeVocabularyBubble?.();
       return;
     }
+    controller.closeVocabularyBubble?.();
 
     if (action === "navigate") {
       const route = actionElement.dataset.route;
@@ -776,6 +841,19 @@ function bindAppShellEvents(root, controller, browserEffects) {
       return;
     }
 
+    if (action === "reader-progress") {
+      controller.openReaderProgress?.();
+      return;
+    }
+    if (action === "reader-mode") {
+      controller.openReaderMode?.();
+      return;
+    }
+    if (action === "reader-select-mode") {
+      controller.setReaderMode?.(actionElement.dataset.mode);
+      return;
+    }
+
     if (action === "vocabulary-preview-open") {
       controller.openVocabularyPreview?.(collectVocabularyOccurrences(root));
       return;
@@ -794,7 +872,7 @@ function bindAppShellEvents(root, controller, browserEffects) {
       return;
     }
 
-    if (action === "reader-close-contents") {
+    if (action === "reader-close-contents" || action === "reader-close-surface") {
       controller.closeOverlay();
       return;
     }
@@ -806,6 +884,10 @@ function bindAppShellEvents(root, controller, browserEffects) {
 
   root.addEventListener("change", (event) => {
     const actionElement = findActionElement(event.target, root);
+    if (actionElement?.dataset?.action === "reader-progress-chapter") {
+      controller.selectReaderChapter?.(Number(actionElement.value));
+      return;
+    }
     if (actionElement?.dataset?.action === "vocabulary-level") {
       controller.setVocabularyLevel?.(actionElement.value);
       return;
@@ -859,6 +941,17 @@ function bindAppShellEvents(root, controller, browserEffects) {
   }, true);
 
   root.addEventListener("keydown", event => {
+    const surface = root.querySelector?.(".r3-reader-contents, .r3-reader-sheet");
+    if (event.key === "Tab" && surface) {
+      const focusable = [...surface.querySelectorAll("button:not(:disabled), input:not(:disabled), [tabindex='0']")];
+      const first = focusable[0];
+      const last = focusable.at(-1);
+      const active = root.ownerDocument?.activeElement;
+      if ((event.shiftKey && active === first) || (!event.shiftKey && active === last) || !surface.contains(active)) {
+        event.preventDefault();
+        focusWithoutScrolling(event.shiftKey ? last : first);
+      }
+    }
     const actionElement = findActionElement(event.target, root);
     if (
       actionElement?.dataset?.action === "vocabulary-tab"
@@ -879,6 +972,7 @@ function bindAppShellEvents(root, controller, browserEffects) {
     if (event.key !== "Escape") return;
     controller.closeVocabularyPreview?.();
     controller.closeVocabularyBubble?.();
+    controller.closeOverlay?.();
   });
   root.ownerDocument?.defaultView?.addEventListener("resize", () => controller.closeVocabularyBubble?.());
 }

@@ -371,6 +371,192 @@ function createDeferred() {
   return { promise, resolve, reject };
 }
 
+test("R3 chrome toggles without rebuilding prose and excludes interactive or selected content", async () => {
+  const document = createMockDocument();
+  const chromeTimers = createTimerHarness();
+  document.defaultView = { ...chromeTimers.timers, addEventListener() {} };
+  const { adapters, readerRuntime } = createAdapters();
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters, readerRuntime });
+  const app = await bootstrapR3App({ document, store, controller });
+  await app.controller.resumeBook("recent");
+  const root = document.getElementById("r3-root");
+  const click = root.eventListeners.get("click")[0];
+  const content = collectNodes(root).find(node => node.className === "r3-reader-content");
+  click({ target: content, detail: 1 });
+  click({ target: content, detail: 2 });
+  chromeTimers.runAll();
+  assert.equal(app.store.getState().reader.chromeVisible, true, "double-click selection must not hide chrome");
+  click({ target: content });
+  chromeTimers.runAll();
+  assert.equal(app.store.getState().reader.chromeVisible, false);
+  assert.equal(collectNodes(root).find(node => node.className === "r3-reader-content"), content);
+  click({ target: content });
+  chromeTimers.runAll();
+  assert.equal(app.store.getState().reader.chromeVisible, true);
+  for (const tag of ["button", "a", "input", "select", "textarea"]) {
+    const target = document.createElement(tag);
+    content.appendChild(target);
+    click({ target });
+    chromeTimers.runAll();
+    assert.equal(app.store.getState().reader.chromeVisible, true, tag);
+  }
+  const hit = document.createElement("span");
+  hit.className = "vocab-hit";
+  content.appendChild(hit);
+  click({ target: hit });
+  document.getSelection = () => ({ isCollapsed: false, toString: () => "selected prose" });
+  click({ target: content });
+  chromeTimers.runAll();
+  assert.equal(app.store.getState().reader.chromeVisible, true);
+  document.getSelection = () => null;
+  app.controller.openReaderContents();
+  app.controller.toggleReaderChrome();
+  assert.equal(app.store.getState().reader.chromeVisible, true);
+});
+
+test("R3 chrome has left icon Back, four quick controls, Contents scrim and Progress navigation", async () => {
+  const { adapters, readerRuntime, calls } = createAdapters();
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters, readerRuntime });
+  await controller.resumeBook("recent");
+  const document = createMockDocument();
+  let nodes = collectNodes(createReaderView(document, store.getState()));
+  const header = nodes.find(node => node.className === "r3-reader-header");
+  assert.equal(header.children[0].dataset.action, "reader-back");
+  assert.equal(header.children[0].children[0].tagName, "SVG");
+  assert.equal(header.children[0].textContent, "");
+  const footer = nodes.find(node => node.className === "r3-reader-quick-controls");
+  assert.deepEqual(footer.children.map(node => node.dataset.action), ["reader-contents", "reader-progress", "vocabulary-preview-open", "reader-mode"]);
+  controller.openReaderContents();
+  nodes = collectNodes(createReaderView(document, store.getState()));
+  assert.equal(nodes.find(node => node.className === "r3-reader-scrim").dataset.action, "reader-close-contents");
+  controller.closeOverlay();
+  controller.openReaderProgress();
+  assert.equal(store.getState().openOverlay, R3_OVERLAYS.PROGRESS);
+  nodes = collectNodes(createReaderView(document, store.getState()));
+  const slider = nodes.find(node => node.dataset.action === "reader-progress-chapter");
+  assert.equal(slider.value, 1);
+  await controller.selectReaderChapter(0);
+  await controller.flushReaderProgress();
+  assert.equal(store.getState().openOverlay, null);
+  assert.equal(calls.savePosition.at(-1).currentChapterId, "chapter-1");
+});
+
+test("R3 Mode uses adapter availability and persists only a successful available mode", async () => {
+  const { adapters, readerRuntime, calls } = createAdapters();
+  adapters.modes.resolveModeFromProgress = () => "english-study";
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters, readerRuntime });
+  await controller.resumeBook("recent");
+  controller.openReaderMode();
+  const nodes = collectNodes(createReaderView(createMockDocument(), store.getState()));
+  const choices = nodes.filter(node => node.dataset.action === "reader-select-mode");
+  assert.deepEqual(choices.map(node => [node.dataset.mode, Boolean(node.disabled)]), [["english-study", false], ["chinese", true], ["cloze-mixed", true]]);
+  await controller.setReaderMode("chinese");
+  assert.equal(store.getState().activeReadingMode, "english-study");
+  adapters.modes.getModeAvailability = () => [{ value: "english-study", available: true }, { value: "chinese", available: true }];
+  await controller.setReaderMode("chinese");
+  await controller.flushReaderProgress();
+  assert.equal(store.getState().activeReadingMode, "chinese");
+  assert.match(store.getState().reader.html, /rendered in chinese/);
+  assert.equal(store.getState().openOverlay, null);
+  assert.equal(calls.savePosition.at(-1).currentMode, "chinese");
+  controller.openReaderMode();
+  adapters.modes.renderChapter = () => { throw new Error("render failed"); };
+  await controller.setReaderMode("english-study");
+  assert.equal(store.getState().activeReadingMode, "chinese");
+  assert.match(store.getState().reader.html, /rendered in chinese/);
+  assert.equal(store.getState().openOverlay, R3_OVERLAYS.MODE);
+  assert.ok(store.getState().reader.modeMessage);
+});
+
+test("R3 bubble closes after successful mutation before refresh but remains on failed mutation", async () => {
+  const { adapters, readerRuntime } = createAdapters();
+  const item = { term: "mutter", englishDefinition: "to speak quietly" };
+  adapters.modes.resolveModeFromProgress = () => "english-study";
+  adapters.vocabulary.getReaderVocabulary = async () => ({ profile: {}, items: [item] });
+  adapters.vocabulary.getTermMetadata = () => item;
+  adapters.modes.renderChapter = () => ({ html: "<p>mutter</p>", vocabularyPreview: [item] });
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters, readerRuntime });
+  await controller.resumeBook("recent");
+  controller.toggleVocabularyBubble("mutter", { x: 1, y: 2 });
+  adapters.vocabulary.setTermState = async () => { throw new Error("storage failed"); };
+  await controller.setReaderVocabularyState("known");
+  assert.equal(store.getState().reader.vocabularyBubble.term, "mutter");
+  assert.ok(store.getState().reader.vocabularyMessage);
+  const refresh = createDeferred();
+  const started = createDeferred();
+  adapters.vocabulary.setTermState = async () => {};
+  adapters.vocabulary.getReaderVocabulary = () => { started.resolve(); return refresh.promise; };
+  const saving = controller.setReaderVocabularyState("learning");
+  await started.promise;
+  assert.equal(store.getState().reader.vocabularyBubble, null);
+  refresh.resolve({ profile: { learningWords: ["mutter"] }, items: [item] });
+  await saving;
+  assert.deepEqual(store.getState().reader.learningWords, ["mutter"]);
+});
+
+test("R3 slow mode change cannot overwrite a newer chapter", async () => {
+  const { adapters, readerRuntime, calls } = createAdapters();
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters, readerRuntime });
+  await controller.resumeBook("recent");
+  const pending = createDeferred();
+  const started = createDeferred();
+  let reads = 0;
+  adapters.vocabulary.getReaderVocabulary = async () => {
+    if (++reads === 1) { started.resolve(); return pending.promise; }
+    return { profile: {}, items: [] };
+  };
+  controller.openReaderMode();
+  const switching = controller.setReaderMode("english-study");
+  await started.promise;
+  await controller.selectReaderChapter(0);
+  pending.resolve({ profile: {}, items: [] });
+  await switching;
+  await controller.flushReaderProgress();
+  assert.equal(store.getState().activeChapterId, "chapter-1");
+  assert.equal(store.getState().activeReadingMode, "cloze-mixed");
+  assert.match(store.getState().reader.html, /Chapter 1 rendered in cloze-mixed/);
+  assert.equal(store.getState().reader.modeSaving, false);
+  assert.equal(calls.savePosition.at(-1).currentChapterId, "chapter-1");
+});
+
+test("R3 Progress and Mode close preserve scroll and wire chapter controls without chrome toggling", async () => {
+  const document = createMockDocument();
+  const { adapters, readerRuntime } = createAdapters();
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters, readerRuntime });
+  const app = await bootstrapR3App({ document, store, controller });
+  await controller.resumeBook("recent");
+  const root = app.root;
+  const find = className => collectNodes(root).find(node => node.className === className);
+  const action = name => collectNodes(root).find(node => node.dataset?.action === name);
+  const click = root.eventListeners.get("click")[0];
+  const scroll = find("r3-reader-scroll");
+  scroll.scrollTop = 240;
+  scroll.scrollHeight = 1000;
+  scroll.clientHeight = 200;
+  controller.recordReaderScroll(scroll);
+  for (const name of ["reader-progress", "reader-mode"]) {
+    click({ target: action(name) });
+    assert.ok(store.getState().openOverlay);
+    click({ target: action("reader-close-surface") });
+    assert.equal(store.getState().openOverlay, null);
+    assert.equal(find("r3-reader-scroll").scrollTop, 240);
+    assert.equal(store.getState().reader.chromeVisible, true);
+  }
+  click({ target: action("reader-progress") });
+  const slider = action("reader-progress-chapter");
+  slider.value = "0";
+  root.eventListeners.get("change")[0]({ target: slider });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(store.getState().activeChapterIndex, 0);
+  assert.equal(store.getState().openOverlay, null);
+});
+
 test("R3 store creates the expected initial runtime state", () => {
   assert.deepEqual(createInitialR3State(), {
     initialized: false,
@@ -381,6 +567,7 @@ test("R3 store creates the expected initial runtime state", () => {
     activeReadingMode: "english-study",
     openOverlay: null,
     reader: {
+      chromeVisible: true,
       status: "idle",
       bookTitle: "",
       chapterTitle: "",
@@ -1547,6 +1734,8 @@ test("R3 controller serializes vocabulary writes through their rendered refresh"
 
   const learningOperation = controller.setReaderVocabularyState("learning");
   await learningRefreshStarted.promise;
+  // Successful Save now closes its bubble; another hit may open a new one.
+  controller.toggleVocabularyBubble(item.term, { x: 24, y: 48 });
   const knownOperation = controller.setReaderVocabularyState("known");
 
   // Let an incorrectly unlocked Known operation finish before releasing the

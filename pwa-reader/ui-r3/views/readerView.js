@@ -67,7 +67,7 @@ function createReaderContents(documentRef, reader = {}, t) {
   });
   const header = createElement(documentRef, "div", { className: "r3-section-header" });
   header.appendChild(createElement(documentRef, "h2", { text: t("reader.controls.contents") }));
-  header.appendChild(createReaderButton(documentRef, "reader-close-contents", t("reader.common.close")));
+  header.appendChild(createIconButton(documentRef, { label: t("reader.common.close"), icon: "chevronLeft", dataset: { action: "reader-close-contents" } }));
   panel.appendChild(header);
 
   const list = createElement(documentRef, "div", { className: "r3-toc-list" });
@@ -114,9 +114,66 @@ function createReaderContentsOverlay(documentRef, reader = {}, t) {
   });
   overlay.appendChild(createElement(documentRef, "div", {
     className: "r3-reader-scrim",
-    attrs: { "aria-hidden": "true" }
+    attrs: { "aria-hidden": "true" },
+    dataset: { action: "reader-close-contents" }
   }));
   overlay.appendChild(createReaderContents(documentRef, reader, t));
+  return overlay;
+}
+
+function createReaderSheet(documentRef, state, t) {
+  const reader = state.reader;
+  const isMode = state.openOverlay === R3_OVERLAYS.MODE;
+  const overlay = createElement(documentRef, "div", { className: "r3-reader-overlay" });
+  overlay.appendChild(createElement(documentRef, "div", {
+    className: "r3-reader-scrim",
+    attrs: { "aria-hidden": "true" },
+    dataset: { action: "reader-close-surface" }
+  }));
+  const title = t(isMode ? "reader.mode.title" : "reader.controls.progress");
+  const panel = createElement(documentRef, "section", {
+    className: "r3-reader-sheet",
+    attrs: { role: "dialog", "aria-modal": "true", "aria-label": title }
+  });
+  const header = createElement(documentRef, "div", { className: "r3-section-header" });
+  header.appendChild(createElement(documentRef, "h2", { text: title }));
+  header.appendChild(createIconButton(documentRef, {
+    icon: "chevronLeft", label: t("reader.common.close"), dataset: { action: "reader-close-surface" }
+  }));
+  panel.appendChild(header);
+  if (isMode) {
+    const choices = createElement(documentRef, "div", { className: "r3-reader-mode-list" });
+    for (const [mode, key] of [["english-study", "english"], ["chinese", "chinese"], ["cloze-mixed", "mixed"]]) {
+      const available = reader.modeAvailability?.some(item => item.value === mode && item.available);
+      const choice = createElement(documentRef, "button", {
+        className: `r3-reader-mode-choice${state.activeReadingMode === mode ? " is-selected" : ""}`,
+        attrs: { type: "button", "aria-pressed": String(state.activeReadingMode === mode) },
+        dataset: { action: "reader-select-mode", mode },
+        disabled: !available || reader.modeSaving
+      });
+      choice.appendChild(createElement(documentRef, "span", { text: t(`reader.mode.${key}`) }));
+      if (!available) choice.appendChild(createElement(documentRef, "span", { className: "r3-muted", text: t("r3.reader.unavailable") }));
+      choices.appendChild(choice);
+    }
+    panel.appendChild(choices);
+    if (reader.modeMessage) panel.appendChild(createElement(documentRef, "p", { text: reader.modeMessage, attrs: { role: "status" } }));
+  } else {
+    panel.appendChild(createElement(documentRef, "p", { className: "r3-reader-progress-title", text: reader.chapterTitle }));
+    panel.appendChild(createElement(documentRef, "p", { className: "r3-muted", text: getReaderProgressLabel(reader, t) }));
+    panel.appendChild(createElement(documentRef, "input", {
+      className: "r3-reader-chapter-slider",
+      attrs: { type: "range", min: 0, max: Math.max(0, reader.chapterCount - 1), step: 1,
+        "aria-label": t("reader.chapter.choose"), "aria-valuetext": reader.chapterTitle },
+      value: reader.chapterIndex,
+      dataset: { action: "reader-progress-chapter" },
+      disabled: reader.status !== "ready" || reader.chapterCount < 2
+    }));
+    const nav = createElement(documentRef, "div", { className: "r3-quick-grid r3-reader-chapter-nav" });
+    nav.appendChild(createReaderButton(documentRef, "reader-previous", t("reader.navigation.previous"), !reader.hasPrevious || reader.status !== "ready"));
+    nav.appendChild(createReaderButton(documentRef, "reader-next", t("reader.navigation.next"), !reader.hasNext || reader.status !== "ready"));
+    panel.appendChild(nav);
+  }
+  overlay.appendChild(panel);
   return overlay;
 }
 
@@ -407,13 +464,18 @@ export function createReaderView(documentRef, state, t = createTranslator("en"))
   const reader = state.reader || {};
   const hasContents = state.openOverlay === R3_OVERLAYS.CONTENTS;
   const hasVocabularyPreview = state.openOverlay === R3_OVERLAYS.VOCABULARY_PREVIEW;
-  const hasReaderOverlay = hasContents || hasVocabularyPreview;
+  const hasSheet = [R3_OVERLAYS.PROGRESS, R3_OVERLAYS.MODE].includes(state.openOverlay);
+  const hasReaderOverlay = hasContents || hasVocabularyPreview || hasSheet;
   const view = createElement(documentRef, "div", {
     className: `r3-screen r3-reader-screen${hasReaderOverlay ? " has-overlay" : ""}`,
-    attrs: { "data-screen": "reader" }
+    attrs: { "data-screen": "reader", "data-chrome-visible": String(reader.chromeVisible !== false) }
   });
 
-  const header = createElement(documentRef, "header", { className: "r3-reader-header" });
+  const chromeAttrs = { inert: reader.chromeVisible === false || hasReaderOverlay, "aria-hidden": reader.chromeVisible === false || hasReaderOverlay ? "true" : undefined };
+  const header = createElement(documentRef, "header", { className: "r3-reader-header", attrs: chromeAttrs });
+  header.appendChild(createIconButton(documentRef, {
+    label: t("reader.backHome"), icon: "chevronLeft", dataset: { action: "reader-back" }
+  }));
   const titleGroup = createElement(documentRef, "div", { className: "r3-reader-title-group" });
   titleGroup.appendChild(createElement(documentRef, "h1", {
     text: reader.bookTitle || "Interleaf Reader"
@@ -423,17 +485,13 @@ export function createReaderView(documentRef, state, t = createTranslator("en"))
     text: reader.chapterTitle || getReaderProgressLabel(reader, t)
   }));
   header.appendChild(titleGroup);
-  const headerActions = createElement(documentRef, "div", { className: "r3-header-actions" });
-  headerActions.appendChild(createReaderButton(documentRef, "vocabulary-preview-open", t("reader.controls.preview"), reader.status !== "ready"));
-  headerActions.appendChild(createReaderButton(documentRef, "reader-contents", t("reader.controls.contents"), reader.status !== "ready"));
-  headerActions.appendChild(createReaderButton(documentRef, "reader-back", t("reader.backHome")));
-  header.appendChild(headerActions);
   view.appendChild(header);
 
   const scrollWorkspace = createElement(documentRef, "div", {
     className: "r3-reader-scroll",
     attrs: {
       "aria-label": t("r3.reader.chapterContent"),
+      inert: hasReaderOverlay,
       tabindex: "0"
     }
   });
@@ -444,10 +502,17 @@ export function createReaderView(documentRef, state, t = createTranslator("en"))
   scrollWorkspace.appendChild(createReaderContent(documentRef, reader, t));
   view.appendChild(scrollWorkspace);
 
-  const nav = createElement(documentRef, "div", { className: "r3-quick-grid r3-reader-chapter-nav" });
-  nav.appendChild(createReaderButton(documentRef, "reader-previous", t("reader.navigation.previous"), !reader.hasPrevious));
-  nav.appendChild(createReaderButton(documentRef, "reader-next", t("reader.navigation.next"), !reader.hasNext));
-  const footer = createElement(documentRef, "footer", { className: "r3-reader-footer" });
+  const nav = createElement(documentRef, "nav", { className: "r3-reader-quick-controls", attrs: { "aria-label": t("reader.aria.quickControls") } });
+  for (const [action, key, icon] of [
+    ["reader-contents", "contents", "menu"], ["reader-progress", "progress", "progress"],
+    ["vocabulary-preview-open", "preview", "vocabulary"], ["reader-mode", "mode", "mode"]
+  ]) {
+    nav.appendChild(createActionButton(documentRef, {
+      className: "r3-reader-quick-control", label: t(`reader.controls.${key}`), icon,
+      dataset: { action }, disabled: reader.status !== "ready" || reader.modeSaving
+    }));
+  }
+  const footer = createElement(documentRef, "footer", { className: "r3-reader-footer", attrs: chromeAttrs });
   footer.appendChild(nav);
   view.appendChild(footer);
   view.appendChild(createSelectionSaveBar(documentRef, t));
@@ -466,6 +531,8 @@ export function createReaderView(documentRef, state, t = createTranslator("en"))
     view.appendChild(createReaderContentsOverlay(documentRef, reader, t));
   } else if (hasVocabularyPreview) {
     view.appendChild(createVocabularyPreviewOverlay(documentRef, reader, t));
+  } else if (hasSheet) {
+    view.appendChild(createReaderSheet(documentRef, state, t));
   }
 
   return view;

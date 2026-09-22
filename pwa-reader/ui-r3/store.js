@@ -41,6 +41,7 @@ function createDefaultImportStatus() {
 
 function createDefaultReaderState() {
   return {
+    chromeVisible: true,
     status: "idle",
     bookTitle: "",
     chapterTitle: "",

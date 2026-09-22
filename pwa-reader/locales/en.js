@@ -342,5 +342,6 @@ export const en = Object.freeze({
   "r3.settings.languageError": "Could not save the interface language.",
   "r3.settings.localData.title": "Local data and privacy",
   "r3.settings.localData.body": "Books, progress, vocabulary, and preferences remain in this browser on this device.",
-  "r3.settings.languageChoices": "Interface language choices"
+  "r3.settings.languageChoices": "Interface language choices",
+  "r3.reader.modeError": "Could not change reading mode. Please try again."
 });
