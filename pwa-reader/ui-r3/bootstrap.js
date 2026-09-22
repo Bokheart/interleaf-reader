@@ -1,5 +1,6 @@
 import { createR3Controller } from "./controller.js";
 import { createR3Store } from "./store.js";
+import { getTranslation } from "../i18n.js";
 import { normalizeWord } from "../levelBaselineEngine.js";
 import { normalizeTerm } from "../vocabEngine.js";
 import { R3_OVERLAYS, R3_ROUTES } from "./routes.js";
@@ -416,6 +417,8 @@ function mountAppShell(root, store, documentRef, controller, options = {}) {
     root.dataset.r3SavedBookCount = String(state.savedBookCount || 0);
     root.dataset.r3ActiveScreen = state.activeScreen || "";
     root.dataset.r3Loading = state.loading?.isLoading ? "true" : "false";
+    root.dataset.r3UiLanguage = state.settings?.uiLanguage || "en";
+    documentRef.documentElement?.setAttribute?.("lang", state.settings?.uiLanguage || "en");
     const view = createAppShellView(documentRef, state);
     root.replaceChildren(view);
     if (root.textContent !== view.textContent) {
@@ -576,6 +579,9 @@ function bindAppShellEvents(root, controller, browserEffects) {
   }
 
   root.dataset.r3ShellEventsBound = "true";
+  const t = (key, params = {}) => (
+    controller.getTranslation?.(key, params) || getTranslation("en", key, params)
+  );
   let selectionUpdateScheduled = false;
   const syncReaderSelection = () => {
     selectionUpdateScheduled = false;
@@ -600,26 +606,28 @@ function bindAppShellEvents(root, controller, browserEffects) {
     try {
       if (action === "backup") {
         browserEffects.downloadText(await controller.prepareVocabularyBackup());
-        controller.setVocabularyFeedback("Download started", "success");
+        controller.setVocabularyFeedback(t("r3.vocabulary.feedback.downloadStarted"), "success");
         return;
       }
       const payload = await controller.prepareVocabularyExport(action);
       if (payload.kind === "copy") {
         await browserEffects.copyText(payload.text);
         controller.setVocabularyFeedback(
-          action === "copy-learning" ? "Learning copied" : "Vocabulary copied",
+          t(action === "copy-learning"
+            ? "r3.vocabulary.feedback.learningCopied"
+            : "r3.vocabulary.feedback.vocabularyCopied"),
           "success"
         );
       } else {
         browserEffects.downloadText(payload);
-        controller.setVocabularyFeedback("Download started", "success");
+        controller.setVocabularyFeedback(t("r3.vocabulary.feedback.downloadStarted"), "success");
       }
     } catch (error) {
-      const message = action === "copy-learning"
-        ? "Could not copy Learning"
+      const message = t(action === "copy-learning"
+        ? "r3.vocabulary.feedback.copyLearningFailed"
         : action === "copy-all"
-          ? "Could not copy vocabulary"
-          : "Could not start download";
+          ? "r3.vocabulary.feedback.copyVocabularyFailed"
+          : "r3.vocabulary.feedback.downloadFailed");
       controller.setVocabularyFeedback(message, "error");
     }
   };
@@ -641,6 +649,11 @@ function bindAppShellEvents(root, controller, browserEffects) {
     }
     const actionElement = findActionElement(event.target, root);
     const action = actionElement?.dataset?.action;
+
+    if (action === "set-ui-language") {
+      controller.setUiLanguage?.(actionElement.dataset.uiLanguage);
+      return;
+    }
 
     if (action === "vocabulary-tab") {
       controller.selectVocabularyTab?.(actionElement.dataset.vocabularyTab);
@@ -721,7 +734,13 @@ function bindAppShellEvents(root, controller, browserEffects) {
 
     if (action === "navigate") {
       const route = actionElement.dataset.route;
-      if ([R3_ROUTES.HOME, R3_ROUTES.LIBRARY, R3_ROUTES.VOCABULARY].includes(route)) {
+      if ([
+        R3_ROUTES.HOME,
+        R3_ROUTES.LIBRARY,
+        R3_ROUTES.VOCABULARY,
+        R3_ROUTES.SETTINGS_HOME,
+        R3_ROUTES.SETTINGS_LANGUAGE
+      ].includes(route)) {
         controller.navigate(route);
       }
       return;
@@ -798,11 +817,11 @@ function bindAppShellEvents(root, controller, browserEffects) {
           .then(text => controller.restoreVocabularyBackup?.(text))
           .then(state => {
             if (state?.vocabulary?.feedback?.tone === "error") {
-              controller.setVocabularyFeedback("Could not restore vocabulary", "error");
+              controller.setVocabularyFeedback(t("r3.vocabulary.feedback.restoreFailed"), "error");
             }
           })
           .catch(() => controller.setVocabularyFeedback(
-            "Could not restore vocabulary",
+            t("r3.vocabulary.feedback.restoreFailed"),
             "error"
           ));
       }

@@ -1,4 +1,5 @@
 const SVG_NS = "http://www.w3.org/2000/svg";
+import { createTranslator } from "../../i18n.js";
 
 const ICON_PATHS = Object.freeze({
   home: ["M4 11.5 12 5l8 6.5", "M6.5 10.5V20h11v-9.5", "M10 20v-5h4v5"],
@@ -162,17 +163,17 @@ export function createSectionHeader(documentRef, title, action = null) {
   return header;
 }
 
-export function formatModeLabel(mode) {
+export function formatModeLabel(mode, t = createTranslator("en")) {
   if (mode === "english-study") {
-    return "English Study";
+    return t("reader.mode.english");
   }
   if (mode === "chinese") {
-    return "Chinese";
+    return t("reader.mode.chinese");
   }
   if (mode === "cloze-mixed") {
-    return "Mixed Mode";
+    return t("reader.mode.mixed");
   }
-  return mode || "English Study";
+  return mode || t("reader.mode.english");
 }
 
 export function getProgressPercent(item = {}) {
@@ -190,6 +191,6 @@ export function getProgressPercent(item = {}) {
   return 0;
 }
 
-export function getProgressLabel(item = {}) {
-  return item.progress?.progressText || item.progressLabel || item.progressText || "No progress yet";
+export function getProgressLabel(item = {}, t = createTranslator("en")) {
+  return item.progress?.progressText || item.progressLabel || item.progressText || t("r3.common.noProgress");
 }

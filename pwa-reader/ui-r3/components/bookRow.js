@@ -6,8 +6,9 @@ import {
   getProgressLabel,
   getProgressPercent
 } from "./dom.js";
+import { createTranslator } from "../../i18n.js";
 
-export function createBookRow(documentRef, book = {}) {
+export function createBookRow(documentRef, book = {}, t = createTranslator("en")) {
   const percent = getProgressPercent(book);
   const row = createElement(documentRef, "button", {
     className: "r3-book-row",
@@ -20,21 +21,21 @@ export function createBookRow(documentRef, book = {}) {
     }
   });
 
-  row.appendChild(createBookCover(documentRef, book.title || "Untitled Book"));
+  row.appendChild(createBookCover(documentRef, book.title || t("r3.common.untitledBook")));
 
   const body = createElement(documentRef, "span", { className: "r3-book-row-body" });
   body.appendChild(createElement(documentRef, "span", {
     className: "r3-book-row-title",
-    text: book.title || "Untitled Book"
+    text: book.title || t("r3.common.untitledBook")
   }));
   body.appendChild(createElement(documentRef, "span", {
     className: "r3-book-row-meta",
-    text: book.author || book.fileName || "Local EPUB"
+    text: book.author || book.fileName || t("r3.common.localEpub")
   }));
   body.appendChild(createProgressBar(documentRef, percent));
   body.appendChild(createElement(documentRef, "span", {
     className: "r3-book-row-progress-label",
-    text: getProgressLabel(book)
+    text: getProgressLabel(book, t)
   }));
 
   const percentLabel = createElement(documentRef, "span", {

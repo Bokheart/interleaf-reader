@@ -75,6 +75,16 @@ function createDefaultVocabularyState() {
   };
 }
 
+function createDefaultSettingsState() {
+  return {
+    status: "loading",
+    uiLanguage: "en",
+    hasChosenUiLanguage: null,
+    busy: false,
+    error: null
+  };
+}
+
 function cloneValue(value) {
   if (Array.isArray(value)) {
     return value.map(cloneValue);
@@ -152,6 +162,7 @@ export function createInitialR3State(overrides = {}) {
     home: createDefaultHomeState("english-study"),
     library: createDefaultLibraryState(),
     vocabulary: createDefaultVocabularyState(),
+    settings: createDefaultSettingsState(),
     importStatus: createDefaultImportStatus(),
     adapterStatus: { ...DEFAULT_ADAPTER_STATUS },
     loading: {
@@ -256,6 +267,18 @@ export function r3Reducer(state = createInitialR3State(), action = {}) {
           feedback: action.payload?.vocabulary?.feedback !== undefined
             ? cloneValue(action.payload.vocabulary.feedback)
             : state.vocabulary.feedback
+        }
+      };
+
+    case R3_ACTIONS.SET_SETTINGS_STATE:
+      return {
+        ...state,
+        settings: {
+          ...state.settings,
+          ...(action.payload?.settings || {}),
+          error: action.payload?.settings?.error !== undefined
+            ? normalizeError(action.payload.settings.error)
+            : state.settings.error
         }
       };
 

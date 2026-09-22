@@ -6,6 +6,7 @@ import * as vocabularyAdapter from "../adapters/vocabularyAdapter.js";
 import { normalizeManualVocabularyTerm, VOCABULARY_LEVELS } from "../adapters/vocabularyAdapter.js";
 import { loadChapterContent, loadEpubFromFile } from "../epubLoader.js";
 import { normalizeTerm } from "../vocabEngine.js";
+import { createTranslator, normalizeUiLanguage } from "../i18n.js";
 import {
   formatChapterProgress,
   getAdjacentChapterIndex,
@@ -112,7 +113,7 @@ function getReaderStateFromChapter(activeReader, chapter, chapterIndex, rendered
 
   return {
     status,
-    bookTitle: activeReader.book?.title || activeReader.restoration?.savedBook?.title || "Untitled Book",
+    bookTitle: activeReader.book?.title || activeReader.restoration?.savedBook?.title || "",
     chapterTitle: chapter?.title || "",
     html: rendered?.html || "",
     chapterIndex,
@@ -204,6 +205,10 @@ export function createR3Controller(options = {}) {
   let pendingVocabularyOperations = 0;
   let vocabularyProfileReadSequence = 0;
 
+  function translate(key, params = {}) {
+    return createTranslator(store.getState().settings?.uiLanguage)(key, params);
+  }
+
   function setVocabularyFeedback(message = "", tone = "neutral") {
     return store.dispatch(r3Actions.setVocabularyState({
       feedback: { message, tone }
@@ -214,7 +219,7 @@ export function createR3Controller(options = {}) {
     const reader = adapters.vocabulary.getLibraryProfile
       || adapters.vocabulary.getVocabularyProfile;
     if (typeof reader !== "function") {
-      throw new Error("Vocabulary profile storage is unavailable.");
+      throw new Error(translate("vocabulary.panel.unavailable"));
     }
     return reader.call(adapters.vocabulary);
   }
@@ -245,7 +250,7 @@ export function createR3Controller(options = {}) {
         status: "error",
         busy: false,
         feedback: {
-          message: error?.message || "Vocabulary Library is unavailable right now.",
+          message: error?.message || translate("vocabulary.panel.unavailable"),
           tone: "error"
         }
       }));
@@ -272,11 +277,14 @@ export function createR3Controller(options = {}) {
           status: "ready",
           profile: profile || {},
           draft: options.clearDraft ? "" : store.getState().vocabulary.draft,
-          feedback: { message: successMessage, tone: "success" }
+          feedback: {
+            message: typeof successMessage === "function" ? successMessage() : successMessage,
+            tone: "success"
+          }
         }));
       })
       .catch(async error => {
-        const message = error?.message || "Could not update the Vocabulary Library.";
+        const message = error?.message || translate("vocabulary.manual.feedback.error");
         const sequence = ++vocabularyProfileReadSequence;
         try {
           const profile = await readVocabularyLibraryProfile();
@@ -314,7 +322,15 @@ export function createR3Controller(options = {}) {
     if (!normalized.ok) {
       return Promise.resolve(store.dispatch(r3Actions.setVocabularyState({
         draft: String(input ?? ""),
-        feedback: { message: normalized.message, tone: "error" }
+        feedback: {
+          message: translate(
+            normalized.reason === "too-long"
+              ? "vocabulary.manual.feedback.tooLong"
+              : "vocabulary.manual.feedback.empty",
+            { maxLength: 80 }
+          ),
+          tone: "error"
+        }
       })));
     }
     const profile = store.getState().vocabulary.profile || {};
@@ -323,17 +339,17 @@ export function createR3Controller(options = {}) {
     if (hasTerm("learningWords")) {
       return Promise.resolve(store.dispatch(r3Actions.setVocabularyState({
         draft: String(input ?? ""),
-        feedback: { message: "Already in Learning.", tone: "neutral" }
+        feedback: { message: translate("vocabulary.manual.feedback.alreadyLearning"), tone: "neutral" }
       })));
     }
-    const message = hasTerm("knownWords") || hasTerm("ignoredWords")
-      ? "Moved to Learning."
-      : "Added to Learning.";
+    const messageKey = hasTerm("knownWords") || hasTerm("ignoredWords")
+      ? "r3.vocabulary.moved"
+      : "vocabulary.manual.feedback.added";
     return runVocabularyLibraryMutation(
       () => typeof adapters.vocabulary.addLibraryLearningTerm === "function"
         ? adapters.vocabulary.addLibraryLearningTerm(term)
         : adapters.vocabulary.setTermState(term, "learning"),
-      message,
+      () => translate(messageKey),
       { draft: String(input ?? ""), clearDraft: true }
     );
   }
@@ -341,23 +357,28 @@ export function createR3Controller(options = {}) {
   function removeVocabularyTerm(term) {
     const normalized = normalizeManualVocabularyTerm(term);
     if (!normalized.ok) {
-      return Promise.resolve(setVocabularyFeedback(normalized.message, "error"));
+      return Promise.resolve(setVocabularyFeedback(
+        translate(normalized.reason === "too-long"
+          ? "vocabulary.manual.feedback.tooLong"
+          : "vocabulary.manual.feedback.empty", { maxLength: 80 }),
+        "error"
+      ));
     }
     return runVocabularyLibraryMutation(
       () => typeof adapters.vocabulary.removeLibraryTerm === "function"
         ? adapters.vocabulary.removeLibraryTerm(normalized.term)
         : adapters.vocabulary.setTermState(normalized.term, null),
-      "Removed from this list."
+      () => translate("r3.vocabulary.removed")
     );
   }
 
   function setVocabularyLevel(level) {
     if (!VOCABULARY_LEVELS.includes(level)) {
-      return Promise.resolve(setVocabularyFeedback("Choose a valid Vocabulary Level.", "error"));
+      return Promise.resolve(setVocabularyFeedback(translate("vocabulary.level.feedback.invalid"), "error"));
     }
     return runVocabularyLibraryMutation(
       () => adapters.vocabulary.setLibraryLevel(level),
-      `Vocabulary Level set to ${level.replace("level", "Level ")}.`
+      () => translate("r3.vocabulary.levelSaved", { level: level.replace("level", "") })
     );
   }
 
@@ -365,7 +386,7 @@ export function createR3Controller(options = {}) {
     if (vocabularyOperation) await Promise.resolve(vocabularyOperation).catch(() => null);
     const payload = await adapters.vocabulary.createLibraryExport(kind);
     if (!payload?.text) {
-      throw new Error(kind.includes("learning") ? "No Learning terms to export." : "No vocabulary terms to export.");
+      throw new Error(translate("vocabulary.export.feedback.empty"));
     }
     return payload;
   }
@@ -378,7 +399,7 @@ export function createR3Controller(options = {}) {
   function restoreVocabularyBackup(jsonText) {
     return runVocabularyLibraryMutation(
       () => adapters.vocabulary.restoreLibraryBackup(jsonText),
-      "Vocabulary restored"
+      () => translate("vocabulary.backup.feedback.restored")
     );
   }
 
@@ -394,7 +415,7 @@ export function createR3Controller(options = {}) {
         vocabulary = await adapters.vocabulary.getReaderVocabulary();
       }
     } catch (error) {
-      vocabularyMessage = "Vocabulary assistance is unavailable. You can keep reading.";
+      vocabularyMessage = translate("r3.vocabulary.assistanceUnavailable");
     }
     const rendered = adapters.modes.renderChapter(chapter, reader.readingMode, {
       vocabularyItems: vocabulary.items,
@@ -549,7 +570,9 @@ export function createR3Controller(options = {}) {
           await adapters.vocabulary.setTermState(term, nextState);
         } catch (error) {
           if (activeReader === reader && sequence === readerSequence) {
-            store.dispatch(r3Actions.setReaderState({ vocabularyMessage: "Could not save this vocabulary choice. Please try again." }));
+            store.dispatch(r3Actions.setReaderState({
+              vocabularyMessage: translate("r3.vocabulary.choiceError")
+            }));
           }
           return store.getState();
         }
@@ -657,7 +680,7 @@ export function createR3Controller(options = {}) {
       const index = Number.isInteger(item.index) ? item.index : fallbackIndex;
       const chapter = chapters[index] || null;
       const id = typeof item.id === "string" ? item.id : chapter?.id || "";
-      const title = item.title || chapter?.title || `Chapter ${index + 1}`;
+      const title = item.title || chapter?.title || translate("r3.reader.chapterFallback", { number: index + 1 });
       const isReadable = Boolean(chapter && id && chapter.id === id);
 
       return {
@@ -819,7 +842,7 @@ export function createR3Controller(options = {}) {
       vocabularyPreview: null,
       vocabularyItems: [],
       vocabularyMessage: "",
-      bookTitle: reader.book?.title || reader.restoration?.savedBook?.title || "Untitled Book",
+      bookTitle: reader.book?.title || reader.restoration?.savedBook?.title || translate("r3.common.untitledBook"),
       chapterTitle: chapter.title || "",
       html: "",
       chapterIndex,
@@ -902,7 +925,7 @@ export function createR3Controller(options = {}) {
     cleanupReaderRuntime();
 
     if (!restoration?.file) {
-      throw new Error("Saved EPUB file data is missing.");
+      throw new Error(translate("r3.reader.savedMissing"));
     }
 
     const selection = getSelectionPayload(restoration, store, adapters);
@@ -914,12 +937,12 @@ export function createR3Controller(options = {}) {
     }));
     store.dispatch(r3Actions.setReaderState({
       status: "loading",
-      bookTitle: restoration.savedBook?.title || "Untitled Book",
+      bookTitle: restoration.savedBook?.title || translate("r3.common.untitledBook"),
       chapterTitle: "",
       html: "",
       chapterIndex: -1,
       chapterCount: 0,
-      progressLabel: "Loading chapter...",
+      progressLabel: translate("reader.status.chapterLoading"),
       hasPrevious: false,
       hasNext: false,
       error: null
@@ -932,7 +955,7 @@ export function createR3Controller(options = {}) {
       store.dispatch(r3Actions.setReaderState({
         status: "error",
         html: "",
-        progressLabel: "No chapter loaded",
+        progressLabel: translate("reader.empty.noChapter"),
         hasPrevious: false,
         hasNext: false,
         error
@@ -1020,9 +1043,16 @@ export function createR3Controller(options = {}) {
         adapters.books.getContinueReading()
       ]);
       adapters.modes.getModeConstants();
-      await Promise.resolve(adapters.settings.getPreferences());
+      const preferences = await Promise.resolve(adapters.settings.getPreferences());
 
       store.dispatch(r3Actions.setAdapterStatus(allAdaptersReady()));
+      store.dispatch(r3Actions.setSettingsState({
+        status: "ready",
+        uiLanguage: normalizeUiLanguage(preferences?.uiLanguage),
+        hasChosenUiLanguage: preferences?.hasChosenUiLanguage === true,
+        busy: false,
+        error: null
+      }));
       store.dispatch(r3Actions.setShellData({ books, continueReading }));
       return store.dispatch(r3Actions.appInitialized({ adapterStatus: allAdaptersReady() }));
     });
@@ -1292,6 +1322,35 @@ export function createR3Controller(options = {}) {
     prepareVocabularyBackup,
     restoreVocabularyBackup,
     setVocabularyFeedback,
+
+    async setUiLanguage(language) {
+      const normalizedLanguage = normalizeUiLanguage(language);
+      store.dispatch(r3Actions.setSettingsState({ busy: true, error: null }));
+      try {
+        const preferences = await Promise.resolve(adapters.settings.setUiLanguage(normalizedLanguage));
+        store.dispatch(r3Actions.setSettingsState({
+          status: "ready",
+          uiLanguage: normalizeUiLanguage(preferences?.uiLanguage || normalizedLanguage),
+          hasChosenUiLanguage: preferences?.hasChosenUiLanguage === true,
+          busy: false,
+          error: null
+        }));
+        setVocabularyFeedback();
+        if (store.getState().reader?.vocabularyMessage) {
+          store.dispatch(r3Actions.setReaderState({ vocabularyMessage: "" }));
+        }
+        return store.getState();
+      } catch (error) {
+        return store.dispatch(r3Actions.setSettingsState({
+          busy: false,
+          error: new Error(translate("r3.settings.languageError"))
+        }));
+      }
+    },
+
+    getTranslation(key, params = {}) {
+      return translate(key, params);
+    },
 
     setActiveChapter(chapterId, chapterIndex = -1) {
       return store.dispatch(r3Actions.setActiveChapter(chapterId, chapterIndex));

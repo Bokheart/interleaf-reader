@@ -5,6 +5,7 @@ import {
   createIconButton
 } from "../components/dom.js";
 import { R3_OVERLAYS } from "../routes.js";
+import { createTranslator } from "../../i18n.js";
 
 function createReaderButton(documentRef, action, label, disabled = false) {
   return createActionButton(documentRef, {
@@ -15,22 +16,30 @@ function createReaderButton(documentRef, action, label, disabled = false) {
   });
 }
 
-function getReaderMessage(reader = {}) {
+function getReaderMessage(reader = {}, t) {
   if (reader.status === "loading") {
-    return "Loading chapter...";
+    return t("reader.status.chapterLoading");
   }
 
   if (reader.error?.message) {
     return reader.error.message;
   }
 
-  return "Open a book from Library or Continue Reading.";
+  return t("reader.empty.chooseBook");
 }
 
-function createReaderContent(documentRef, reader = {}) {
+function getReaderProgressLabel(reader = {}, t) {
+  if (reader.status === "loading") return t("reader.status.chapterLoading");
+  if (!Number.isInteger(reader.chapterIndex) || reader.chapterIndex < 0) {
+    return t("reader.empty.noChapter");
+  }
+  return reader.progressLabel || t("reader.empty.noChapter");
+}
+
+function createReaderContent(documentRef, reader = {}, t) {
   const panel = createElement(documentRef, "section", {
     className: "r3-reader-article",
-    attrs: { "aria-label": "Chapter" }
+    attrs: { "aria-label": t("r3.reader.chapter") }
   });
   const content = createElement(documentRef, "div", { className: "r3-reader-content" });
 
@@ -39,7 +48,7 @@ function createReaderContent(documentRef, reader = {}) {
   } else {
     content.appendChild(createElement(documentRef, "p", {
       className: "r3-muted",
-      text: getReaderMessage(reader)
+      text: getReaderMessage(reader, t)
     }));
   }
 
@@ -47,18 +56,18 @@ function createReaderContent(documentRef, reader = {}) {
   return panel;
 }
 
-function createReaderContents(documentRef, reader = {}) {
+function createReaderContents(documentRef, reader = {}, t) {
   const panel = createElement(documentRef, "section", {
     className: "r3-reader-contents",
     attrs: {
-      "aria-label": "Contents",
+      "aria-label": t("reader.controls.contents"),
       "aria-modal": "true",
       role: "dialog"
     }
   });
   const header = createElement(documentRef, "div", { className: "r3-section-header" });
-  header.appendChild(createElement(documentRef, "h2", { text: "Contents" }));
-  header.appendChild(createReaderButton(documentRef, "reader-close-contents", "Close"));
+  header.appendChild(createElement(documentRef, "h2", { text: t("reader.controls.contents") }));
+  header.appendChild(createReaderButton(documentRef, "reader-close-contents", t("reader.common.close")));
   panel.appendChild(header);
 
   const list = createElement(documentRef, "div", { className: "r3-toc-list" });
@@ -67,7 +76,7 @@ function createReaderContents(documentRef, reader = {}) {
   if (!toc.length) {
     list.appendChild(createElement(documentRef, "p", {
       className: "r3-muted",
-      text: "No chapters available."
+      text: t("r3.reader.contentsEmpty")
     }));
   }
 
@@ -86,11 +95,11 @@ function createReaderContents(documentRef, reader = {}) {
     });
     row.appendChild(createElement(documentRef, "span", {
       className: "r3-toc-title",
-      text: item.title || `Chapter ${item.index + 1}`
+      text: item.title || t("r3.reader.chapterFallback", { number: item.index + 1 })
     }));
     row.appendChild(createElement(documentRef, "span", {
       className: "r3-toc-status",
-      text: item.isCurrent ? "Current" : item.isReadable ? "" : "Unavailable"
+      text: item.isCurrent ? t("r3.reader.current") : item.isReadable ? "" : t("r3.reader.unavailable")
     }));
     list.appendChild(row);
   });
@@ -99,7 +108,7 @@ function createReaderContents(documentRef, reader = {}) {
   return panel;
 }
 
-function createReaderContentsOverlay(documentRef, reader = {}) {
+function createReaderContentsOverlay(documentRef, reader = {}, t) {
   const overlay = createElement(documentRef, "div", {
     className: "r3-reader-overlay"
   });
@@ -107,7 +116,7 @@ function createReaderContentsOverlay(documentRef, reader = {}) {
     className: "r3-reader-scrim",
     attrs: { "aria-hidden": "true" }
   }));
-  overlay.appendChild(createReaderContents(documentRef, reader));
+  overlay.appendChild(createReaderContents(documentRef, reader, t));
   return overlay;
 }
 
@@ -163,7 +172,7 @@ function appendHighlightedSnippet(documentRef, container, snippet = "", term = "
   container.appendChild(documentRef.createTextNode(source.slice(lastIndex)));
 }
 
-function createVocabularyPreviewRow(documentRef, row = {}, reader = {}, index = 0) {
+function createVocabularyPreviewRow(documentRef, row = {}, reader = {}, index = 0, t) {
   const item = createElement(documentRef, "article", { className: "r3-vocabulary-preview-row" });
   const expanded = Boolean(reader.vocabularyPreview?.detailsOpen || row.isExpanded);
   const summary = createElement(documentRef, "div", { className: "r3-vocabulary-preview-summary" });
@@ -173,15 +182,15 @@ function createVocabularyPreviewRow(documentRef, row = {}, reader = {}, index = 
     attrs: { type: "button", "aria-expanded": expanded ? "true" : "false" },
     dataset: { action: "vocabulary-preview-row-toggle", vocabularyTerm: row.term }
   });
-  termButton.appendChild(createElement(documentRef, "span", { text: row.term || "Vocabulary term" }));
+  termButton.appendChild(createElement(documentRef, "span", { text: row.term || t("vocabulary.page.title") }));
   if (expanded && row.type && row.type !== "unknown") {
     termButton.appendChild(createElement(documentRef, "span", { className: "r3-vocabulary-preview-type", text: row.type.replaceAll("_", " ") }));
   }
   summary.appendChild(termButton);
   const actions = createElement(documentRef, "div", { className: "r3-vocabulary-preview-actions" });
-  actions.appendChild(createVocabularyStateButton(documentRef, row, reader, "known", "Known", "checkCircle"));
-  actions.appendChild(createVocabularyStateButton(documentRef, row, reader, "learning", "Save to Learning", "bookmark"));
-  actions.appendChild(createVocabularyStateButton(documentRef, row, reader, "hidden", "Hide", "eyeOff"));
+  actions.appendChild(createVocabularyStateButton(documentRef, row, reader, "known", t("reader.vocabularyNote.known"), "checkCircle"));
+  actions.appendChild(createVocabularyStateButton(documentRef, row, reader, "learning", t("r3.reader.preview.saveLearning"), "bookmark"));
+  actions.appendChild(createVocabularyStateButton(documentRef, row, reader, "hidden", t("reader.vocabularyNote.hide"), "eyeOff"));
   summary.appendChild(actions);
   item.appendChild(summary);
 
@@ -194,7 +203,10 @@ function createVocabularyPreviewRow(documentRef, row = {}, reader = {}, index = 
     const occurrences = Array.isArray(row.occurrences) ? row.occurrences : [];
     const contextButton = createActionButton(documentRef, {
       className: "r3-vocabulary-context-toggle",
-      label: `Context ${occurrences.length}× ${row.contextOpen ? "↓" : "→"}`,
+      label: t("r3.reader.preview.context", {
+        count: occurrences.length,
+        indicator: row.contextOpen ? "↓" : "→"
+      }),
       dataset: { action: "vocabulary-preview-context", vocabularyTerm: row.term },
       disabled: !occurrences.length || reader.vocabularySaving
     });
@@ -209,7 +221,7 @@ function createVocabularyPreviewRow(documentRef, row = {}, reader = {}, index = 
         contextItem.appendChild(snippet);
         contextItem.appendChild(createActionButton(documentRef, {
           className: "r3-vocabulary-passage-link",
-          label: "View in passage →",
+          label: t("r3.reader.preview.viewPassage"),
           dataset: {
             action: "vocabulary-preview-passage",
             vocabularyTerm: row.term,
@@ -226,7 +238,7 @@ function createVocabularyPreviewRow(documentRef, row = {}, reader = {}, index = 
   return item;
 }
 
-function createVocabularyDetailsSwitch(documentRef, detailsOpen) {
+function createVocabularyDetailsSwitch(documentRef, detailsOpen, t) {
   const button = createElement(documentRef, "button", {
     className: "r3-vocabulary-details-switch",
     attrs: {
@@ -241,7 +253,7 @@ function createVocabularyDetailsSwitch(documentRef, detailsOpen) {
   });
   button.appendChild(createElement(documentRef, "span", {
     className: "r3-vocabulary-details-label",
-    text: "Details"
+    text: t("r3.reader.preview.details")
   }));
   const track = createElement(documentRef, "span", {
     className: "r3-vocabulary-switch-track",
@@ -251,20 +263,20 @@ function createVocabularyDetailsSwitch(documentRef, detailsOpen) {
   button.appendChild(track);
   button.appendChild(createElement(documentRef, "span", {
     className: "r3-vocabulary-switch-state",
-    text: detailsOpen ? "On" : "Off"
+    text: detailsOpen ? t("r3.reader.preview.on") : t("r3.reader.preview.off")
   }));
   return button;
 }
 
-function createVocabularyLegend(documentRef) {
+function createVocabularyLegend(documentRef, t) {
   const legend = createElement(documentRef, "div", {
     className: "r3-vocabulary-preview-legend",
-    attrs: { "aria-label": "Vocabulary action legend" }
+    attrs: { "aria-label": t("r3.reader.preview.legend") }
   });
   [
-    ["checkCircle", "Known"],
-    ["bookmark", "Save / Learning"],
-    ["eyeOff", "Hide"]
+    ["checkCircle", t("reader.vocabularyNote.known")],
+    ["bookmark", t("r3.reader.preview.legendLearning")],
+    ["eyeOff", t("reader.vocabularyNote.hide")]
   ].forEach(([icon, label]) => {
     const item = createElement(documentRef, "span", { className: "r3-vocabulary-legend-item" });
     item.appendChild(createIcon(documentRef, icon));
@@ -274,10 +286,10 @@ function createVocabularyLegend(documentRef) {
   return legend;
 }
 
-function createVocabularyPreview(documentRef, reader = {}) {
+function createVocabularyPreview(documentRef, reader = {}, t) {
   const panel = createElement(documentRef, "section", {
     className: "r3-vocabulary-preview",
-    attrs: { "aria-label": "Vocabulary Preview", "aria-modal": "true", role: "dialog" }
+    attrs: { "aria-label": t("reader.preview.title"), "aria-modal": "true", role: "dialog" }
   });
   const header = createElement(documentRef, "div", {
     className: "r3-section-header r3-vocabulary-preview-header"
@@ -286,29 +298,32 @@ function createVocabularyPreview(documentRef, reader = {}) {
   const heading = createElement(documentRef, "div", { className: "r3-vocabulary-preview-heading" });
   heading.appendChild(createIconButton(documentRef, {
     className: "r3-icon-button r3-vocabulary-preview-back",
-    label: "Back to reader",
+    label: t("r3.reader.preview.back"),
     icon: "chevronLeft",
     dataset: { action: "vocabulary-preview-close" }
   }));
   heading.appendChild(createElement(documentRef, "div", { className: "r3-vocabulary-preview-title" }, [
-    createElement(documentRef, "h2", { text: "Vocabulary Preview" }),
-    createElement(documentRef, "p", { className: "r3-muted", text: `${reader.chapterTitle || "Current chapter"} · ${rows.length} ${rows.length === 1 ? "word" : "words"}` })
+    createElement(documentRef, "h2", { text: t("reader.preview.title") }),
+    createElement(documentRef, "p", {
+      className: "r3-muted",
+      text: `${reader.chapterTitle || t("r3.reader.currentChapter")} · ${t(rows.length === 1 ? "r3.reader.wordCount.one" : "r3.reader.wordCount.other", { count: rows.length })}`
+    })
   ]));
   header.appendChild(heading);
   const headerActions = createElement(documentRef, "div", { className: "r3-vocabulary-preview-header-actions" });
   const detailsOpen = Boolean(reader.vocabularyPreview?.detailsOpen);
-  headerActions.appendChild(createVocabularyDetailsSwitch(documentRef, detailsOpen));
+  headerActions.appendChild(createVocabularyDetailsSwitch(documentRef, detailsOpen, t));
   header.appendChild(headerActions);
   panel.appendChild(header);
 
   const list = createElement(documentRef, "div", { className: "r3-vocabulary-preview-list" });
   if (!rows.length) list.appendChild(createElement(documentRef, "p", {
     className: "r3-muted",
-    text: "No tracked vocabulary is available for this chapter."
+    text: t("r3.reader.preview.empty")
   }));
-  rows.forEach((row, index) => list.appendChild(createVocabularyPreviewRow(documentRef, row, reader, index)));
+  rows.forEach((row, index) => list.appendChild(createVocabularyPreviewRow(documentRef, row, reader, index, t)));
   panel.appendChild(list);
-  panel.appendChild(createVocabularyLegend(documentRef));
+  panel.appendChild(createVocabularyLegend(documentRef, t));
   if (reader.vocabularyMessage) panel.appendChild(createElement(documentRef, "p", {
     text: reader.vocabularyMessage,
     attrs: { role: "status" }
@@ -316,22 +331,22 @@ function createVocabularyPreview(documentRef, reader = {}) {
   return panel;
 }
 
-function createVocabularyPreviewOverlay(documentRef, reader = {}) {
+function createVocabularyPreviewOverlay(documentRef, reader = {}, t) {
   const overlay = createElement(documentRef, "div", { className: "r3-reader-overlay" });
   overlay.appendChild(createElement(documentRef, "div", {
     className: "r3-reader-scrim",
     attrs: { "aria-hidden": "true" },
     dataset: { action: "vocabulary-preview-close" }
   }));
-  overlay.appendChild(createVocabularyPreview(documentRef, reader));
+  overlay.appendChild(createVocabularyPreview(documentRef, reader, t));
   return overlay;
 }
 
-function createVocabularyBubble(documentRef, reader) {
+function createVocabularyBubble(documentRef, reader, t) {
   const { term, item } = reader.vocabularyBubble;
   const bubble = createElement(documentRef, "section", {
     className: "r3-vocabulary-bubble",
-    attrs: { role: "dialog", "aria-label": "Vocabulary note" }
+    attrs: { role: "dialog", "aria-label": t("reader.vocabularyNote.aria") }
   });
   const header = createElement(documentRef, "div", { className: "r3-section-header" });
   header.appendChild(createElement(documentRef, "h2", { text: item.term }));
@@ -344,7 +359,11 @@ function createVocabularyBubble(documentRef, reader) {
   }));
   const actions = createElement(documentRef, "div", { className: "r3-vocabulary-actions" });
   const saved = (reader.learningWords || []).includes(term);
-  for (const [state, label] of [["known", "Known"], ["learning", saved ? "Saved" : "Save"], ["hidden", "Hide"]]) {
+  for (const [state, label] of [
+    ["known", t("reader.vocabularyNote.known")],
+    ["learning", saved ? t("reader.vocabularyNote.saved") : t("reader.vocabularyNote.save")],
+    ["hidden", t("reader.vocabularyNote.hide")]
+  ]) {
     actions.appendChild(createActionButton(documentRef, {
       className: "r3-secondary-button",
       label,
@@ -359,11 +378,11 @@ function createVocabularyBubble(documentRef, reader) {
   return bubble;
 }
 
-function createSelectionSaveBar(documentRef) {
+function createSelectionSaveBar(documentRef, t) {
   const bar = createElement(documentRef, "section", {
     className: "r3-selection-save-bar",
     attrs: {
-      "aria-label": "Selected text action",
+      "aria-label": t("r3.reader.selection.aria"),
       hidden: true
     },
     dataset: { role: "reader-selection-save" }
@@ -376,15 +395,15 @@ function createSelectionSaveBar(documentRef) {
   const saveButton = createActionButton(documentRef, {
     className: "r3-action-button r3-selection-save-action",
     icon: "bookmark",
-    label: "Save",
+    label: t("r3.reader.selection.save"),
     dataset: { action: "reader-selection-save" }
   });
-  saveButton.setAttribute("aria-label", "Save selected text to Learning");
+  saveButton.setAttribute("aria-label", t("r3.reader.selection.saveAria"));
   bar.appendChild(saveButton);
   return bar;
 }
 
-export function createReaderView(documentRef, state) {
+export function createReaderView(documentRef, state, t = createTranslator("en")) {
   const reader = state.reader || {};
   const hasContents = state.openOverlay === R3_OVERLAYS.CONTENTS;
   const hasVocabularyPreview = state.openOverlay === R3_OVERLAYS.VOCABULARY_PREVIEW;
@@ -401,40 +420,40 @@ export function createReaderView(documentRef, state) {
   }));
   titleGroup.appendChild(createElement(documentRef, "p", {
     className: "r3-muted",
-    text: reader.chapterTitle || reader.progressLabel || "No chapter loaded"
+    text: reader.chapterTitle || getReaderProgressLabel(reader, t)
   }));
   header.appendChild(titleGroup);
   const headerActions = createElement(documentRef, "div", { className: "r3-header-actions" });
-  headerActions.appendChild(createReaderButton(documentRef, "vocabulary-preview-open", "Preview", reader.status !== "ready"));
-  headerActions.appendChild(createReaderButton(documentRef, "reader-contents", "Contents", reader.status !== "ready"));
-  headerActions.appendChild(createReaderButton(documentRef, "reader-back", "Back"));
+  headerActions.appendChild(createReaderButton(documentRef, "vocabulary-preview-open", t("reader.controls.preview"), reader.status !== "ready"));
+  headerActions.appendChild(createReaderButton(documentRef, "reader-contents", t("reader.controls.contents"), reader.status !== "ready"));
+  headerActions.appendChild(createReaderButton(documentRef, "reader-back", t("reader.backHome")));
   header.appendChild(headerActions);
   view.appendChild(header);
 
   const scrollWorkspace = createElement(documentRef, "div", {
     className: "r3-reader-scroll",
     attrs: {
-      "aria-label": "Chapter content",
+      "aria-label": t("r3.reader.chapterContent"),
       tabindex: "0"
     }
   });
   scrollWorkspace.appendChild(createElement(documentRef, "p", {
     className: "r3-muted r3-reader-progress",
-    text: reader.progressLabel || "No chapter loaded"
+    text: getReaderProgressLabel(reader, t)
   }));
-  scrollWorkspace.appendChild(createReaderContent(documentRef, reader));
+  scrollWorkspace.appendChild(createReaderContent(documentRef, reader, t));
   view.appendChild(scrollWorkspace);
 
   const nav = createElement(documentRef, "div", { className: "r3-quick-grid r3-reader-chapter-nav" });
-  nav.appendChild(createReaderButton(documentRef, "reader-previous", "Previous", !reader.hasPrevious));
-  nav.appendChild(createReaderButton(documentRef, "reader-next", "Next", !reader.hasNext));
+  nav.appendChild(createReaderButton(documentRef, "reader-previous", t("reader.navigation.previous"), !reader.hasPrevious));
+  nav.appendChild(createReaderButton(documentRef, "reader-next", t("reader.navigation.next"), !reader.hasNext));
   const footer = createElement(documentRef, "footer", { className: "r3-reader-footer" });
   footer.appendChild(nav);
   view.appendChild(footer);
-  view.appendChild(createSelectionSaveBar(documentRef));
+  view.appendChild(createSelectionSaveBar(documentRef, t));
 
   if (reader.vocabularyBubble && !hasReaderOverlay) {
-    view.appendChild(createVocabularyBubble(documentRef, reader));
+    view.appendChild(createVocabularyBubble(documentRef, reader, t));
   } else if (reader.vocabularyMessage) {
     view.appendChild(createElement(documentRef, "p", {
       className: "r3-vocabulary-message",
@@ -444,9 +463,9 @@ export function createReaderView(documentRef, state) {
   }
 
   if (hasContents) {
-    view.appendChild(createReaderContentsOverlay(documentRef, reader));
+    view.appendChild(createReaderContentsOverlay(documentRef, reader, t));
   } else if (hasVocabularyPreview) {
-    view.appendChild(createVocabularyPreviewOverlay(documentRef, reader));
+    view.appendChild(createVocabularyPreviewOverlay(documentRef, reader, t));
   }
 
   return view;

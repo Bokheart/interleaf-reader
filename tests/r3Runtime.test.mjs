@@ -11,6 +11,7 @@ import {
 } from "../pwa-reader/ui-r3/bootstrap.js";
 import { createR3Controller } from "../pwa-reader/ui-r3/controller.js";
 import { R3_OVERLAYS, R3_ROUTES } from "../pwa-reader/ui-r3/routes.js";
+import { createAppShellView } from "../pwa-reader/ui-r3/views/appShellView.js";
 import { createReaderView } from "../pwa-reader/ui-r3/views/readerView.js";
 import {
   createInitialR3State,
@@ -124,6 +125,17 @@ function createMockDocument() {
   return documentRef;
 }
 
+function collectNodes(root) {
+  const nodes = [];
+  const stack = root ? [root] : [];
+  while (stack.length) {
+    const node = stack.shift();
+    nodes.push(node);
+    stack.push(...(node.children || []));
+  }
+  return nodes;
+}
+
 function createAdapters() {
   const calls = {
     listBooks: 0,
@@ -139,7 +151,13 @@ function createAdapters() {
     getModeConstants: 0,
     resolveModeFromProgress: [],
     renderChapter: [],
-    getPreferences: 0
+    getPreferences: 0,
+    setUiLanguage: []
+  };
+  let preferences = {
+    uiLanguage: "en",
+    hasChosenUiLanguage: true,
+    guideVisibleInLibrary: true
   };
   const chapters = [
     { id: "chapter-1", title: "Chapter 1", order: 1 },
@@ -267,7 +285,16 @@ function createAdapters() {
       settings: {
         getPreferences() {
           calls.getPreferences += 1;
-          return { uiLanguage: "en", guideVisible: true };
+          return { ...preferences };
+        },
+        setUiLanguage(language) {
+          calls.setUiLanguage.push(language);
+          preferences = {
+            ...preferences,
+            uiLanguage: language,
+            hasChosenUiLanguage: true
+          };
+          return { ...preferences };
         }
       }
     },
@@ -400,6 +427,13 @@ test("R3 store creates the expected initial runtime state", () => {
         message: "",
         tone: "neutral"
       }
+    },
+    settings: {
+      status: "loading",
+      uiLanguage: "en",
+      hasChosenUiLanguage: null,
+      busy: false,
+      error: null
     },
     importStatus: {
       isImporting: false,
@@ -540,6 +574,283 @@ test("R3 controller initializes once and loads books through adapters", async ()
     modes: true,
     settings: true
   });
+  assert.deepEqual(store.getState().settings, {
+    status: "ready",
+    uiLanguage: "en",
+    hasChosenUiLanguage: true,
+    busy: false,
+    error: null
+  });
+});
+
+test("R3 first-run language gate is shown until an existing preference has been chosen", () => {
+  const documentRef = createMockDocument();
+  const firstRunState = createInitialR3State({
+    initialized: true,
+    settings: {
+      status: "ready",
+      uiLanguage: "en",
+      hasChosenUiLanguage: false,
+      busy: false,
+      error: null
+    }
+  });
+  const firstRunNodes = collectNodes(createAppShellView(documentRef, firstRunState));
+  const gate = firstRunNodes.find(node => String(node.className || "").split(/\s+/).includes("r3-language-gate"));
+  const gateText = firstRunNodes.map(node => node.textContent).filter(Boolean).join(" ");
+  const choices = firstRunNodes.filter(node => node.dataset?.action === "set-ui-language");
+
+  assert.ok(gate);
+  assert.equal(gate.getAttribute("role"), "dialog");
+  assert.equal(gate.getAttribute("aria-modal"), "true");
+  assert.match(gateText, /Choose interface language/);
+  assert.match(gateText, /选择界面语言/);
+  assert.deepEqual(choices.map(choice => choice.dataset.uiLanguage), ["zh-CN", "en"]);
+  assert.deepEqual(choices.map(choice => choice.textContent), ["中文", "English"]);
+
+  const chosenNodes = collectNodes(createAppShellView(documentRef, createInitialR3State({
+    initialized: true,
+    settings: {
+      status: "ready",
+      uiLanguage: "zh-CN",
+      hasChosenUiLanguage: true,
+      busy: false,
+      error: null
+    }
+  })));
+  assert.equal(chosenNodes.some(node => String(node.className || "").split(/\s+/).includes("r3-language-gate")), false);
+});
+
+test("R3 interface language selection persists across reinitialization without mutating active data", async () => {
+  const base = createAdapters();
+  let preferences = {
+    uiLanguage: "en",
+    hasChosenUiLanguage: false,
+    guideVisibleInLibrary: true
+  };
+  base.adapters.settings = {
+    getPreferences() {
+      return { ...preferences };
+    },
+    setUiLanguage(language) {
+      preferences = {
+        ...preferences,
+        uiLanguage: language,
+        hasChosenUiLanguage: true
+      };
+      return { ...preferences };
+    }
+  };
+  const preservedReader = {
+    status: "ready",
+    bookTitle: "Original Book Title",
+    chapterTitle: "Original Chapter Title",
+    html: "<p>Original English book text.</p>"
+  };
+  const preservedProfile = {
+    selectedLevel: "level4",
+    knownWords: ["known"],
+    learningWords: ["learning"],
+    ignoredWords: ["hidden"],
+    preferredCategories: []
+  };
+  const store = createR3Store(createInitialR3State({
+    reader: preservedReader,
+    vocabulary: {
+      ...createInitialR3State().vocabulary,
+      profile: preservedProfile
+    }
+  }));
+  const controller = createR3Controller({ store, adapters: base.adapters });
+
+  await controller.initialize();
+  assert.equal(store.getState().settings.hasChosenUiLanguage, false);
+  assert.equal(typeof controller.setUiLanguage, "function");
+  await controller.setUiLanguage("zh-CN");
+
+  const changedState = store.getState();
+  assert.equal(changedState.settings.uiLanguage, "zh-CN");
+  assert.equal(changedState.settings.hasChosenUiLanguage, true);
+  assert.deepEqual(changedState.reader, preservedReader);
+  assert.deepEqual(changedState.vocabulary.profile, preservedProfile);
+  assert.deepEqual(changedState.books.map(book => book.bookKey), ["older", "recent"]);
+
+  const reloadStore = createR3Store();
+  const reloadController = createR3Controller({ store: reloadStore, adapters: base.adapters });
+  await reloadController.initialize();
+  assert.equal(reloadStore.getState().settings.uiLanguage, "zh-CN");
+  assert.equal(reloadStore.getState().settings.hasChosenUiLanguage, true);
+
+  await reloadController.setUiLanguage("en");
+  assert.equal(reloadStore.getState().settings.uiLanguage, "en");
+  const englishReloadStore = createR3Store();
+  await createR3Controller({ store: englishReloadStore, adapters: base.adapters }).initialize();
+  assert.equal(englishReloadStore.getState().settings.uiLanguage, "en");
+  assert.equal(englishReloadStore.getState().settings.hasChosenUiLanguage, true);
+});
+
+test("R3 Settings is a secondary localized route with Home back navigation", () => {
+  const documentRef = createMockDocument();
+  const settingsState = createInitialR3State({
+    initialized: true,
+    activeScreen: R3_ROUTES.SETTINGS_HOME,
+    settings: {
+      status: "ready",
+      uiLanguage: "zh-CN",
+      hasChosenUiLanguage: true,
+      busy: false,
+      error: null
+    }
+  });
+  const settingsNodes = collectNodes(createAppShellView(documentRef, settingsState));
+  const settingsScreen = settingsNodes.find(node => node.getAttribute?.("data-screen") === "settings");
+  const back = settingsNodes.find(node => node.dataset?.action === "navigate" && node.dataset?.route === R3_ROUTES.HOME);
+  const languageChoices = settingsNodes.filter(node => node.dataset?.action === "set-ui-language");
+  const settingsText = settingsNodes.map(node => node.textContent).filter(Boolean).join(" ");
+
+  assert.ok(settingsScreen);
+  assert.ok(back);
+  assert.equal(back.getAttribute("aria-label"), "返回主页");
+  assert.equal(settingsNodes.some(node => String(node.className || "").includes("r3-bottom-nav")), false);
+  assert.deepEqual(languageChoices.map(choice => [choice.dataset.uiLanguage, choice.getAttribute("aria-pressed")]), [
+    ["zh-CN", "true"],
+    ["en", "false"]
+  ]);
+  assert.match(settingsText, /设置/);
+  assert.match(settingsText, /界面语言/);
+  assert.match(settingsText, /书籍、进度、词汇和偏好/);
+
+  const homeNodes = collectNodes(createAppShellView(documentRef, createInitialR3State({
+    initialized: true,
+    settings: {
+      status: "ready",
+      uiLanguage: "en",
+      hasChosenUiLanguage: true,
+      busy: false,
+      error: null
+    }
+  })));
+  const settingsEntry = homeNodes.find(node => node.dataset?.route === R3_ROUTES.SETTINGS_HOME);
+  assert.ok(settingsEntry);
+  assert.equal(settingsEntry.dataset.action, "navigate");
+  assert.equal(settingsEntry.disabled, undefined);
+  assert.equal(settingsEntry.getAttribute("aria-label"), "Settings");
+});
+
+test("R3 localized chrome changes while imported book content and vocabulary data remain unchanged", () => {
+  const documentRef = createMockDocument();
+  const settings = {
+    status: "ready",
+    uiLanguage: "zh-CN",
+    hasChosenUiLanguage: true,
+    busy: false,
+    error: null
+  };
+  const book = {
+    bookKey: "original-book",
+    title: "The Untranslated Book",
+    author: "Original Author",
+    progressLabel: "Original progress label"
+  };
+  const surfaces = [
+    createInitialR3State({
+      initialized: true,
+      settings,
+      books: [book],
+      library: { status: "populated", books: [book] },
+      home: {
+        ...createInitialR3State().home,
+        recentBooks: [book]
+      }
+    }),
+    createInitialR3State({
+      initialized: true,
+      activeScreen: R3_ROUTES.LIBRARY,
+      settings,
+      books: [book],
+      library: { status: "populated", books: [book] }
+    }),
+    createInitialR3State({
+      initialized: true,
+      activeScreen: R3_ROUTES.VOCABULARY,
+      settings,
+      vocabulary: {
+        ...createInitialR3State().vocabulary,
+        status: "ready",
+        profile: {
+          selectedLevel: "level3",
+          knownWords: ["known-term"],
+          learningWords: ["learning-term"],
+          ignoredWords: ["hidden-term"],
+          preferredCategories: []
+        }
+      }
+    }),
+    createInitialR3State({
+      initialized: true,
+      activeScreen: R3_ROUTES.READER,
+      activeBookId: "original-book",
+      activeChapterId: "original-chapter",
+      openOverlay: R3_OVERLAYS.VOCABULARY_PREVIEW,
+      settings,
+      reader: {
+        ...createInitialR3State().reader,
+        status: "ready",
+        bookTitle: "The Untranslated Book",
+        chapterTitle: "Original Chapter Title",
+        progressLabel: "Original Chapter Title · 1 / 1",
+        html: "<p>Original English book text.</p>",
+        vocabularyPreview: {
+          chapterId: "original-chapter",
+          detailsOpen: false,
+          rows: [{ term: "learning-term", state: "learning", occurrences: [] }]
+        }
+      }
+    })
+  ];
+
+  const rendered = surfaces.map(state => collectNodes(createAppShellView(documentRef, state)));
+  const text = rendered.map(nodes => nodes.map(node => node.textContent).filter(Boolean).join(" "));
+
+  assert.match(text[0], /快速操作/);
+  assert.match(text[1], /本地书库/);
+  assert.match(text[2], /生词本/);
+  assert.match(text[2], /学习中/);
+  assert.match(text[2], /已认识/);
+  assert.match(text[2], /已隐藏/);
+  assert.match(text[3], /词汇预览/);
+  assert.match(text[3], /详细信息/);
+  assert.ok(text[0].includes("The Untranslated Book"));
+  assert.ok(text[1].includes("Original Author"));
+  assert.ok(text[2].includes("learning-term"));
+  const readerContent = rendered[3].find(node => String(node.className || "").includes("r3-reader-content"));
+  assert.equal(readerContent.innerHTML, "<p>Original English book text.</p>");
+
+  const bubbleState = createInitialR3State({
+    initialized: true,
+    activeScreen: R3_ROUTES.READER,
+    settings,
+    reader: {
+      ...createInitialR3State().reader,
+      status: "ready",
+      bookTitle: "The Untranslated Book",
+      chapterTitle: "Original Chapter Title",
+      html: "<p>Original English book text.</p>",
+      learningWords: [],
+      vocabularyBubble: {
+        term: "reverie",
+        item: { term: "reverie", chineseMeaning: "幻想", englishDefinition: "a daydream" }
+      }
+    }
+  });
+  const bubbleNodes = collectNodes(createAppShellView(documentRef, bubbleState));
+  const bubbleText = bubbleNodes.map(node => node.textContent).filter(Boolean).join(" ");
+  const selectionSave = bubbleNodes.find(node => node.dataset?.action === "reader-selection-save");
+  assert.match(bubbleText, /已认识/);
+  assert.match(bubbleText, /保存/);
+  assert.match(bubbleText, /隐藏/);
+  assert.equal(selectionSave.children.at(-1).textContent, "保存");
+  assert.equal(selectionSave.getAttribute("aria-label"), "将所选文本保存到学习中");
 });
 
 test("R3 controller restores and renders the requested EPUB chapter without storing the File or handle", async () => {
