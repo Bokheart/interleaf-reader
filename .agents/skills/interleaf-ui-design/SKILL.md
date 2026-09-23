@@ -584,21 +584,99 @@ When Reader is active:
 * ordinary app bottom navigation disappears;
 * reading content receives the highest priority;
 * Reader chrome remains visually quiet;
-* controls may appear when the user taps the reading surface;
-* controls recede when not needed.
+* top and bottom Reader chrome are overlays over the true full-screen reading viewport;
+* showing or hiding Reader chrome must not reserve layout space, resize the reading viewport, or move the reading position;
+* tapping ordinary reading content reveals both chrome regions together;
+* tapping ordinary reading content again hides both chrome regions together;
+* interactive content, controls, vocabulary annotations, overlays and active text selection must not toggle Reader chrome.
+
+## Reader top chrome
+
+The top Reader chrome uses this hierarchy:
+
+* an icon-only chevron-left Back control, always on the left;
+* quiet, truncation-safe book and chapter identity;
+* no textual `Back` or `Back to Home` button.
+
+## Reader bottom quick controls
+
+The bottom Reader chrome contains exactly these quick controls:
+
+* Contents;
+* Progress;
+* Preview;
+* Mode.
+
+Both top and bottom chrome reveal and recede as one Reader interface state.
 
 ## Reader sub-surfaces
 
 Preferred models:
 
 * Vocabulary Preview: full-screen Reader subpage;
-* Contents: mobile sheet or wider-screen side panel;
+* Contents: on mobile, a left-side full-height drawer approximately 75–80vw wide, with a sensible maximum around 380px;
 * Progress: sheet, popover or side panel;
 * Mode: compact sheet or selector;
 * vocabulary explanation: bubble, popover or mobile sheet;
 * destructive actions: dialog.
 
 Do not use Back and Close together for the same full-screen page.
+
+## Contents
+
+Contents is spatially anchored to the left edge of the Reader.
+
+On mobile:
+
+* use a left-side, full-height drawer;
+* target approximately 75–80vw width and a maximum around 380px;
+* place a scrim over the remaining Reader;
+* tapping the scrim closes the drawer;
+* selecting a chapter closes the drawer after successful navigation;
+* do not present Contents as a bottom sheet.
+
+Tablet and desktop may adapt the drawer into an appropriate left-side panel while preserving the same spatial model.
+
+## Progress
+
+Progress is a persistent seek and browsing session, not a one-shot chapter selector.
+
+While Progress is open:
+
+* the Reader background updates to the position currently being previewed;
+* the Progress surface remains visible while the user seeks;
+* the user explicitly exits or accepts the seek session;
+* Previous and Next remain chapter-navigation actions;
+* the progress model is ultimately based on page or logical reading position, not chapter number alone.
+
+Do not close Progress merely because the previewed chapter or position changed.
+
+## Reading layout
+
+Page and Scroll are both supported target Reader layouts.
+
+* Page is the preferred default direction;
+* switching between Page and Scroll preserves the same logical reading position;
+* persistence must not use raw page number as the durable position because pagination changes with viewport size, typography and layout.
+
+Use a stable logical locator or equivalent content-relative position when defining cross-layout restoration.
+
+## Passage lookup
+
+`View in passage` is transient lookup, not committed reading navigation.
+
+* opening a lookup must not overwrite the user's committed reading progress;
+* the user may navigate among multiple matching occurrences;
+* exiting lookup restores the original reading position;
+* lookup UI must remain subordinate to reading and must not create a second persisted progress model.
+
+## Swipe Back
+
+A left-to-right Reader back gesture is an approved target behavior.
+
+* it must not interfere with text selection, vertical scrolling, Reader overlays or browser-native gestures;
+* Safari and other browsers may reserve system edge gestures, and the product must not claim those gestures can always be overridden;
+* use conservative gesture activation and preserve an accessible explicit Back control.
 
 ---
 
@@ -867,8 +945,6 @@ Do not implement during R3 without separate authorization:
 * Translation Versions;
 * alignment;
 * Book Project migration;
-* pagination;
-* swipe-back navigation;
 * Home Screen widgets;
 * cloud synchronization;
 * accounts;
