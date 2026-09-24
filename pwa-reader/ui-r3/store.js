@@ -42,6 +42,8 @@ function createDefaultImportStatus() {
 function createDefaultReaderState() {
   return {
     chromeVisible: true,
+    readingLayout: "page",
+    pagination: { status: "loading", pageIndex: 0, pageCount: 0 },
     status: "idle",
     bookTitle: "",
     chapterTitle: "",
@@ -81,6 +83,7 @@ function createDefaultSettingsState() {
     status: "loading",
     uiLanguage: "en",
     hasChosenUiLanguage: null,
+    readingLayout: "page",
     busy: false,
     error: null
   };

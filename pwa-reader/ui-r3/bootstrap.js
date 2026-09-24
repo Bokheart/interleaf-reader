@@ -5,6 +5,8 @@ import { normalizeWord } from "../levelBaselineEngine.js";
 import { normalizeTerm } from "../vocabEngine.js";
 import { R3_OVERLAYS, R3_ROUTES } from "./routes.js";
 import { createAppShellView } from "./views/appShellView.js";
+import { createReaderLayout } from "./readerLayout.js";
+import { bindReaderHistory } from "./readerHistory.js";
 
 let autoBootstrapScheduled = false;
 const READER_SELECTION_MAX_LENGTH = 80;
@@ -223,7 +225,7 @@ export function scrollToVocabularyHit(root, term, occurrenceIndex = 0) {
   clearPassageTargets(root);
   const windowRef = hit.ownerDocument?.defaultView;
   const reducedMotion = windowRef?.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches === true;
-  hit.scrollIntoView({ block: "center", behavior: reducedMotion ? "auto" : "smooth" });
+  if (!root.__readerLayout?.showHit(hit)) hit.scrollIntoView({ block: "center", behavior: reducedMotion ? "auto" : "smooth" });
   applyPassageTarget(hit, occurrenceIndex);
   return true;
 }
@@ -315,6 +317,35 @@ function mountAppShell(root, store, documentRef, controller, options = {}) {
   let vocabularyToastSignature = "";
   let vocabularyToastTimer = null;
   const windowRef = documentRef.defaultView || globalThis.window;
+  const readerLayout = createReaderLayout(root, store, controller);
+  root.__readerLayout = readerLayout;
+
+  const updatePaginationControls = (state) => {
+    const pages = state.reader.pagination || {};
+    const t = (key, params) => getTranslation(state.settings?.uiLanguage || "en", key, params);
+    const label = pages.status === "ready" ? t("r3.reader.bookPage", { current: pages.pageIndex + 1, total: pages.pageCount })
+      : t(pages.status === "error" ? "r3.reader.paginationError" : "r3.reader.paginating");
+    for (const node of root.querySelectorAll?.("[data-role='reader-page-label']") || []) node.textContent = label;
+    const slider = root.querySelector?.("[data-action='reader-progress-page']");
+    if (slider) {
+      slider.max = String(Math.max(0, (pages.pageCount || 1) - 1));
+      slider.value = String(pages.pageIndex || 0);
+      slider.disabled = pages.status !== "ready" || pages.pageCount < 2;
+      slider.setAttribute("aria-valuetext", `${label} · ${state.reader.chapterTitle}`);
+    }
+    const title = root.querySelector?.(".r3-reader-progress-title");
+    if (title) title.textContent = state.reader.chapterTitle;
+    const error = root.querySelector?.("[data-role='reader-seek-message']");
+    if (error) { error.textContent = state.reader.error?.message || ""; error.hidden = !error.textContent; }
+    for (const [action, disabled] of [["reader-page-previous", pages.pageIndex <= 0], ["reader-page-next", pages.pageIndex >= pages.pageCount - 1]]) {
+      const button = root.querySelector?.(`[data-action='${action}']`);
+      if (button) button.disabled = pages.status !== "ready" || disabled;
+    }
+    for (const [action, available] of [["reader-previous", state.reader.hasPrevious], ["reader-next", state.reader.hasNext]]) {
+      const button = root.querySelector?.(`[data-action='${action}']`);
+      if (button) button.disabled = !available || state.reader.status !== "ready";
+    }
+  };
   const setToastTimeout = options.toastTimers?.setTimeout
     || windowRef?.setTimeout?.bind(windowRef)
     || globalThis.setTimeout?.bind(globalThis);
@@ -363,6 +394,12 @@ function mountAppShell(root, store, documentRef, controller, options = {}) {
   };
 
   const render = (state) => {
+    if (previousState?.activeScreen === R3_ROUTES.READER && state.activeScreen === R3_ROUTES.READER
+      && JSON.stringify({ ...previousState, reader: { ...previousState.reader, pagination: state.reader.pagination } }) === JSON.stringify(state)) {
+      previousState = state;
+      updatePaginationControls(state);
+      return;
+    }
     // A chrome-only change must not replace prose, selection ranges or the scroll host.
     if (previousState?.activeScreen === R3_ROUTES.READER
       && previousState.reader.chromeVisible !== state.reader.chromeVisible
@@ -370,7 +407,7 @@ function mountAppShell(root, store, documentRef, controller, options = {}) {
       const visible = state.reader.chromeVisible !== false;
       const screen = findFirst(root, node => classListContains(node, "r3-reader-screen"));
       screen?.setAttribute("data-chrome-visible", String(visible));
-      for (const className of ["r3-reader-header", "r3-reader-footer"]) {
+      for (const className of ["r3-reader-header", "r3-reader-footer", "r3-reader-page-nav"]) {
         const chrome = findFirst(root, node => classListContains(node, className));
         if (chrome) {
           chrome.inert = !visible;
@@ -381,6 +418,9 @@ function mountAppShell(root, store, documentRef, controller, options = {}) {
       return;
     }
     const previousReaderScroll = findReaderScrollElement(root);
+    const readerHadFocus = previousReaderScroll && documentRef.activeElement === previousReaderScroll;
+    const readerControlFocus = previousState?.activeScreen === R3_ROUTES.READER && !previousState.openOverlay
+      ? documentRef.activeElement?.dataset?.action : null;
     const previousPreviewScroll = findVocabularyPreviewScrollElement(root);
     const previousVocabularyScroll = findVocabularyScrollElement(root);
     const previousPassageTarget = findFirst(root, node => (
@@ -395,6 +435,10 @@ function mountAppShell(root, store, documentRef, controller, options = {}) {
     const preservedReaderScrollTop = shouldPreserveReaderScroll
       ? previousReaderScroll?.scrollTop
       : null;
+    const preservedLayoutScroll = shouldPreserveReaderScroll
+      && previousState.reader.readingLayout === state.reader.readingLayout
+      && previousState.reader.status === "ready" && state.reader.status === "ready"
+      ? { scrollTop: previousReaderScroll?.scrollTop || 0, scrollLeft: previousReaderScroll?.scrollLeft || 0 } : null;
     const preservedPassageLocator = shouldPreserveReaderScroll && previousPassageTarget
       ? {
           term: previousPassageTarget.dataset?.vocabTerm || "",
@@ -440,8 +484,20 @@ function mountAppShell(root, store, documentRef, controller, options = {}) {
     root.dataset.r3UiLanguage = state.settings?.uiLanguage || "en";
     documentRef.documentElement?.setAttribute?.("lang", state.settings?.uiLanguage || "en");
     const view = createAppShellView(documentRef, state);
-    root.replaceChildren(view);
-    if (root.textContent !== view.textContent) {
+    const liveScreen = root.querySelector?.(".r3-reader-screen");
+    const keepProgress = liveScreen && previousState?.openOverlay === R3_OVERLAYS.PROGRESS
+      && state.openOverlay === R3_OVERLAYS.PROGRESS && previousState.activeBookId === state.activeBookId;
+    if (keepProgress) {
+      // Never detach the active range input during a native pointer drag.
+      const nextScreen = view.querySelector(".r3-reader-screen");
+      for (const child of [...liveScreen.children]) {
+        if (!child.classList.contains("r3-reader-overlay")) child.remove();
+      }
+      for (const child of [...nextScreen.children]) {
+        if (!child.classList.contains("r3-reader-overlay")) liveScreen.insertBefore(child, liveScreen.lastElementChild);
+      }
+    } else root.replaceChildren(view);
+    if (!keepProgress && root.textContent !== view.textContent) {
       root.textContent = view.textContent;
       root.replaceChildren(view);
     }
@@ -482,7 +538,7 @@ function mountAppShell(root, store, documentRef, controller, options = {}) {
           clearPreservation();
         }
       }
-      controller.applyReaderScrollRestoration?.(readerScroll);
+      if (!readerLayout) controller.applyReaderScrollRestoration?.(readerScroll);
       const bubble = root.querySelector?.(".r3-vocabulary-bubble");
       if (bubble && state.reader.vocabularyBubble) {
         const { x, y } = state.reader.vocabularyBubble;
@@ -491,7 +547,7 @@ function mountAppShell(root, store, documentRef, controller, options = {}) {
         bubble.style.left = `${Math.max(12, Math.min(x, windowRef.innerWidth - box.width - 12))}px`;
         bubble.style.top = `${Math.max(12, Math.min(y + 12, windowRef.innerHeight - box.height - 12))}px`;
       }
-      if (readerSurfaceOverlays.includes(state.openOverlay)) {
+      if (readerSurfaceOverlays.includes(state.openOverlay) && !keepProgress) {
         const sameSurface = previousState?.openOverlay === state.openOverlay;
         const focusTarget = sameSurface && surfaceFocus?.action
           ? findFirst(root, node => node.dataset?.action === surfaceFocus.action
@@ -505,12 +561,21 @@ function mountAppShell(root, store, documentRef, controller, options = {}) {
     }
     syncVocabularyToastTimer(state);
     previousState = state;
+    readerLayout?.attach(state, preservedLayoutScroll);
+    updatePaginationControls(store.getState());
+    if (state.activeScreen === R3_ROUTES.READER && !state.openOverlay) {
+      if (readerHadFocus) focusWithoutScrolling(findReaderScrollElement(root));
+      else if (readerControlFocus?.startsWith("reader-page-")) {
+        focusWithoutScrolling(findFirst(root, node => node.dataset?.action === readerControlFocus));
+      }
+    }
   };
 
   render(store.getState());
   const unsubscribe = store.subscribe((state) => render(state));
   return () => {
     clearVocabularyToastTimer();
+    readerLayout?.destroy();
     unsubscribe();
   };
 }
@@ -853,6 +918,14 @@ function bindAppShellEvents(root, controller, browserEffects) {
       controller.setReaderMode?.(actionElement.dataset.mode);
       return;
     }
+    if (action === "reader-select-layout") {
+      controller.setReadingLayout?.(actionElement.dataset.layout);
+      return;
+    }
+    if (action === "reader-page-previous" || action === "reader-page-next") {
+      root.__readerLayout?.turn(action === "reader-page-next" ? 1 : -1);
+      return;
+    }
 
     if (action === "vocabulary-preview-open") {
       controller.openVocabularyPreview?.(collectVocabularyOccurrences(root));
@@ -878,14 +951,17 @@ function bindAppShellEvents(root, controller, browserEffects) {
     }
 
     if (action === "reader-back") {
-      controller.exitReader();
+      if (!root.__readerHistory?.back()) controller.exitReader();
     }
   });
 
+  root.addEventListener("input", event => {
+    if (event.target.dataset?.action === "reader-progress-page") root.__readerLayout?.seek(Number(event.target.value));
+  });
   root.addEventListener("change", (event) => {
     const actionElement = findActionElement(event.target, root);
-    if (actionElement?.dataset?.action === "reader-progress-chapter") {
-      controller.selectReaderChapter?.(Number(actionElement.value));
+    if (actionElement?.dataset?.action === "reader-progress-page") {
+      root.__readerLayout?.seek(Number(actionElement.value));
       return;
     }
     if (actionElement?.dataset?.action === "vocabulary-level") {
@@ -936,11 +1012,20 @@ function bindAppShellEvents(root, controller, browserEffects) {
       return;
     }
 
-    controller.recordReaderScroll?.(readScrollMetrics(event.target));
+    if (root.__readerLayout) root.__readerLayout.onScroll();
+    else controller.recordReaderScroll?.(readScrollMetrics(event.target));
     controller.closeVocabularyBubble?.();
   }, true);
 
   root.addEventListener("keydown", event => {
+    if (classListContains(event.target, "r3-reader-scroll")
+      && event.target.dataset?.layout === "page"
+      && ["ArrowLeft", "ArrowRight", "PageUp", "PageDown"].includes(event.key)
+      && root.ownerDocument?.getSelection?.()?.isCollapsed !== false) {
+      event.preventDefault();
+      root.__readerLayout?.turn(["ArrowRight", "PageDown"].includes(event.key) ? 1 : -1);
+      return;
+    }
     const surface = root.querySelector?.(".r3-reader-contents, .r3-reader-sheet");
     if (event.key === "Tab" && surface) {
       const focusable = [...surface.querySelectorAll("button:not(:disabled), input:not(:disabled), [tabindex='0']")];
@@ -1025,15 +1110,20 @@ export async function bootstrapR3App(options = {}) {
   });
   bindAppShellEvents(root, controller, options.browserEffects || createBrowserEffects(documentRef));
   bindPageLifecycleEvents(documentRef, controller);
+  root.__readerHistory = bindReaderHistory(documentRef.defaultView, store, controller);
   const app = {
     root,
     store,
     controller,
-    unsubscribe
+    unsubscribe() {
+      unsubscribe();
+      root.__readerHistory?.destroy();
+    }
   };
 
   root.__r3App = app;
   await controller.initialize();
+  await root.__readerHistory?.restoreInitial();
   return app;
 }
 

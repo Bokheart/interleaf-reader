@@ -689,7 +689,15 @@ A future `GeneratedMixedArtifact` would need to fingerprint at least the source 
 
 ---
 
-## 18. Update Rule
+## 18. R3 Reader Core layout boundary
+
+`ui-r3/readerLayout.js` owns viewport-derived CSS-column pagination, the in-memory full-book page index and logical-position/DOM mapping. It measures chapters off-screen using the existing Reader renderer and vocabulary inputs. Index generations are discarded after book/mode/viewport changes; failures leave chapter navigation and Scroll available. Source text and native selection stay in the existing Reader DOM.
+
+The R3 controller retains chapter-load sequencing and the existing serialized progress-save queue. Logical anchors pass through the reader adapter's existing progress overrides. `readingLayout` is a global app preference, not a field of an individual book's progress. No storage or Legacy runtime is imported by the layout layer. Top/bottom chrome are absolute overlays over `.r3-reader-scroll`.
+
+`ui-r3/readerHistory.js` creates one History API entry per Reader visit. Back returns to its originating Interleaf screen; Forward/reload reopen the saved book through the controller. Page turns and progress seeks do not flood history. Native browser gestures remain browser-owned.
+
+## 19. Update Rule
 
 Update this file only when runtime structure materially changes, including startup flow, module boundaries, view architecture, persistence ownership, external dependencies, Guide/localization boundaries, Reading Mode boundaries, or compatibility contracts.
 

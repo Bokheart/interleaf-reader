@@ -152,7 +152,8 @@ function createAdapters() {
     resolveModeFromProgress: [],
     renderChapter: [],
     getPreferences: 0,
-    setUiLanguage: []
+    setUiLanguage: [],
+    setReadingLayout: []
   };
   let preferences = {
     uiLanguage: "en",
@@ -295,6 +296,14 @@ function createAdapters() {
             hasChosenUiLanguage: true
           };
           return { ...preferences };
+        },
+        setReadingLayout(layout) {
+          calls.setReadingLayout.push(layout);
+          preferences = {
+            ...preferences,
+            readingLayout: layout === "scroll" ? "scroll" : "page"
+          };
+          return { ...preferences };
         }
       }
     },
@@ -435,11 +444,11 @@ test("R3 chrome has left icon Back, four quick controls, Contents scrim and Prog
   controller.openReaderProgress();
   assert.equal(store.getState().openOverlay, R3_OVERLAYS.PROGRESS);
   nodes = collectNodes(createReaderView(document, store.getState()));
-  const slider = nodes.find(node => node.dataset.action === "reader-progress-chapter");
-  assert.equal(slider.value, 1);
-  await controller.selectReaderChapter(0);
+  const slider = nodes.find(node => node.dataset.action === "reader-progress-page");
+  assert.equal(slider.value, 0);
+  await controller.seekReaderPosition(0, { chapterId: "chapter-1", textOffset: 25 });
   await controller.flushReaderProgress();
-  assert.equal(store.getState().openOverlay, null);
+  assert.equal(store.getState().openOverlay, R3_OVERLAYS.PROGRESS);
   assert.equal(calls.savePosition.at(-1).currentChapterId, "chapter-1");
 });
 
@@ -549,12 +558,131 @@ test("R3 Progress and Mode close preserve scroll and wire chapter controls witho
     assert.equal(store.getState().reader.chromeVisible, true);
   }
   click({ target: action("reader-progress") });
-  const slider = action("reader-progress-chapter");
+  const slider = action("reader-progress-page");
+  root.__readerLayout = { seek: () => controller.seekReaderPosition(0, { chapterId: "chapter-1", textOffset: 0 }) };
   slider.value = "0";
-  root.eventListeners.get("change")[0]({ target: slider });
+  root.eventListeners.get("input")[0]({ target: slider });
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(store.getState().activeChapterIndex, 0);
-  assert.equal(store.getState().openOverlay, null);
+  assert.equal(store.getState().openOverlay, R3_OVERLAYS.PROGRESS);
+});
+
+test("R3 Page/Scroll share one global layout and keep logical position per book", async () => {
+  const { adapters, readerRuntime, calls } = createAdapters();
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters, readerRuntime });
+  await controller.resumeBook("recent");
+  assert.equal(store.getState().reader.readingLayout, "page");
+  const position = { chapterId: "chapter-2", textOffset: 123 };
+  controller.recordReaderPosition(position, { scrollTop: 240, scrollHeight: 1000, clientHeight: 200 });
+  controller.openReaderMode();
+  const nodes = collectNodes(createReaderView(createMockDocument(), store.getState()));
+  assert.deepEqual(nodes.filter(node => node.dataset.action === "reader-select-layout").map(node => node.dataset.layout), ["page", "scroll"]);
+  await controller.setReadingLayout("scroll");
+  await controller.flushReaderProgress();
+  const payload = calls.savePosition.at(-1);
+  assert.deepEqual(payload.overrides.logicalPosition, position);
+  assert.equal("readingLayout" in payload.overrides, false);
+  assert.equal("pageIndex" in payload.overrides, false);
+  assert.equal(payload.currentMode, "cloze-mixed");
+  assert.equal(store.getState().settings.readingLayout, "scroll");
+  const restoration = await adapters.reader.resumeBook("recent");
+  adapters.reader.resumeBook = async () => ({
+    ...restoration,
+    progress: { ...restoration.progress, ...payload.overrides, readingLayout: "page" }
+  });
+  await controller.exitReader();
+  await controller.resumeBook("recent");
+  assert.equal(store.getState().reader.readingLayout, "scroll");
+  assert.deepEqual(store.getState().reader.positionRequest.position, position);
+  adapters.reader.openBook = async () => ({
+    ...restoration,
+    bookKey: "older",
+    savedBook: { ...restoration.savedBook, bookKey: "older", title: "Older Book" },
+    progress: { bookKey: "older", currentChapterId: "chapter-1", currentChapterIndex: 0, readingLayout: "page" }
+  });
+  await controller.selectBook("older");
+  assert.equal(store.getState().reader.readingLayout, "scroll");
+  assert.equal(store.getState().settings.readingLayout, "scroll");
+});
+
+test("R3 rapid book-page seeks cannot publish an older chapter or locator", async () => {
+  const { adapters, readerRuntime, calls } = createAdapters();
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters, readerRuntime });
+  await controller.resumeBook("recent");
+  controller.openReaderProgress();
+  const pending = createDeferred();
+  const started = createDeferred();
+  const load = readerRuntime.loadChapterContent;
+  // Controller owns a copy of this runtime; use a fresh controller for controlled I/O.
+  const runtime = { ...readerRuntime, loadChapterContent: async (handle, chapter) => {
+    if (chapter.id === "chapter-1") { started.resolve(); await pending.promise; }
+    return load(handle, chapter);
+  } };
+  const next = createR3Controller({ store, adapters, readerRuntime: runtime });
+  await next.resumeBook("recent");
+  next.openReaderProgress();
+  const old = next.seekReaderPosition(0, { chapterId: "chapter-1", textOffset: 18 });
+  await started.promise;
+  await next.seekReaderPosition(1, { chapterId: "chapter-2", textOffset: 35 });
+  pending.resolve();
+  await old;
+  await next.flushReaderProgress();
+  assert.equal(store.getState().activeChapterIndex, 1);
+  assert.equal(store.getState().reader.positionRequest.position.textOffset, 35);
+  assert.equal(store.getState().openOverlay, R3_OVERLAYS.PROGRESS);
+  assert.equal(calls.savePosition.at(-1).overrides.logicalPosition.textOffset, 35);
+  next.closeOverlay();
+  assert.equal(store.getState().activeChapterIndex, 1);
+});
+
+test("R3 page indexing uses existing renderer and does not navigate or save measured chapters", async () => {
+  const { adapters, readerRuntime, calls } = createAdapters();
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters, readerRuntime });
+  await controller.resumeBook("recent");
+  await controller.flushReaderProgress();
+  const before = calls.savePosition.length;
+  const chapters = [];
+  for await (const chapter of controller.getPaginationChapters()) chapters.push(chapter);
+  assert.deepEqual(chapters.map(chapter => chapter.id), ["chapter-1", "chapter-2"]);
+  assert.match(chapters[0].html, /rendered in cloze-mixed/);
+  assert.equal(store.getState().activeChapterIndex, 1);
+  assert.equal(calls.savePosition.length, before);
+});
+
+test("R3 failed seek rendering keeps the last successful chapter and persisted anchor", async () => {
+  const { adapters, readerRuntime, calls } = createAdapters();
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters, readerRuntime });
+  await controller.resumeBook("recent");
+  const position = { chapterId: "chapter-2", textOffset: 35 };
+  controller.recordReaderPosition(position, { scrollTop: 10, scrollHeight: 200, clientHeight: 100 });
+  controller.openReaderProgress();
+  adapters.modes.renderChapter = () => { throw new Error("Chapter render failed"); };
+  await controller.seekReaderPosition(0, { chapterId: "chapter-1", textOffset: 28 });
+  await controller.flushReaderProgress();
+  assert.equal(store.getState().activeChapterIndex, 1);
+  assert.equal(store.getState().openOverlay, R3_OVERLAYS.PROGRESS);
+  assert.match(store.getState().reader.error.message, /render failed/);
+  assert.equal(calls.savePosition.at(-1).currentChapterId, "chapter-2");
+  assert.deepEqual(calls.savePosition.at(-1).overrides.logicalPosition, position);
+});
+
+test("R3 stale page index stops after Reader exit and invalid locators cannot change progress", async () => {
+  const { adapters, readerRuntime } = createAdapters();
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters, readerRuntime });
+  await controller.resumeBook("recent");
+  const before = store.getState().reader.positionRequest;
+  await controller.seekReaderPosition(0, { chapterId: "chapter-2", textOffset: 20 });
+  await controller.seekReaderPosition(0, { chapterId: "chapter-1", textOffset: -2 });
+  assert.deepEqual(store.getState().reader.positionRequest, before);
+  const iterator = controller.getPaginationChapters();
+  assert.equal((await iterator.next()).done, false);
+  await controller.exitReader();
+  assert.equal((await iterator.next()).done, true);
 });
 
 test("R3 store creates the expected initial runtime state", () => {
@@ -568,6 +696,8 @@ test("R3 store creates the expected initial runtime state", () => {
     openOverlay: null,
     reader: {
       chromeVisible: true,
+      readingLayout: "page",
+      pagination: { status: "loading", pageIndex: 0, pageCount: 0 },
       status: "idle",
       bookTitle: "",
       chapterTitle: "",
@@ -619,6 +749,7 @@ test("R3 store creates the expected initial runtime state", () => {
       status: "loading",
       uiLanguage: "en",
       hasChosenUiLanguage: null,
+      readingLayout: "page",
       busy: false,
       error: null
     },
@@ -765,6 +896,7 @@ test("R3 controller initializes once and loads books through adapters", async ()
     status: "ready",
     uiLanguage: "en",
     hasChosenUiLanguage: true,
+    readingLayout: "page",
     busy: false,
     error: null
   });

@@ -672,7 +672,9 @@ body {
 
 .r3-main--reader > .r3-status-banner,
 .r3-main--reader > .r3-error-banner {
-  flex: 0 0 auto;
+  position: absolute;
+  inset: 64px 0 auto;
+  z-index: 3;
   margin: var(--r3-space-2) var(--r3-layout-gutter) 0;
 }
 
@@ -683,13 +685,14 @@ body {
   max-width: none;
   min-height: 0;
   margin: 0;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  display: block;
   gap: 0;
   overflow: hidden;
 }
 
 .r3-reader-header {
+  position: absolute;
+  inset: 0 0 auto;
   z-index: 2;
   min-width: 0;
   display: grid;
@@ -736,13 +739,14 @@ body {
 }
 
 .r3-reader-scroll {
+  position: absolute;
+  inset: 0;
   min-width: 0;
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior-y: contain;
-  scrollbar-gutter: stable;
-  padding: var(--r3-space-4) var(--r3-layout-gutter) var(--r3-space-7);
+  padding: calc(24px + env(safe-area-inset-top, 0px)) 24px calc(56px + env(safe-area-inset-bottom, 0px));
 }
 
 .r3-reader-scroll:focus-visible {
@@ -768,6 +772,8 @@ body {
 }
 
 .r3-reader-footer {
+  position: absolute;
+  inset: auto 0 0;
   z-index: 2;
   padding: var(--r3-space-3) var(--r3-layout-gutter) calc(var(--r3-space-3) + env(safe-area-inset-bottom, 0px));
   background: rgba(255, 255, 255, 0.96);
@@ -775,9 +781,10 @@ body {
   box-shadow: 0 -8px 24px rgba(23, 32, 51, 0.05);
 }
 
-/* Retain the grid footprint: chrome visibility never moves the reading passage. */
+/* Both chrome regions overlay an unchanged, full-viewport reading surface. */
 .r3-reader-screen[data-chrome-visible="false"] > .r3-reader-header,
-.r3-reader-screen[data-chrome-visible="false"] > .r3-reader-footer {
+.r3-reader-screen[data-chrome-visible="false"] > .r3-reader-footer,
+.r3-reader-screen[data-chrome-visible="false"] > .r3-reader-page-nav {
   visibility: hidden;
   pointer-events: none;
 }
@@ -839,6 +846,51 @@ body {
 .r3-reader-progress-title { overflow-wrap: anywhere; }
 
 .r3-reader-mode-list { display: grid; }
+.r3-reader-layout-list { display: grid; grid-template-columns: 1fr 1fr; }
+
+.r3-reader-scroll[data-layout="page"] {
+  width: min(100%, calc(var(--r3-reading-measure) + 48px));
+  margin-inline: auto;
+  overflow: hidden;
+}
+.r3-reader-scroll[data-layout="page"] .r3-reader-article { height: 100%; width: 100%; }
+.r3-reader-scroll[data-layout="page"] .r3-reader-content {
+  height: 100%;
+  width: 100%;
+  column-width: auto;
+  column-count: 1;
+  column-gap: 48px;
+  column-fill: auto;
+}
+.r3-reader-scroll[data-layout="page"] :is(img, svg, video) {
+  max-height: calc(100dvh - 80px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  object-fit: contain;
+}
+.r3-reader-scroll[data-layout="page"] :is(pre, table) {
+  max-height: calc(100dvh - 80px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  overflow: auto;
+}
+.r3-reader-measure {
+  position: fixed;
+  inset: 0 auto auto -20000px;
+  visibility: hidden;
+  pointer-events: none;
+  contain: layout style;
+}
+.r3-reader-page-nav {
+  position: absolute;
+  inset: auto 24px calc(4px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--r3-color-text-muted);
+}
+.r3-reader-page-nav button { background: var(--r3-color-surface); }
+.r3-reader-page-end { position: absolute; top: 0; width: 1px; height: 1px; pointer-events: none; }
+.r3-reader-screen[data-chrome-visible="true"] .r3-reader-page-nav {
+  bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+}
 
 .r3-reader-mode-choice {
   min-height: 52px;

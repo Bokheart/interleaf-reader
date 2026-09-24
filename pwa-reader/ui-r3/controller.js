@@ -156,7 +156,8 @@ function createSaveSignature(payload = {}) {
     scrollHeight: payload.scrollHeight || 0,
     clientHeight: payload.clientHeight || 0,
     overrideScrollRatio: payload.overrides?.scrollRatio ?? null,
-    overrideScrollTop: payload.overrides?.scrollTop ?? null
+    overrideScrollTop: payload.overrides?.scrollTop ?? null,
+    logicalPosition: payload.overrides?.logicalPosition ?? null
   });
 }
 
@@ -724,6 +725,10 @@ export function createR3Controller(options = {}) {
       };
     }
 
+    if (reader.logicalPosition?.chapterId === chapter.id) {
+      payload.overrides = { ...payload.overrides, logicalPosition: reader.logicalPosition };
+    }
+
     return payload;
   }
 
@@ -817,7 +822,7 @@ export function createR3Controller(options = {}) {
     }
   }
 
-  async function renderReaderChapter(chapterIndex) {
+  async function renderReaderChapter(chapterIndex, position = null) {
     const reader = activeReader;
     if (!reader) {
       return store.getState();
@@ -865,12 +870,17 @@ export function createR3Controller(options = {}) {
         return store.getState();
       }
 
+      const { rendered, vocabulary, vocabularyMessage } = await renderWithVocabulary(reader, loadedChapter);
+      if (sequence !== readerSequence || activeReader !== reader) return store.getState();
+      // Commit runtime chapter/anchor together, only after rendering succeeds.
       reader.book.chapters = chapters.map((entry, index) => {
         return index === chapterIndex ? loadedChapter : entry;
       });
       reader.currentIndex = chapterIndex;
       reader.renderedChapterId = loadedChapter.id;
       reader.renderedChapterIndex = chapterIndex;
+      reader.logicalPosition = position || (reader.restoration.progress?.logicalPosition?.chapterId === loadedChapter.id
+        ? reader.restoration.progress.logicalPosition : null);
       reader.scrollMetrics = normalizeScrollMetrics();
       reader.pendingScrollRestore = shouldRestoreProgressForChapter(
         reader.restoration?.progress,
@@ -887,8 +897,6 @@ export function createR3Controller(options = {}) {
           }
         : null;
 
-      const { rendered, vocabulary, vocabularyMessage } = await renderWithVocabulary(reader, loadedChapter);
-      if (sequence !== readerSequence || activeReader !== reader) return store.getState();
       reader.vocabularyProfile = vocabulary.profile;
       reader.vocabularyItems = vocabulary.items;
 
@@ -900,6 +908,7 @@ export function createR3Controller(options = {}) {
       const nextState = store.dispatch(r3Actions.setReaderState(
         {
           ...getReaderStateFromChapter(reader, loadedChapter, chapterIndex, rendered),
+          positionRequest: { sequence, position: reader.logicalPosition, legacyProgress: reader.pendingScrollRestore?.progress || null },
           vocabularyItems: rendered.vocabularyPreview || [],
           learningWords: vocabulary.profile.learningWords || [],
           vocabularyMessage,
@@ -909,6 +918,9 @@ export function createR3Controller(options = {}) {
         }
       ));
       reader.lastValidReaderState = nextState.reader;
+      // Saved restoration is a one-time entry operation, not a target for later
+      // Previous/Next or Contents visits to the same chapter.
+      reader.restoration.progress = null;
       queueProgressSave(reader);
       return nextState;
     } catch (error) {
@@ -944,6 +956,9 @@ export function createR3Controller(options = {}) {
     store.dispatch(r3Actions.setReaderState({
       status: "loading",
       chromeVisible: true,
+      readingLayout: store.getState().settings?.readingLayout === "scroll" ? "scroll" : "page",
+      pagination: { status: "loading", pageIndex: 0, pageCount: 0 },
+      positionRequest: null,
       modeSaving: false,
       modeMessage: "",
       bookTitle: restoration.savedBook?.title || translate("r3.common.untitledBook"),
@@ -992,6 +1007,8 @@ export function createR3Controller(options = {}) {
       renderedChapterId: null,
       renderedChapterIndex: -1,
       readingMode,
+      readingLayout: store.getState().settings?.readingLayout === "scroll" ? "scroll" : "page",
+      logicalPosition: restoration.progress?.logicalPosition || null,
       scrollMetrics: normalizeScrollMetrics(),
       pendingScrollTimer: null,
       pendingScrollRestore: null,
@@ -1059,6 +1076,7 @@ export function createR3Controller(options = {}) {
         status: "ready",
         uiLanguage: normalizeUiLanguage(preferences?.uiLanguage),
         hasChosenUiLanguage: preferences?.hasChosenUiLanguage === true,
+        readingLayout: preferences?.readingLayout === "scroll" ? "scroll" : "page",
         busy: false,
         error: null
       }));
@@ -1221,6 +1239,57 @@ export function createR3Controller(options = {}) {
     return store.dispatch(r3Actions.setReaderState({ chromeVisible: state.reader.chromeVisible === false }));
   }
 
+  // Derived page indexes never enter storage. The existing progress queue owns all writes.
+  function recordReaderPosition(position, metrics) {
+    if (!activeReader || store.getState().reader.status !== "ready"
+      || position?.chapterId !== getCurrentReaderChapter()?.id
+      || !Number.isInteger(position.textOffset) || position.textOffset < 0) return;
+    activeReader.logicalPosition = { chapterId: position.chapterId, textOffset: position.textOffset };
+    if (activeReader.pendingScrollRestore) activeReader.pendingScrollRestore.userScrolled = true;
+    recordReaderScroll(metrics);
+  }
+
+  async function seekReaderPosition(chapterIndex, position) {
+    if (!activeReader || !Number.isInteger(chapterIndex)
+      || activeReader.book.chapters[chapterIndex]?.id !== position?.chapterId
+      || !Number.isInteger(position.textOffset) || position.textOffset < 0) return store.getState();
+    if (activeReader.currentIndex !== chapterIndex || store.getState().reader.status !== "ready") {
+      return renderReaderChapter(chapterIndex, position);
+    }
+    activeReader.logicalPosition = position;
+    if (activeReader.pendingScrollRestore) activeReader.pendingScrollRestore.userScrolled = true;
+    return store.dispatch(r3Actions.setReaderState({
+      positionRequest: { sequence: ++readerSequence, position }, vocabularyBubble: null
+    }));
+  }
+
+  async function* getPaginationChapters() {
+    const reader = activeReader;
+    const mode = reader?.readingMode;
+    if (!reader) return;
+    // Use the same renderer/profile as the Reader, with no parallel eligibility path.
+    for (let index = 0; index < reader.book.chapters.length; index += 1) {
+      if (reader !== activeReader || reader.readingMode !== mode) return;
+      const chapter = await readerRuntime.loadChapterContent(reader.handle, reader.book.chapters[index]);
+      if (reader !== activeReader || reader.readingMode !== mode) return;
+      const result = await renderWithVocabulary(reader, chapter);
+      if (reader !== activeReader || reader.readingMode !== mode) return;
+      yield { id: chapter.id, index, html: result.rendered.html };
+    }
+  }
+
+  async function setReadingLayout(layout) {
+    if (!activeReader || !["page", "scroll"].includes(layout)
+      || store.getState().reader.status !== "ready") return store.getState();
+    const preferences = await Promise.resolve(adapters.settings.setReadingLayout(layout));
+    const savedLayout = preferences?.readingLayout === "scroll" ? "scroll" : "page";
+    store.dispatch(r3Actions.setSettingsState({ readingLayout: savedLayout }));
+    activeReader.readingLayout = savedLayout;
+    store.dispatch(r3Actions.setReaderState({ readingLayout: savedLayout }));
+    queueProgressSave();
+    return store.getState();
+  }
+
   function getReaderModeAvailability() {
     return adapters.modes.getModeAvailability({ isBuiltInGuide: Boolean(activeReader?.book?.isBuiltInGuide) });
   }
@@ -1368,6 +1437,13 @@ export function createR3Controller(options = {}) {
     },
 
     recordReaderScroll,
+    recordReaderPosition,
+    seekReaderPosition,
+    getPaginationChapters,
+    setReadingLayout,
+    setReaderPagination(pagination) {
+      return store.dispatch(r3Actions.setReaderState({ pagination }));
+    },
     applyReaderScrollRestoration,
     flushReaderProgress,
     openReaderContents,

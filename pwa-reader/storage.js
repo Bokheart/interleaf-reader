@@ -97,6 +97,10 @@ function normalizeGuideVersionPreference(versionId, fallback = "english") {
   return VALID_GUIDE_VERSIONS.includes(normalized) ? normalized : fallback;
 }
 
+function normalizeReadingLayoutPreference(layout) {
+  return layout === "scroll" ? "scroll" : "page";
+}
+
 export function getDefaultAppPreferences(options = {}) {
   const uiLanguage = normalizeUiLanguagePreference(options.uiLanguage);
 
@@ -106,6 +110,7 @@ export function getDefaultAppPreferences(options = {}) {
     guideVisibleInLibrary: true,
     guideVersion: "english",
     hasChosenGuideVersion: false,
+    readingLayout: "page",
     updatedAt: null
   };
 }
@@ -120,6 +125,7 @@ export function normalizeAppPreferencesForStorage(preferences = {}, now = Date.n
     guideVisibleInLibrary: safePreferences.guideVisibleInLibrary !== false,
     guideVersion: normalizeGuideVersionPreference(safePreferences.guideVersion, "english"),
     hasChosenGuideVersion: safePreferences.hasChosenGuideVersion === true,
+    readingLayout: normalizeReadingLayoutPreference(safePreferences.readingLayout),
     updatedAt: safePreferences.updatedAt || now
   };
 }
@@ -160,6 +166,15 @@ export function setGuideVisibilityPreference(isVisible) {
   return saveAppPreferences({
     ...currentPreferences,
     guideVisibleInLibrary: isVisible !== false,
+    updatedAt: Date.now()
+  });
+}
+
+export function setReadingLayoutPreference(layout) {
+  const currentPreferences = getAppPreferences();
+  return saveAppPreferences({
+    ...currentPreferences,
+    readingLayout: normalizeReadingLayoutPreference(layout),
     updatedAt: Date.now()
   });
 }

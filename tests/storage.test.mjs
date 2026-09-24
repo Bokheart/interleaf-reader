@@ -35,6 +35,7 @@ const {
   saveVocabularyProfile,
   setGuideVersionPreference,
   setGuideVisibilityPreference,
+  setReadingLayoutPreference,
   setUiLanguagePreference,
   setVocabularyComfortLevel,
   shouldRestoreScrollForProgress,
@@ -496,6 +497,7 @@ assert.deepEqual(
     guideVisibleInLibrary: true,
     guideVersion: "english",
     hasChosenGuideVersion: false,
+    readingLayout: "page",
     updatedAt: null
   },
   "default app preferences keep legacy guideVersion independent from UI language"
@@ -516,6 +518,7 @@ assert.deepEqual(
     guideVisibleInLibrary: false,
     guideVersion: "bilingual",
     hasChosenGuideVersion: true,
+    readingLayout: "page",
     updatedAt: 2000
   },
   "normalizes app preferences without renaming existing storage/database keys"
@@ -717,6 +720,16 @@ assert.equal(
   setUiLanguagePreference("en").uiLanguage,
   "en",
   "setUiLanguagePreference updates the local interface language"
+);
+assert.equal(
+  setReadingLayoutPreference("scroll").readingLayout,
+  "scroll",
+  "setReadingLayoutPreference stores one layout for every book"
+);
+assert.equal(
+  setReadingLayoutPreference("columns").readingLayout,
+  "page",
+  "invalid reading layouts normalize to page"
 );
 assert.equal(
   getAppPreferences().guideVersion,

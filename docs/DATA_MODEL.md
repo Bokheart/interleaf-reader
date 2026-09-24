@@ -133,6 +133,7 @@ Current keys:
 | `guideVisibleInLibrary` | `true` | Only literal `false` hides the Guide |
 | `guideVersion` | `english` | Allowed values: `english`, `chinese`, `bilingual`; retained legacy field |
 | `hasChosenGuideVersion` | `false` | Only literal `true` becomes true |
+| `readingLayout` | `page` | Only literal `scroll` stays `scroll`; every other value becomes `page`. Shared by every book |
 | `updatedAt` | `null` before first save | Save helpers assign `Date.now()` |
 
 `guideVersion` does not currently control Guide content. Reading Mode controls the Guide content variant.
@@ -266,6 +267,16 @@ Application-created progress records contain:
 `normalizeReadingProgress()` preserves additional supplied fields.
 
 `getReadingProgress()` returns the stored record directly without normalizing it.
+
+### R3 logical position and layout
+
+`logicalPosition` is optional book progress through the existing progress `overrides` contract: `{ chapterId, textOffset }`, a chapter-relative UTF-16 source-text offset. Annotation wrapper elements do not contribute to the offset; embedded images, SVG, video and horizontal rules each contribute one unit.
+
+`readingLayout` (`page` or `scroll`) is a global app preference in `slash-reader-v2:app-preferences`. It is not stored as part of a book's reading-progress record. Older records may still contain a `readingLayout` field; R3 ignores it. Absent preference values default to Page.
+
+`logicalPosition` uses the existing `progress` object store and normalization pass-through. Database version, keys, legacy fields and backup schemas are unchanged; no migration runs. Legacy-only records first restore by their scroll ratio, then R3 captures a logical position. Existing `scrollTop`/`scrollRatio` remain compatibility fields.
+
+Page boundaries, per-chapter page counts and the full-book page index are derived in memory for the current viewport and Reading Mode. Raw page numbers are never durable anchors. Layout and viewport changes map the same logical position to the containing page or scroll location. Returning to a chapter through Contents/Previous/Next begins that chapter; saved restoration applies only on book entry.
 
 ### Chapter restore precedence
 

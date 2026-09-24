@@ -142,6 +142,7 @@ function createReaderSheet(documentRef, state, t) {
   }));
   panel.appendChild(header);
   if (isMode) {
+    panel.appendChild(createElement(documentRef, "h3", { text: t("r3.reader.language") }));
     const choices = createElement(documentRef, "div", { className: "r3-reader-mode-list" });
     for (const [mode, key] of [["english-study", "english"], ["chinese", "chinese"], ["cloze-mixed", "mixed"]]) {
       const available = reader.modeAvailability?.some(item => item.value === mode && item.available);
@@ -156,17 +157,29 @@ function createReaderSheet(documentRef, state, t) {
       choices.appendChild(choice);
     }
     panel.appendChild(choices);
+    panel.appendChild(createElement(documentRef, "h3", { text: t("r3.reader.layout") }));
+    const layouts = createElement(documentRef, "div", { className: "r3-reader-layout-list" });
+    for (const layout of ["page", "scroll"]) {
+      layouts.appendChild(createElement(documentRef, "button", {
+        className: `r3-reader-mode-choice${reader.readingLayout === layout ? " is-selected" : ""}`,
+        text: t(`r3.reader.layout.${layout}`),
+        attrs: { type: "button", "aria-pressed": String(reader.readingLayout === layout) },
+        dataset: { action: "reader-select-layout", layout }
+      }));
+    }
+    panel.appendChild(layouts);
     if (reader.modeMessage) panel.appendChild(createElement(documentRef, "p", { text: reader.modeMessage, attrs: { role: "status" } }));
   } else {
     panel.appendChild(createElement(documentRef, "p", { className: "r3-reader-progress-title", text: reader.chapterTitle }));
-    panel.appendChild(createElement(documentRef, "p", { className: "r3-muted", text: getReaderProgressLabel(reader, t) }));
+    panel.appendChild(createElement(documentRef, "p", { className: "r3-error-text", dataset: { role: "reader-seek-message" }, attrs: { role: "status" } }));
+    panel.appendChild(createElement(documentRef, "p", { className: "r3-muted", text: t("r3.reader.paginating"), dataset: { role: "reader-page-label" } }));
     panel.appendChild(createElement(documentRef, "input", {
       className: "r3-reader-chapter-slider",
-      attrs: { type: "range", min: 0, max: Math.max(0, reader.chapterCount - 1), step: 1,
-        "aria-label": t("reader.chapter.choose"), "aria-valuetext": reader.chapterTitle },
-      value: reader.chapterIndex,
-      dataset: { action: "reader-progress-chapter" },
-      disabled: reader.status !== "ready" || reader.chapterCount < 2
+      attrs: { type: "range", min: 0, max: Math.max(0, (reader.pagination?.pageCount || 1) - 1), step: 1,
+        "aria-label": t("r3.reader.seekPage"), "aria-valuetext": reader.chapterTitle },
+      value: reader.pagination?.pageIndex || 0,
+      dataset: { action: "reader-progress-page" },
+      disabled: reader.pagination?.status !== "ready"
     }));
     const nav = createElement(documentRef, "div", { className: "r3-quick-grid r3-reader-chapter-nav" });
     nav.appendChild(createReaderButton(documentRef, "reader-previous", t("reader.navigation.previous"), !reader.hasPrevious || reader.status !== "ready"));
@@ -489,18 +502,24 @@ export function createReaderView(documentRef, state, t = createTranslator("en"))
 
   const scrollWorkspace = createElement(documentRef, "div", {
     className: "r3-reader-scroll",
+    dataset: { layout: reader.readingLayout || "page" },
     attrs: {
       "aria-label": t("r3.reader.chapterContent"),
       inert: hasReaderOverlay,
       tabindex: "0"
     }
   });
-  scrollWorkspace.appendChild(createElement(documentRef, "p", {
-    className: "r3-muted r3-reader-progress",
-    text: getReaderProgressLabel(reader, t)
-  }));
   scrollWorkspace.appendChild(createReaderContent(documentRef, reader, t));
   view.appendChild(scrollWorkspace);
+  if (reader.readingLayout !== "scroll") {
+    const pageNav = createElement(documentRef, "nav", {
+      className: "r3-reader-page-nav", attrs: { ...chromeAttrs, "aria-label": t("r3.reader.seekPage") }
+    });
+    pageNav.appendChild(createIconButton(documentRef, { icon: "chevronLeft", label: t("r3.reader.previousPage"), dataset: { action: "reader-page-previous" } }));
+    pageNav.appendChild(createElement(documentRef, "span", { dataset: { role: "reader-page-label" } }));
+    pageNav.appendChild(createIconButton(documentRef, { icon: "chevronRight", label: t("r3.reader.nextPage"), dataset: { action: "reader-page-next" } }));
+    view.appendChild(pageNav);
+  }
 
   const nav = createElement(documentRef, "nav", { className: "r3-reader-quick-controls", attrs: { "aria-label": t("reader.aria.quickControls") } });
   for (const [action, key, icon] of [

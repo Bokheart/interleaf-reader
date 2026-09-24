@@ -343,5 +343,15 @@ export const en = Object.freeze({
   "r3.settings.localData.title": "Local data and privacy",
   "r3.settings.localData.body": "Books, progress, vocabulary, and preferences remain in this browser on this device.",
   "r3.settings.languageChoices": "Interface language choices",
-  "r3.reader.modeError": "Could not change reading mode. Please try again."
+  "r3.reader.modeError": "Could not change reading mode. Please try again.",
+  "r3.reader.language": "Language",
+  "r3.reader.layout": "Reading Layout",
+  "r3.reader.layout.page": "Page",
+  "r3.reader.layout.scroll": "Scroll",
+  "r3.reader.bookPage": "Page {current} of {total}",
+  "r3.reader.seekPage": "Book page",
+  "r3.reader.previousPage": "Previous page",
+  "r3.reader.nextPage": "Next page",
+  "r3.reader.paginating": "Preparing book pages…",
+  "r3.reader.paginationError": "Book pages could not be prepared. Chapter navigation remains available."
 });

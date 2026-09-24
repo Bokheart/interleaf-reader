@@ -8,6 +8,10 @@
 
 ## 1. Snapshot
 
+### R3 Reader Core — 2026-09-23
+
+The bounded implementation on `feature/r3-reader-core-layout` adds overlay-only immersive chrome, viewport-based Page/Scroll layouts, a persistent full-book page scrubber, logical reading-position restoration and internal Reader browser history. Page/Scroll is one app preference shared by every book. Book progress stores logical position only. Page numbers stay runtime-only. Existing vocabulary and language contracts remain in use. No storage migration or dependency was added. Local Node checks cover the implemented slice; physical iOS edge-back remains unverified. This is uncommitted implementation evidence, not product-owner acceptance or deployment. Earlier baseline records below remain historical.
+
 | Field | Current state |
 | --- | --- |
 | **Repository branch** | `feature/m2-reader-toc` |
