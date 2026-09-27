@@ -1,4 +1,4 @@
-const CACHE_NAME = 'interleaf-reader-static-v1';
+const CACHE_NAME = 'interleaf-reader-static-v2';
 const CACHE_PREFIX = 'interleaf-reader-static-';
 
 const PRECACHE_ASSETS = [
@@ -27,11 +27,17 @@ const PRECACHE_ASSETS = [
   '../data/vocabulary.json',
   '../data/slang_idioms.json',
   '../data/protected_terms.json',
-  '../data/levels/level1_basic_words.json',
-  '../data/levels/level2_basic_words.json',
-  '../data/levels/level3_basic_words.json',
-  '../data/levels/level4_basic_words.json',
-  '../data/levels/level5_basic_words.json'
+  '../data/level-corpus/interleaf-level-corpus-v2.0.0-frozen/level1_basic_words.json',
+  '../data/level-corpus/interleaf-level-corpus-v2.0.0-frozen/level2_basic_words.json',
+  '../data/level-corpus/interleaf-level-corpus-v2.0.0-frozen/level3_basic_words.json',
+  '../data/level-corpus/interleaf-level-corpus-v2.0.0-frozen/level4_basic_words.json',
+  '../data/level-corpus/interleaf-level-corpus-v2.0.0-frozen/level5_basic_words.json',
+  '../data/level-corpus/interleaf-level-corpus-v2.0.0-frozen/form_index.json',
+  '../data/level-corpus/interleaf-level-corpus-v2.0.0-frozen/phrase_inventory.json',
+  '../data/level-corpus/interleaf-level-corpus-v2.0.0-frozen/provenance_license_manifest.json',
+  '../data/level-corpus/interleaf-level-corpus-v2.0.0-frozen/bysa_derived/README.json',
+  '../data/level-corpus/interleaf-level-corpus-v2.0.0-frozen/bysa_derived/l5_balanced_wordfreq_additions.json',
+  '../data/level-corpus/interleaf-level-corpus-v2.0.0-frozen/NOTICE.md'
 ];
 
 self.addEventListener('install', event => {

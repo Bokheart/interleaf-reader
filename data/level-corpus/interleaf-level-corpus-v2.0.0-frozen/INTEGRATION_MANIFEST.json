@@ -1,0 +1,111 @@
+{
+  "package_id": "interleaf-level-corpus-v2.0.0-frozen",
+  "status": "FROZEN_READY_FOR_INTEGRATION_REVIEW",
+  "generated_at": "2026-09-25T10:54:23.962788+00:00",
+  "do_not_copy_yet": true,
+  "interleaf_repository_untouched": true,
+  "runtime_integration": false,
+  "provisional_l5": true,
+  "levels": {
+    "level1": {
+      "file": "package/level1_basic_words.json",
+      "count": 1062,
+      "label": "Basic",
+      "internalBand": "basic",
+      "role": "Base Whitelist cold-start: heavy assistance"
+    },
+    "level2": {
+      "file": "package/level2_basic_words.json",
+      "count": 2277,
+      "label": "Basic Plus",
+      "internalBand": "basic-plus",
+      "role": "Base Whitelist cold-start: basic-plus"
+    },
+    "level3": {
+      "file": "package/level3_basic_words.json",
+      "count": 4333,
+      "label": "Intermediate",
+      "internalBand": "intermediate",
+      "role": "Base Whitelist cold-start: intermediate"
+    },
+    "level4": {
+      "file": "package/level4_basic_words.json",
+      "count": 6700,
+      "label": "Upper Intermediate",
+      "internalBand": "upper-intermediate",
+      "role": "Base Whitelist cold-start: upper-intermediate"
+    },
+    "level5": {
+      "file": "package/level5_basic_words.json",
+      "count": 9974,
+      "label": "Advanced Fiction",
+      "internalBand": "advanced-fiction",
+      "constructionVariant": "L5-Balanced",
+      "role": "Base Whitelist cold-start: quieter advanced fiction/general reading",
+      "provisional": true
+    }
+  },
+  "supporting_artifacts": {
+    "form_index": "package/form_index.json",
+    "phrase_inventory": "package/phrase_inventory.json",
+    "provenance_license_manifest": "package/provenance_license_manifest.json",
+    "pos_conversion_risk_report": "package/pos_conversion_risk_report.json",
+    "conflict_report": "package/conflict_report.json",
+    "qa_report": "package/qa_report.json",
+    "sha256_manifest": "SHA256SUMS.json",
+    "bysa_l5_additions": "package/bysa_derived/l5_balanced_wordfreq_additions.json"
+  },
+  "expected_runtime_role": {
+    "level_lists": "Replace/seed pwa-reader data/levels/*.json Base Whitelist only after explicit integration task. Canonical lemma strings; no definitions.",
+    "form_index": "REQUIRED for surface→canonical resolution (went→go). Without it, irregular/inflected forms will not inherit lemma whitelist membership.",
+    "phrase_inventory": "Canonical multi-word identities; do not infer phrase knownness from word parts alone.",
+    "user_profile": "Level is cold-start only. Runtime Known / Learning-Unknown Exceptions / Hide refine the profile."
+  },
+  "dependencies": [
+    "Form/canonical resolution must load form_index before applying whitelist filtering",
+    "Preserve BY-SA notices for wordfreq-derived L5 additions if redistributed",
+    "Cite CEFR-J in product/docs attribution as required by source terms"
+  ],
+  "known_limitations": [
+    "L5 is provisional (Balanced); not a formal C1/C2/IELTS band",
+    "POS collapsed with min_cefr — conversion-risk report lists noun↔verb / adj↔verb spans",
+    "Public-domain fiction validation used; modern web-fiction slang coverage not fully measured",
+    "Proper-name filtering at runtime still needed beyond corpus name heuristics",
+    "No dictionary definitions or Chinese glosses in this package",
+    "Conservative/Broad L5 variants retained only in candidate_v2 history, not this freeze"
+  ],
+  "superset_deltas": {
+    "level1_to_level2": {
+      "added": 1215,
+      "count_delta": 1215,
+      "missing_from_superset": 0,
+      "missing_sample": []
+    },
+    "level2_to_level3": {
+      "added": 2056,
+      "count_delta": 2056,
+      "missing_from_superset": 0,
+      "missing_sample": []
+    },
+    "level3_to_level4": {
+      "added": 2367,
+      "count_delta": 2367,
+      "missing_from_superset": 0,
+      "missing_sample": []
+    },
+    "level4_to_level5": {
+      "added": 3274,
+      "count_delta": 3274,
+      "missing_from_superset": 0,
+      "missing_sample": []
+    }
+  },
+  "qa_summary": {
+    "pass": 34,
+    "fail": 0,
+    "warn": 0,
+    "fail_items": [],
+    "warn_items": []
+  },
+  "ready_gate": "LEVEL CORPUS V2 READY FOR INTEGRATION"
+}

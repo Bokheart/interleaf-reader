@@ -1,0 +1,110 @@
+{
+  "package_id": "interleaf-level-corpus-v2.0.0-frozen",
+  "generated_at": "2026-09-25T10:54:23.945272+00:00",
+  "repository_untouched": true,
+  "l5_selection": {
+    "chosen": "L5-Balanced",
+    "size": 9974,
+    "rationale": "B4 fiction validation: Conservative too close to L4; Broad higher false-known on literary/domain vocabulary; Balanced first clearly quieter advanced tier.",
+    "not_a_formal_score": true
+  },
+  "pos_collapse_rule": "min_cefr",
+  "sharealike_note": "wordfreq-derived L5 addition lists and any NGSL form-index contributions are CC BY-SA 4.0. Keep bysa_derived/ separable with attribution. Do not fold into Interleaf-only licensing.",
+  "sources": [
+    {
+      "id": "cefrj_wordlist_1_6",
+      "file": "D:\\BookHeart\\_level_vocab_corpus_work\\downloads\\cefrj\\extracted\\CEFR-J Wordlist Ver1.6.xlsx",
+      "version": "CEFR-J Wordlist Version 1.6 (2020-03-24)",
+      "origin_url": "https://www.cefr-j.org/data/CEFRJ_wordlist_ver1.6.zip",
+      "sha256_zip": "c837d2c00ab8954ed8db48e79afd8ef37099570295fec36950dbf9322303a37a",
+      "license": "Copyright Tono Laboratory, Tokyo University of Foreign Studies. Free use for research, education, and commercial purposes with proper citation. Derivatives allowed if CEFR-J is cited.",
+      "citation": "The CEFR-J Wordlist Version 1.6. Compiled by Yukio Tono, Tokyo University of Foreign Studies. https://www.cefr-j.org/download.html",
+      "role": "primary CEFR signal through B2; L1–L4 cumulative base"
+    },
+    {
+      "id": "ngsl_1_2_research",
+      "file": "D:\\BookHeart\\_level_vocab_corpus_work\\downloads\\ngsl\\NGSL_12_lemmatized_for_research.csv",
+      "version": "NGSL 1.2",
+      "origin_url": "https://www.newgeneralservicelist.com/s/NGSL_12_lemmatized_for_research.csv",
+      "sha256": "d814f2a0a3c61479a2c5ad037661719a0cc6e7dbcde31f181b54f12d0f1e11a4",
+      "license": "CC BY-SA 4.0",
+      "license_verification": "Official page https://www.newgeneralservicelist.com/new-general-service-list states NGSL is licensed under CC BY-SA 4.0.",
+      "role": "form_index expansions + inflection stripping signal (not primary L5 ladder)"
+    },
+    {
+      "id": "ngsl_sup",
+      "file": "D:\\BookHeart\\_level_vocab_corpus_work\\downloads\\ngsl\\SUP_lemmatized.csv",
+      "sha256": "7bb4c76cbe43ae87240be4ac7ada370b9e1a0d9d631d8c4430138646965d03f6",
+      "license": "CC BY-SA 4.0 (NGSL project)",
+      "role": "closed-class days/months/numbers form expansions"
+    },
+    {
+      "id": "ngsl_spoken_1_2",
+      "file": "D:\\BookHeart\\_level_vocab_corpus_work\\downloads\\ngsl_spoken\\NGSL-Spoken_12_lemmatized_for_research.csv",
+      "version": "NGSL-Spoken 1.2 (721 lemmas)",
+      "origin_url": "https://www.newgeneralservicelist.com/s/NGSL-Spoken_12_lemmatized_for_research.csv",
+      "page_url": "https://www.newgeneralservicelist.com/ngsl-spoken",
+      "sha256": "1fcf504b7d37fd29dd8d9d1b317b668ef2bdc76010d39c3ecc36d4b574e43877",
+      "license": "CC BY-SA 4.0",
+      "license_verification": "Verified 2026-09-25 on https://www.newgeneralservicelist.com/ngsl-spoken : 'New General Service List-Spoken by Browne, C. and Culligan, B., is licensed under a Creative Commons Attribution-ShareAlike 4.0 International License.'",
+      "citation": "Browne, C., Culligan, B. (2013). The New General Service List - Spoken. http://www.newgeneralservicelist.com",
+      "role": "evaluated for L5 dialogue bias; not primary supplement (near-subset of L4)"
+    },
+    {
+      "id": "wordfreq_3_1_1",
+      "package": "wordfreq",
+      "version": "3.1.1",
+      "origin_url": "https://pypi.org/project/wordfreq/3.1.1/",
+      "repo": "https://github.com/rspeer/wordfreq",
+      "license_code": "Apache-2.0",
+      "license_data": "CC BY-SA 4.0 (bundled frequency data)",
+      "license_verification": "Verified via PyPI/project README: code Apache-2.0; data files may be redistributed under CC BY-SA 4.0; SUBTLEX credit required; author advises against bare CSV exports that strip attribution — candidate keeps attributed BY-SA sidecars under bysa_derived/.",
+      "citation": "Robyn Speer (2022). rspeer/wordfreq: v3.0. Zenodo. https://doi.org/10.5281/zenodo.7199437",
+      "role": "primary L5 frequency supplement (Zipf thresholds)"
+    },
+    {
+      "id": "names_cc0_v1_2",
+      "files": [
+        "D:\\BookHeart\\_level_vocab_corpus_work\\downloads\\names_cc0\\common-forenames.txt",
+        "D:\\BookHeart\\_level_vocab_corpus_work\\downloads\\names_cc0\\common-surnames.txt"
+      ],
+      "version": "popular-names-by-country-dataset v1.2",
+      "origin_url": "https://github.com/sigpwned/popular-names-by-country-dataset/releases/tag/v1.2",
+      "sha256_forenames": "a73c989b07186a5bdfb47184a06759b0a9a9965ee0baa4dc9a88607419460d1f",
+      "sha256_surnames": "ea6d979641f32f7bcc35f01b801bde82d49d6700e859ff15baf4108cbe29b95a",
+      "license": "CC0 1.0 (public domain dedication)",
+      "license_verification": "LICENSE file in repository states Creative Commons Zero v1.0 Universal.",
+      "role": "proper-name filter only (never removes CEFR-J lemmas)"
+    },
+    {
+      "id": "interleaf_slang_idioms_seed",
+      "file": "D:\\BookHeart\\slash reader\\slash-reader-v2\\data\\slang_idioms.json",
+      "license": "Interleaf curated seed (repo-local); terms only",
+      "role": "phrase inventory seed"
+    }
+  ],
+  "excluded_sources": [
+    "Oxford 3000/5000",
+    "Cambridge EVP",
+    "Longman proprietary lists",
+    "COCA / wordfrequency.info redistributed lists",
+    "unofficial IELTS vocabulary lists",
+    "EFLLex (redistribution grant unclear)",
+    "KELLY (license conflict unresolved)",
+    "NGSL core leftovers as sole L5 ladder (rejected by B2/B3)"
+  ],
+  "attribution_required": [
+    "CEFR-J Wordlist Version 1.6 — Yukio Tono / Tokyo University of Foreign Studies",
+    "NGSL 1.2 — Browne, Culligan, Phillips (CC BY-SA 4.0) — form expansions",
+    "wordfreq 3.1.1 — Robyn Speer; data CC BY-SA 4.0; credit SUBTLEX authors",
+    "Names filter CC0 — popular-names-by-country-dataset v1.2 (build-time only)"
+  ],
+  "bysa_separable_dir": "package/bysa_derived/",
+  "level_construction": {
+    "level1": "cleaned CEFR-J A1",
+    "level2": "CEFR-J A1–A2 cumulative",
+    "level3": "CEFR-J A1–B1 cumulative",
+    "level4": "CEFR-J A1–B2 cumulative",
+    "level5": "L4 + wordfreq Zipf≥3.6 (Balanced), provisional"
+  }
+}

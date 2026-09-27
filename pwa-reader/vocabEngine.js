@@ -207,6 +207,41 @@ function normalizeKnownWordSet(words) {
   return new Set();
 }
 
+function resolveCanonicalPreviewTerm(term, formIndex = null) {
+  const normalized = normalizeTerm(term);
+
+  if (!normalized) {
+    return "";
+  }
+
+  if (!formIndex || typeof formIndex !== "object" || Array.isArray(formIndex)) {
+    return normalized;
+  }
+
+  const mapped = formIndex[normalized];
+
+  if (typeof mapped !== "string") {
+    return normalized;
+  }
+
+  return normalizeTerm(mapped) || normalized;
+}
+
+function isPreviewTermInSet(term, wordSet, formIndex = null) {
+  const normalized = normalizeTerm(term);
+
+  if (!normalized || !(wordSet instanceof Set)) {
+    return false;
+  }
+
+  if (wordSet.has(normalized)) {
+    return true;
+  }
+
+  const canonical = resolveCanonicalPreviewTerm(normalized, formIndex);
+  return Boolean(canonical && canonical !== normalized && wordSet.has(canonical));
+}
+
 function getPreviewItemKey(item = {}) {
   return normalizeTerm(item.term || item.headword || "");
 }
@@ -249,11 +284,15 @@ function normalizeFilteringOptions(options = {}) {
 function createFilteringContext(personalizationState = {}, options = {}) {
   const normalizedProfile = personalizationState?.normalizedProfile || {};
   const learningWords = normalizeKnownWordSet(normalizedProfile.learningWords);
+  const formIndex = personalizationState?.formIndex
+    || options.formIndex
+    || null;
 
   return {
     options: normalizeFilteringOptions(options),
     effectiveKnownWords: normalizeKnownWordSet(personalizationState?.effectiveKnownWords),
-    learningWords
+    learningWords,
+    formIndex
   };
 }
 
@@ -278,8 +317,8 @@ export function explainVocabularyPreviewFiltering(items = [], personalizationSta
 
   for (const item of sourceItems) {
     const itemKey = getPreviewItemKey(item);
-    const isKnown = itemKey && context.effectiveKnownWords.has(itemKey);
-    const isLearning = itemKey && context.learningWords.has(itemKey);
+    const isKnown = itemKey && isPreviewTermInSet(itemKey, context.effectiveKnownWords, context.formIndex);
+    const isLearning = itemKey && isPreviewTermInSet(itemKey, context.learningWords, context.formIndex);
     const isHighValue = isHighValuePreviewItem(item, context.options.highValueTypes);
 
     if (isLearning && context.options.keepLearningWords) {

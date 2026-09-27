@@ -1,0 +1,93 @@
+{
+  "package_id": "interleaf-level-corpus-v2.0.0-frozen",
+  "generated_at": "2026-09-25T10:54:23.960720+00:00",
+  "root": "D:\\BookHeart\\_level_vocab_corpus_work\\out\\level_corpus_v2_frozen\\package",
+  "files": [
+    {
+      "path": "bysa_derived/l5_balanced_wordfreq_additions.json",
+      "sha256": "e2b43221ff549d569dc00de4379bd9971ffe4ff9564de74413d5f7b1e3c72178",
+      "bytes": 52402
+    },
+    {
+      "path": "bysa_derived/README.json",
+      "sha256": "82df27f250cc396f8309fcfdb41f414258b7959cabe7177bc064b78ecd21f798",
+      "bytes": 378
+    },
+    {
+      "path": "conflict_report.json",
+      "sha256": "0d282cc71898f12737ab4add926f62a602bf3840118516af929bb84151163115",
+      "bytes": 5992
+    },
+    {
+      "path": "form_index.json",
+      "sha256": "83ebec0765cf5350909047a809f88ae11ec99c35f3d2adb09109ac787dac0ac8",
+      "bytes": 181165
+    },
+    {
+      "path": "l1_v2_build_report.json",
+      "sha256": "30fec1269a13f196a24b8107793732321aba4946d81d5810e992bfac82e1eeaf",
+      "bytes": 3598
+    },
+    {
+      "path": "l5_variant_reports.json",
+      "sha256": "f5768d9afeb09a9e4d6751a92455568597994724083375ad2260e05d4959614d",
+      "bytes": 14756
+    },
+    {
+      "path": "level1_basic_words.json",
+      "sha256": "ecc8df93ffc18026b125056cd8c333f4c73f6fc94902b670b743594f0b90c785",
+      "bytes": 15738
+    },
+    {
+      "path": "level2_basic_words.json",
+      "sha256": "5c0dad7813c4c0831e666e1011573a8dad1d52d1926ff54519ecae4ce5306c00",
+      "bytes": 34817
+    },
+    {
+      "path": "level3_basic_words.json",
+      "sha256": "061554b737b4ea61dfe41e098dc10d751d039653a49363d763e966e63cf02eec",
+      "bytes": 68779
+    },
+    {
+      "path": "level4_basic_words.json",
+      "sha256": "891d533fcaea5ae5225154538cfe5e6f54df54b9079d47e3967bd4463fbe95f5",
+      "bytes": 108741
+    },
+    {
+      "path": "level5_basic_words.json",
+      "sha256": "9f992115ed2bcbbd174e28dee79b69f7e7e3c47ddc2013030e00dcc38142b58f",
+      "bytes": 160798
+    },
+    {
+      "path": "phrase_inventory.json",
+      "sha256": "8fa2b06d0a4417e4ba6d0aa32a9f442fba39782db5b110978a256c73c6e0d8f3",
+      "bytes": 39233
+    },
+    {
+      "path": "pos_collapse_analysis.json",
+      "sha256": "eb4191d8fd3fbf1bd8c89782001e01e8c3f0eccd9f47fc7b1d87373c7f24ace3",
+      "bytes": 14973
+    },
+    {
+      "path": "pos_conversion_risk_report.json",
+      "sha256": "cf7a30f1d04028c46403c180d2e30b077df4b9ac9c6148761d9de614ff86c442",
+      "bytes": 79262
+    },
+    {
+      "path": "provenance_license_manifest.json",
+      "sha256": "bc8137b9367f61aed3aeaee4801fad8432fce6511c449d8a603ab024b16d5a7b",
+      "bytes": 6471
+    },
+    {
+      "path": "qa_report.json",
+      "sha256": "e461a4d3284bb5bf5c1afe8f01cd4ad3b6ceab10ef8fcd28d3f1b9f60cf94231",
+      "bytes": 1829
+    },
+    {
+      "path": "qa_report.md",
+      "sha256": "99682d484ccb0749f5a284da47c38daedf5e59955643dbf30f1ef83323b23749",
+      "bytes": 1531
+    }
+  ],
+  "file_count": 17
+}

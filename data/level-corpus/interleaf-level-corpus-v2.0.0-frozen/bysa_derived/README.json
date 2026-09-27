@@ -1,0 +1,10 @@
+{
+  "sharealike_note": "Files in this directory are CC BY-SA 4.0 derived (wordfreq frequency data and/or NGSL form expansions as documented in provenance). Keep separable from Interleaf proprietary code licensing.",
+  "included_in_v0_baseline": [
+    "l5_balanced_wordfreq_additions.json"
+  ],
+  "evaluated_not_selected": [
+    "L5-Conservative",
+    "L5-Broad"
+  ]
+}

@@ -1,0 +1,2205 @@
+[
+  {
+    "phrase": "according to",
+    "canonical": "according to",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "preposition"
+    ]
+  },
+  {
+    "phrase": "air conditioning",
+    "canonical": "air conditioning",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "air force",
+    "canonical": "air force",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "alarm clock",
+    "canonical": "alarm clock",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "all right",
+    "canonical": "all right",
+    "source": "cefrj",
+    "cefr": "A1",
+    "poses": [
+      "adjective",
+      "adverb"
+    ]
+  },
+  {
+    "phrase": "at stake",
+    "canonical": "at stake",
+    "source": "interleaf_slang_idioms_seed",
+    "cefr": "B2-C1",
+    "poses": [
+      "idiom"
+    ]
+  },
+  {
+    "phrase": "back off",
+    "canonical": "back off",
+    "source": "interleaf_slang_idioms_seed",
+    "cefr": "B2",
+    "poses": [
+      "phrasal_verb"
+    ]
+  },
+  {
+    "phrase": "bad-tempered",
+    "canonical": "bad-tempered",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "adjective"
+    ]
+  },
+  {
+    "phrase": "bank account",
+    "canonical": "bank account",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "because of",
+    "canonical": "because of",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "preposition"
+    ]
+  },
+  {
+    "phrase": "board game",
+    "canonical": "board game",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "brand-new",
+    "canonical": "brand-new",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "adjective"
+    ]
+  },
+  {
+    "phrase": "break down",
+    "canonical": "break down",
+    "source": "interleaf_slang_idioms_seed",
+    "cefr": "B2",
+    "poses": [
+      "phrasal_verb"
+    ]
+  },
+  {
+    "phrase": "bring up",
+    "canonical": "bring up",
+    "source": "interleaf_slang_idioms_seed",
+    "cefr": "B1-B2",
+    "poses": [
+      "phrasal_verb"
+    ]
+  },
+  {
+    "phrase": "brother-in-law",
+    "canonical": "brother-in-law",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "bus station",
+    "canonical": "bus station",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "bus stop",
+    "canonical": "bus stop",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "by all means",
+    "canonical": "by all means",
+    "source": "interleaf_slang_idioms_seed",
+    "cefr": "B2",
+    "poses": [
+      "idiom"
+    ]
+  },
+  {
+    "phrase": "call off",
+    "canonical": "call off",
+    "source": "interleaf_slang_idioms_seed",
+    "cefr": "B2",
+    "poses": [
+      "phrasal_verb"
+    ]
+  },
+  {
+    "phrase": "calm down",
+    "canonical": "calm down",
+    "source": "interleaf_slang_idioms_seed",
+    "cefr": "B1",
+    "poses": [
+      "phrasal_verb"
+    ]
+  },
+  {
+    "phrase": "capital letter",
+    "canonical": "capital letter",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "car park",
+    "canonical": "car park",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "carbon dioxide",
+    "canonical": "carbon dioxide",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "carbon footprint",
+    "canonical": "carbon footprint",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "carbon monoxide",
+    "canonical": "carbon monoxide",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "carry on",
+    "canonical": "carry on",
+    "source": "interleaf_slang_idioms_seed",
+    "cefr": "B2",
+    "poses": [
+      "phrasal_verb"
+    ]
+  },
+  {
+    "phrase": "cd player",
+    "canonical": "cd player",
+    "source": "cefrj",
+    "cefr": "A1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "cd-rom",
+    "canonical": "cd-rom",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "central heating",
+    "canonical": "central heating",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "chat show",
+    "canonical": "chat show",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "check-in",
+    "canonical": "check-in",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "check-in counter",
+    "canonical": "check-in counter",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "check-in desk",
+    "canonical": "check-in desk",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "chest of drawers",
+    "canonical": "chest of drawers",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "chewing gum",
+    "canonical": "chewing gum",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "classical music",
+    "canonical": "classical music",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "climate change",
+    "canonical": "climate change",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "come across",
+    "canonical": "come across",
+    "source": "interleaf_slang_idioms_seed",
+    "cefr": "B2",
+    "poses": [
+      "phrasal_verb"
+    ]
+  },
+  {
+    "phrase": "common sense",
+    "canonical": "common sense",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "credit card",
+    "canonical": "credit card",
+    "source": "cefrj",
+    "cefr": "A1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "daughter-in-law",
+    "canonical": "daughter-in-law",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "de facto",
+    "canonical": "de facto",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "adjective"
+    ]
+  },
+  {
+    "phrase": "debit card",
+    "canonical": "debit card",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "definite article",
+    "canonical": "definite article",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "department store",
+    "canonical": "department store",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "digital camera",
+    "canonical": "digital camera",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "dining room",
+    "canonical": "dining room",
+    "source": "cefrj",
+    "cefr": "A1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "disc jockey",
+    "canonical": "disc jockey",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "disk jockey",
+    "canonical": "disk jockey",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "driver's license",
+    "canonical": "driver's license",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "driving licence",
+    "canonical": "driving licence",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "duty-free",
+    "canonical": "duty-free",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "adjective"
+    ]
+  },
+  {
+    "phrase": "e-mail",
+    "canonical": "e-mail",
+    "source": "cefrj",
+    "cefr": "A1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "each other",
+    "canonical": "each other",
+    "source": "cefrj",
+    "cefr": "A1",
+    "poses": [
+      "pronoun"
+    ]
+  },
+  {
+    "phrase": "easy-going",
+    "canonical": "easy-going",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "adjective"
+    ]
+  },
+  {
+    "phrase": "environmentally friendly",
+    "canonical": "environmentally friendly",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "adjective"
+    ]
+  },
+  {
+    "phrase": "exchange rate",
+    "canonical": "exchange rate",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "exclamation mark",
+    "canonical": "exclamation mark",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "extreme sports",
+    "canonical": "extreme sports",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "face to face",
+    "canonical": "face to face",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "adverb"
+    ]
+  },
+  {
+    "phrase": "face-to-face",
+    "canonical": "face-to-face",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "adjective"
+    ]
+  },
+  {
+    "phrase": "fast food",
+    "canonical": "fast food",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "father-in-law",
+    "canonical": "father-in-law",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "fed up",
+    "canonical": "fed up",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "adjective"
+    ]
+  },
+  {
+    "phrase": "figure out",
+    "canonical": "figure out",
+    "source": "interleaf_slang_idioms_seed",
+    "cefr": "B1-B2",
+    "poses": [
+      "phrasal_verb"
+    ]
+  },
+  {
+    "phrase": "film-maker",
+    "canonical": "film-maker",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "fire brigade",
+    "canonical": "fire brigade",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "fire station",
+    "canonical": "fire station",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "first floor",
+    "canonical": "first floor",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "first lady",
+    "canonical": "first lady",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "first language",
+    "canonical": "first language",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "first name",
+    "canonical": "first name",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "first person",
+    "canonical": "first person",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "first-floor",
+    "canonical": "first-floor",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "adjective"
+    ]
+  },
+  {
+    "phrase": "for good",
+    "canonical": "for good",
+    "source": "interleaf_slang_idioms_seed",
+    "cefr": "B2",
+    "poses": [
+      "idiom"
+    ]
+  },
+  {
+    "phrase": "freak out",
+    "canonical": "freak out",
+    "source": "interleaf_slang_idioms_seed",
+    "cefr": "B2",
+    "poses": [
+      "slang"
+    ]
+  },
+  {
+    "phrase": "frying pan",
+    "canonical": "frying pan",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "full stop",
+    "canonical": "full stop",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "full-time",
+    "canonical": "full-time",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "adjective",
+      "adverb"
+    ]
+  },
+  {
+    "phrase": "get away with",
+    "canonical": "get away with",
+    "source": "interleaf_slang_idioms_seed",
+    "cefr": "B2",
+    "poses": [
+      "phrasal_verb"
+    ]
+  },
+  {
+    "phrase": "give in",
+    "canonical": "give in",
+    "source": "interleaf_slang_idioms_seed",
+    "cefr": "B2",
+    "poses": [
+      "phrasal_verb"
+    ]
+  },
+  {
+    "phrase": "gave up",
+    "canonical": "give up",
+    "source": "qa_canonical_example",
+    "cefr": "",
+    "poses": [
+      "phrasal_verb"
+    ]
+  },
+  {
+    "phrase": "global warming",
+    "canonical": "global warming",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "good afternoon",
+    "canonical": "good afternoon",
+    "source": "cefrj",
+    "cefr": "A1",
+    "poses": [
+      "interjection"
+    ]
+  },
+  {
+    "phrase": "good afternoon",
+    "canonical": "good afternoon",
+    "source": "cefrj_phrase_identity_only",
+    "cefr": "A1",
+    "poses": [
+      "interjection"
+    ]
+  },
+  {
+    "phrase": "good morning",
+    "canonical": "good morning",
+    "source": "cefrj",
+    "cefr": "A1",
+    "poses": [
+      "interjection"
+    ]
+  },
+  {
+    "phrase": "good morning",
+    "canonical": "good morning",
+    "source": "cefrj_phrase_identity_only",
+    "cefr": "A1",
+    "poses": [
+      "interjection"
+    ]
+  },
+  {
+    "phrase": "good night",
+    "canonical": "good night",
+    "source": "cefrj",
+    "cefr": "A1",
+    "poses": [
+      "interjection"
+    ]
+  },
+  {
+    "phrase": "good night",
+    "canonical": "good night",
+    "source": "cefrj_phrase_identity_only",
+    "cefr": "A1",
+    "poses": [
+      "interjection"
+    ]
+  },
+  {
+    "phrase": "good-looking",
+    "canonical": "good-looking",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "adjective"
+    ]
+  },
+  {
+    "phrase": "grocery store",
+    "canonical": "grocery store",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "ground floor",
+    "canonical": "ground floor",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "grown-up",
+    "canonical": "grown-up",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "adjective",
+      "noun"
+    ]
+  },
+  {
+    "phrase": "half-price",
+    "canonical": "half-price",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "adjective",
+      "adverb"
+    ]
+  },
+  {
+    "phrase": "hand-held",
+    "canonical": "hand-held",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "adjective"
+    ]
+  },
+  {
+    "phrase": "hang in there",
+    "canonical": "hang in there",
+    "source": "interleaf_slang_idioms_seed",
+    "cefr": "B1-B2",
+    "poses": [
+      "idiom"
+    ]
+  },
+  {
+    "phrase": "hard drive",
+    "canonical": "hard drive",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "hard-working",
+    "canonical": "hard-working",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "adjective"
+    ]
+  },
+  {
+    "phrase": "have to",
+    "canonical": "have to",
+    "source": "cefrj",
+    "cefr": "A1",
+    "poses": [
+      "modal auxiliary"
+    ]
+  },
+  {
+    "phrase": "health care",
+    "canonical": "health care",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "heart attack",
+    "canonical": "heart attack",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "heart-warming",
+    "canonical": "heart-warming",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "adjective"
+    ]
+  },
+  {
+    "phrase": "hi-tech",
+    "canonical": "hi-tech",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "adjective"
+    ]
+  },
+  {
+    "phrase": "high school",
+    "canonical": "high school",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "high-tech",
+    "canonical": "high-tech",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "adjective"
+    ]
+  },
+  {
+    "phrase": "hip hop",
+    "canonical": "hip hop",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "hip-hop",
+    "canonical": "hip-hop",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "hit the road",
+    "canonical": "hit the road",
+    "source": "interleaf_slang_idioms_seed",
+    "cefr": "B1-B2",
+    "poses": [
+      "idiom"
+    ]
+  },
+  {
+    "phrase": "hold on",
+    "canonical": "hold on",
+    "source": "interleaf_slang_idioms_seed",
+    "cefr": "B1",
+    "poses": [
+      "phrasal_verb"
+    ]
+  },
+  {
+    "phrase": "human rights",
+    "canonical": "human rights",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "ice cream",
+    "canonical": "ice cream",
+    "source": "cefrj",
+    "cefr": "A1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "ice hockey",
+    "canonical": "ice hockey",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "ice skating",
+    "canonical": "ice skating",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "id card",
+    "canonical": "id card",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "identity card",
+    "canonical": "identity card",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "in the meantime",
+    "canonical": "in the meantime",
+    "source": "interleaf_slang_idioms_seed",
+    "cefr": "B1-B2",
+    "poses": [
+      "idiom"
+    ]
+  },
+  {
+    "phrase": "indefinite article",
+    "canonical": "indefinite article",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "instead of",
+    "canonical": "instead of",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "preposition"
+    ]
+  },
+  {
+    "phrase": "inverted commas",
+    "canonical": "inverted commas",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "junk food",
+    "canonical": "junk food",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "keep up",
+    "canonical": "keep up",
+    "source": "interleaf_slang_idioms_seed",
+    "cefr": "B1-B2",
+    "poses": [
+      "phrasal_verb"
+    ]
+  },
+  {
+    "phrase": "last minute",
+    "canonical": "last minute",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "last name",
+    "canonical": "last name",
+    "source": "cefrj",
+    "cefr": "A1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "last-minute",
+    "canonical": "last-minute",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "adjective"
+    ]
+  },
+  {
+    "phrase": "left-hand",
+    "canonical": "left-hand",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "adjective"
+    ]
+  },
+  {
+    "phrase": "let go",
+    "canonical": "let go",
+    "source": "interleaf_slang_idioms_seed",
+    "cefr": "B1-B2",
+    "poses": [
+      "phrasal_verb"
+    ]
+  },
+  {
+    "phrase": "living room",
+    "canonical": "living room",
+    "source": "cefrj",
+    "cefr": "A1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "long-distance",
+    "canonical": "long-distance",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "adjective"
+    ]
+  },
+  {
+    "phrase": "long-term",
+    "canonical": "long-term",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "adjective"
+    ]
+  },
+  {
+    "phrase": "look after",
+    "canonical": "look after",
+    "source": "interleaf_slang_idioms_seed",
+    "cefr": "B1",
+    "poses": [
+      "phrasal_verb"
+    ]
+  },
+  {
+    "phrase": "main course",
+    "canonical": "main course",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "make up for",
+    "canonical": "make up for",
+    "source": "interleaf_slang_idioms_seed",
+    "cefr": "B2",
+    "poses": [
+      "phrasal_verb"
+    ]
+  },
+  {
+    "phrase": "make-up",
+    "canonical": "make-up",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "martial art",
+    "canonical": "martial art",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "message board",
+    "canonical": "message board",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "middle-aged",
+    "canonical": "middle-aged",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "adjective"
+    ]
+  },
+  {
+    "phrase": "mineral water",
+    "canonical": "mineral water",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "mixing bowl",
+    "canonical": "mixing bowl",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "mobile phone",
+    "canonical": "mobile phone",
+    "source": "cefrj",
+    "cefr": "A1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "modal verb",
+    "canonical": "modal verb",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "mother-in-law",
+    "canonical": "mother-in-law",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "mp3 player",
+    "canonical": "mp3 player",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "native speaker",
+    "canonical": "native speaker",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "navy blue",
+    "canonical": "navy blue",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "adjective"
+    ]
+  },
+  {
+    "phrase": "net surfer",
+    "canonical": "net surfer",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "next door",
+    "canonical": "next door",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "adverb"
+    ]
+  },
+  {
+    "phrase": "next to",
+    "canonical": "next to",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "preposition"
+    ]
+  },
+  {
+    "phrase": "next-door",
+    "canonical": "next-door",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "adjective"
+    ]
+  },
+  {
+    "phrase": "no big deal",
+    "canonical": "no big deal",
+    "source": "interleaf_slang_idioms_seed",
+    "cefr": "B1-B2",
+    "poses": [
+      "idiom"
+    ]
+  },
+  {
+    "phrase": "no one",
+    "canonical": "no one",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "pronoun"
+    ]
+  },
+  {
+    "phrase": "non-smoking",
+    "canonical": "non-smoking",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "adjective"
+    ]
+  },
+  {
+    "phrase": "old-fashioned",
+    "canonical": "old-fashioned",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "adjective"
+    ]
+  },
+  {
+    "phrase": "olive oil",
+    "canonical": "olive oil",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "on edge",
+    "canonical": "on edge",
+    "source": "interleaf_slang_idioms_seed",
+    "cefr": "B2",
+    "poses": [
+      "idiom"
+    ]
+  },
+  {
+    "phrase": "on to",
+    "canonical": "on to",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "preposition"
+    ]
+  },
+  {
+    "phrase": "ought to",
+    "canonical": "ought to",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "modal auxiliary"
+    ]
+  },
+  {
+    "phrase": "out of",
+    "canonical": "out of",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "preposition"
+    ]
+  },
+  {
+    "phrase": "out of nowhere",
+    "canonical": "out of nowhere",
+    "source": "interleaf_slang_idioms_seed",
+    "cefr": "B2",
+    "poses": [
+      "idiom"
+    ]
+  },
+  {
+    "phrase": "out-of-date",
+    "canonical": "out-of-date",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "adjective"
+    ]
+  },
+  {
+    "phrase": "owing to",
+    "canonical": "owing to",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "preposition"
+    ]
+  },
+  {
+    "phrase": "part-time",
+    "canonical": "part-time",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "adjective",
+      "adverb"
+    ]
+  },
+  {
+    "phrase": "pen friend",
+    "canonical": "pen friend",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "per cent",
+    "canonical": "per cent",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "petrol station",
+    "canonical": "petrol station",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "phrasal verb",
+    "canonical": "phrasal verb",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "pocket money",
+    "canonical": "pocket money",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "point of view",
+    "canonical": "point of view",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "polar bear",
+    "canonical": "polar bear",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "police officer",
+    "canonical": "police officer",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "police station",
+    "canonical": "police station",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "post office",
+    "canonical": "post office",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "primary school",
+    "canonical": "primary school",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "prime minister",
+    "canonical": "prime minister",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "public transport",
+    "canonical": "public transport",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "pull yourself together",
+    "canonical": "pull yourself together",
+    "source": "interleaf_slang_idioms_seed",
+    "cefr": "B2",
+    "poses": [
+      "idiom"
+    ]
+  },
+  {
+    "phrase": "put up with",
+    "canonical": "put up with",
+    "source": "interleaf_slang_idioms_seed",
+    "cefr": "B2",
+    "poses": [
+      "phrasal_verb"
+    ]
+  },
+  {
+    "phrase": "question mark",
+    "canonical": "question mark",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "real estate",
+    "canonical": "real estate",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "remote control",
+    "canonical": "remote control",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "right-hand",
+    "canonical": "right-hand",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "adjective"
+    ]
+  },
+  {
+    "phrase": "run into",
+    "canonical": "run into",
+    "source": "interleaf_slang_idioms_seed",
+    "cefr": "B1-B2",
+    "poses": [
+      "phrasal_verb"
+    ]
+  },
+  {
+    "phrase": "ran out of",
+    "canonical": "run out of",
+    "source": "qa_canonical_example",
+    "cefr": "",
+    "poses": [
+      "phrasal_verb"
+    ]
+  },
+  {
+    "phrase": "rush hour",
+    "canonical": "rush hour",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "science fiction",
+    "canonical": "science fiction",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "screw up",
+    "canonical": "screw up",
+    "source": "interleaf_slang_idioms_seed",
+    "cefr": "B2",
+    "poses": [
+      "slang"
+    ]
+  },
+  {
+    "phrase": "second person",
+    "canonical": "second person",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "second-hand",
+    "canonical": "second-hand",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "adjective",
+      "adverb"
+    ]
+  },
+  {
+    "phrase": "secondary school",
+    "canonical": "secondary school",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "self-confidence",
+    "canonical": "self-confidence",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "self-confident",
+    "canonical": "self-confident",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "adjective"
+    ]
+  },
+  {
+    "phrase": "self-service",
+    "canonical": "self-service",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "adjective"
+    ]
+  },
+  {
+    "phrase": "semi-final",
+    "canonical": "semi-final",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "shop assistant",
+    "canonical": "shop assistant",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "short-term",
+    "canonical": "short-term",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "adjective"
+    ]
+  },
+  {
+    "phrase": "show up",
+    "canonical": "show up",
+    "source": "interleaf_slang_idioms_seed",
+    "cefr": "B1",
+    "poses": [
+      "phrasal_verb"
+    ]
+  },
+  {
+    "phrase": "sister-in-law",
+    "canonical": "sister-in-law",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "sitting room",
+    "canonical": "sitting room",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "so-called",
+    "canonical": "so-called",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "adjective"
+    ]
+  },
+  {
+    "phrase": "soap opera",
+    "canonical": "soap opera",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "social networking",
+    "canonical": "social networking",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "soft drink",
+    "canonical": "soft drink",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "son-in-law",
+    "canonical": "son-in-law",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "sort out",
+    "canonical": "sort out",
+    "source": "interleaf_slang_idioms_seed",
+    "cefr": "B2",
+    "poses": [
+      "phrasal_verb"
+    ]
+  },
+  {
+    "phrase": "spill the beans",
+    "canonical": "spill the beans",
+    "source": "interleaf_slang_idioms_seed",
+    "cefr": "B2",
+    "poses": [
+      "idiom"
+    ]
+  },
+  {
+    "phrase": "sports center",
+    "canonical": "sports center",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "sports centre",
+    "canonical": "sports centre",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "steering wheel",
+    "canonical": "steering wheel",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "stock market",
+    "canonical": "stock market",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "swimming costume",
+    "canonical": "swimming costume",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "swimming pool",
+    "canonical": "swimming pool",
+    "source": "cefrj",
+    "cefr": "A1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "t-shirt",
+    "canonical": "t-shirt",
+    "source": "cefrj",
+    "cefr": "A1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "table tennis",
+    "canonical": "table tennis",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "take over",
+    "canonical": "take over",
+    "source": "interleaf_slang_idioms_seed",
+    "cefr": "B2",
+    "poses": [
+      "phrasal_verb"
+    ]
+  },
+  {
+    "phrase": "take-off",
+    "canonical": "take-off",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "tee-shirt",
+    "canonical": "tee-shirt",
+    "source": "cefrj",
+    "cefr": "A1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "text message",
+    "canonical": "text message",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "third person",
+    "canonical": "third person",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "tour guide",
+    "canonical": "tour guide",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "traffic jam",
+    "canonical": "traffic jam",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "traffic light",
+    "canonical": "traffic light",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "travel agent",
+    "canonical": "travel agent",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "turn out",
+    "canonical": "turn out",
+    "source": "interleaf_slang_idioms_seed",
+    "cefr": "B2",
+    "poses": [
+      "phrasal_verb"
+    ]
+  },
+  {
+    "phrase": "under the weather",
+    "canonical": "under the weather",
+    "source": "interleaf_slang_idioms_seed",
+    "cefr": "B1-B2",
+    "poses": [
+      "idiom"
+    ]
+  },
+  {
+    "phrase": "up-to-date",
+    "canonical": "up-to-date",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "adjective"
+    ]
+  },
+  {
+    "phrase": "upside down",
+    "canonical": "upside down",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "adjective",
+      "adverb"
+    ]
+  },
+  {
+    "phrase": "used to",
+    "canonical": "used to",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "modal auxiliary"
+    ]
+  },
+  {
+    "phrase": "vice president",
+    "canonical": "vice president",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "video clip",
+    "canonical": "video clip",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "video game",
+    "canonical": "video game",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "virtual reality",
+    "canonical": "virtual reality",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "washing machine",
+    "canonical": "washing machine",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "washing-up",
+    "canonical": "washing-up",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "worn out",
+    "canonical": "wear out",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "adjective"
+    ]
+  },
+  {
+    "phrase": "weather forecast",
+    "canonical": "weather forecast",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "web page",
+    "canonical": "web page",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "noun"
+    ]
+  },
+  {
+    "phrase": "well-balanced",
+    "canonical": "well-balanced",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "adjective"
+    ]
+  },
+  {
+    "phrase": "well-built",
+    "canonical": "well-built",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "adjective"
+    ]
+  },
+  {
+    "phrase": "well-dressed",
+    "canonical": "well-dressed",
+    "source": "cefrj",
+    "cefr": "B1",
+    "poses": [
+      "adjective"
+    ]
+  },
+  {
+    "phrase": "well-known",
+    "canonical": "well-known",
+    "source": "cefrj",
+    "cefr": "A2",
+    "poses": [
+      "adjective"
+    ]
+  },
+  {
+    "phrase": "well-organised",
+    "canonical": "well-organised",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "adjective"
+    ]
+  },
+  {
+    "phrase": "well-organized",
+    "canonical": "well-organized",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "adjective"
+    ]
+  },
+  {
+    "phrase": "well-paid",
+    "canonical": "well-paid",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "adjective"
+    ]
+  },
+  {
+    "phrase": "worn-out",
+    "canonical": "worn-out",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "adjective"
+    ]
+  },
+  {
+    "phrase": "x-ray",
+    "canonical": "x-ray",
+    "source": "cefrj",
+    "cefr": "B2",
+    "poses": [
+      "noun"
+    ]
+  }
+]
