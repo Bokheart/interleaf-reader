@@ -55,11 +55,13 @@ export function renderChapterForMode(chapter, mode, options = {}) {
   if (options.isBuiltInGuide) {
     const guideContent = resolveGuideChapterContent(chapter, mode);
     const vocabularyPreview = buildVocabularyPreview(guideContent.plainText, vocabularyItems, {
+      resolveMatch: options.resolveVocabularyMatch,
       limit: options.previewLimit || 20
     });
 
     return {
       html: annotateVocabularyHtml(guideContent.html || emptyChapterHtml(), vocabularyPreview, {
+        resolveMatch: options.resolveVocabularyMatch,
         maxHighlights: options.maxHighlights || 80,
         maxHighlightsPerTerm: options.maxHighlightsPerTerm || 3
       }),
@@ -82,11 +84,13 @@ export function renderChapterForMode(chapter, mode, options = {}) {
   }
 
   const vocabularyPreview = buildVocabularyPreview(chapter.plainText, vocabularyItems, {
+    resolveMatch: options.resolveVocabularyMatch,
     limit: options.previewLimit || 20
   });
 
   return {
     html: annotateVocabularyHtml(chapter.originalHtml || emptyChapterHtml(), vocabularyPreview, {
+      resolveMatch: options.resolveVocabularyMatch,
       maxHighlights: options.maxHighlights || 80,
       maxHighlightsPerTerm: options.maxHighlightsPerTerm || 3
     }),

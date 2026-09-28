@@ -49,6 +49,8 @@ function normalizeVocabularyItem(item) {
     sourceSentence: item.sourceSentence || "",
     priority: Number.isFinite(item.priority) ? item.priority : 50,
     source: item.source || "",
+    ...(item.matchTerms ? { matchTerms: [...item.matchTerms] } : {}),
+    ...(item.capture ? { capture: { ...item.capture } } : {}),
     ...(item.personalization ? { personalization: { ...item.personalization } } : {})
   };
 }
@@ -76,6 +78,7 @@ export function createVocabularyIndex(items) {
 
   for (const item of items) {
     index.set(normalizeTerm(item.term), item);
+    for (const term of item.matchTerms || []) index.set(normalizeTerm(term), item);
   }
 
   return index;
@@ -156,19 +159,29 @@ export function findVocabularyMatches(plainText, vocabularyItems, options = {}) 
 
     seenTerms.add(key);
 
-    const span = findTermSpans(text, item.term).find((candidate) => {
-      return !occupiedSpans.some((occupied) => spansOverlap(candidate, occupied));
-    });
+    let matchedItem = item;
+    const span = (item.matchTerms || [item.term]).flatMap(term => findTermSpans(text, term))
+      .sort((a, b) => a.start - b.start || b.end - a.end).find((candidate) => {
+        if (occupiedSpans.some((occupied) => spansOverlap(candidate, occupied))) return false;
+        matchedItem = options.resolveMatch ? options.resolveMatch(item, text, candidate) : item;
+        return Boolean(matchedItem);
+      });
 
     if (!span) {
       continue;
     }
 
     occupiedSpans.push(span);
+    const existing = matches.find(match => normalizeTerm(match.item.term) === normalizeTerm(matchedItem.term));
+    if (existing) {
+      existing.item.matchTerms = [...new Set([...(existing.item.matchTerms || [existing.item.term]),
+        ...(matchedItem.matchTerms || [matchedItem.term])])];
+      continue;
+    }
     matches.push({
       item: {
-        ...item,
-        sourceSentence: item.sourceSentence || findSourceSentence(text, span)
+        ...matchedItem,
+        sourceSentence: matchedItem.sourceSentence || findSourceSentence(text, span)
       },
       span
     });
@@ -391,7 +404,7 @@ export function filterVocabularyPreviewItems(items = [], personalizationState = 
 // links, and basic EPUB markup intact while still giving us clickable terms.
 function createCombinedRegex(items) {
   const terms = items
-    .map((item) => item.term)
+    .flatMap((item) => item.matchTerms || [item.term])
     .filter(Boolean)
     .sort((a, b) => b.length - a.length)
     .map(termPattern);
@@ -417,7 +430,7 @@ function shouldAnnotateTextNode(node) {
   return NodeFilter.FILTER_ACCEPT;
 }
 
-function replaceTextNodeWithMatches(node, regex, vocabularyIndex, highlightState) {
+function replaceTextNodeWithMatches(node, regex, vocabularyIndex, highlightState, options) {
   const text = node.textContent;
   const fragment = document.createDocumentFragment();
   let lastIndex = 0;
@@ -429,8 +442,19 @@ function replaceTextNodeWithMatches(node, regex, vocabularyIndex, highlightState
     const termStart = match.index + prefix.length;
     const termEnd = termStart + matchedTerm.length;
     const normalized = normalizeTerm(matchedTerm);
-    const item = vocabularyIndex.get(normalized);
-    const termCount = highlightState.termCounts.get(normalized) || 0;
+    let item = vocabularyIndex.get(normalized);
+    if (item && options.resolveMatch) {
+      // Include adjacent inline text, so markup cannot erase name/phrase context.
+      const block = node.parentElement.closest("p, li, blockquote, h1, h2, h3, h4, h5, h6, div") || node.parentElement;
+      const range = document.createRange();
+      range.selectNodeContents(block);
+      range.setEnd(node, termStart);
+      const start = range.toString().length;
+      const resolved = options.resolveMatch(item, block.textContent, { start, end: start + matchedTerm.length, text: matchedTerm });
+      item = resolved && normalizeTerm(resolved.term) === normalizeTerm(item.term) ? resolved : null;
+    }
+    const key = normalizeTerm(item?.term || normalized);
+    const termCount = highlightState.termCounts.get(key) || 0;
     const canHighlight =
       item &&
       highlightState.totalCount < highlightState.maxHighlights &&
@@ -446,7 +470,7 @@ function replaceTextNodeWithMatches(node, regex, vocabularyIndex, highlightState
       hit.textContent = text.slice(termStart, termEnd);
       fragment.append(hit);
       highlightState.totalCount += 1;
-      highlightState.termCounts.set(normalized, termCount + 1);
+      highlightState.termCounts.set(key, termCount + 1);
     } else {
       fragment.append(document.createTextNode(text.slice(termStart, termEnd)));
     }
@@ -488,7 +512,7 @@ export function annotateVocabularyHtml(html, previewItems, options = {}) {
 
   for (const node of textNodes) {
     regex.lastIndex = 0;
-    replaceTextNodeWithMatches(node, regex, vocabularyIndex, highlightState);
+    replaceTextNodeWithMatches(node, regex, vocabularyIndex, highlightState, options);
 
     if (highlightState.totalCount >= highlightState.maxHighlights) {
       break;

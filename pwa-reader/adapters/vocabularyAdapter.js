@@ -110,9 +110,10 @@ export function createVocabularyAdapter(deps = {}) {
   };
 
   let vocabularyDataPromise = null;
+  const matchPolicies = new WeakMap();
 
   return {
-    async getReaderVocabulary() {
+    async getReaderVocabulary(chapter = null) {
       if (!vocabularyDataPromise) {
         vocabularyDataPromise = Promise.resolve().then(() => api.loadVocabularyData()).catch(error => {
           vocabularyDataPromise = null;
@@ -126,6 +127,30 @@ export function createVocabularyAdapter(deps = {}) {
       const personalLearningItems = [...new Set((profile.learningWords || []).map(normalizeTerm))]
         .filter(term => term && !curatedTerms.has(term))
         .map(term => ({ term }));
+      if (chapter) {
+        // Optional NLP loading must not make application startup depend on it.
+        const { addOccurrenceForms, captureOccurrence, resolveCapture } = await import("../identity/runtime.mjs");
+        const candidates = addOccurrenceForms(chapter.plainText || "", [...items, ...personalLearningItems]);
+        const resolveMatch = (item, text, span) => {
+          const capture = captureOccurrence(text, span.start, span.end);
+          const identity = resolveCapture(capture);
+          if (!identity || identity.status === "excluded" || identity.status === "ambiguous") return null;
+          const term = identity?.status === "resolved" ? identity.canonicalTerm : item.term;
+          // An alias is usable only when this actual occurrence resolves to it.
+          if (normalizeTerm(span.text) !== normalizeTerm(item.term)
+              && identity?.status !== "resolved") return null;
+          // Existing exact curated terms outside v0's finite inventory remain
+          // explicit surface captures. They are never promoted to canonical data.
+          const freeform = identity?.status === "unresolved" && identity.reason === "out-of-inventory"
+            && normalizeTerm(span.text) === normalizeTerm(item.term);
+          const candidate = { ...item, term, capture: capture ? { ...capture, ...(freeform ? { freeform: true } : {}) } : {},
+            matchTerms: [...new Set([...(item.matchTerms || [item.term]), span.text])] };
+          if (excluded.has(normalizeTerm(term))) return null;
+          return filterVocabularyPreviewItems([candidate], personalization, { keepLearningWords: true })[0] || null;
+        };
+        matchPolicies.set(candidates, resolveMatch);
+        return { profile, items: candidates, resolveMatch };
+      }
       return {
         profile,
         items: filterVocabularyPreviewItems(
@@ -138,7 +163,9 @@ export function createVocabularyAdapter(deps = {}) {
     },
 
     getChapterPreview(chapter = {}, vocabularyItems = [], options = {}) {
-      return api.buildVocabularyPreview(chapter.plainText || "", vocabularyItems, options);
+      const resolveMatch = matchPolicies.get(vocabularyItems);
+      return api.buildVocabularyPreview(chapter.plainText || "", vocabularyItems,
+        resolveMatch ? { ...options, resolveMatch } : options);
     },
 
     getVocabularyProfile() {
@@ -206,7 +233,20 @@ export function createVocabularyAdapter(deps = {}) {
       return api.saveVocabularyProfile(profile);
     },
 
-    async setTermState(term, state) {
+    async setTermState(term, state, capture = null) {
+      if (capture) {
+        const { resolveCapture } = await import("../identity/runtime.mjs");
+        const identity = resolveCapture(capture);
+        const surface = normalizeTerm(capture.sentence?.slice(capture.targetOffset, capture.targetEnd));
+        if (identity?.status === "resolved" && [surface, identity.canonicalTerm].includes(normalizeTerm(term))) {
+          // Persist the canonical term through the existing schema, never en: keys.
+          term = identity.canonicalTerm;
+        } else if (!(capture.freeform === true && surface === normalizeTerm(term))) {
+          throw new Error("This occurrence has no safe vocabulary identity.");
+        }
+        // Explicit freeform capture retains its surface; it acquires no resolver
+        // authority, and no identity metadata is written to the Library schema.
+      }
       if (state === "known") {
         return api.markWordKnown(term);
       }

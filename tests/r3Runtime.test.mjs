@@ -6,6 +6,7 @@ import { R3_ACTIONS, r3Actions } from "../pwa-reader/ui-r3/actions.js";
 import {
   bootstrapR3App,
   collectVocabularyOccurrences,
+  getReaderSelectionCapture,
   getReaderSelectionTerm,
   scrollToVocabularyHit
 } from "../pwa-reader/ui-r3/bootstrap.js";
@@ -1786,6 +1787,31 @@ test("R3 controller saves explicit selected text through the existing Learning r
   assert.match(store.getState().reader.html, /personal phrase/);
   controller.toggleVocabularyBubble("personal phrase", { x: 20, y: 40 });
   assert.equal(store.getState().reader.vocabularyBubble.item.term, "personal phrase");
+});
+
+test("R3 selection capture keeps case and offsets and supersedes an unrelated bubble", async () => {
+  const content = { className: "r3-reader-content" };
+  const paragraph = { textContent: "Doctor Light arrived. They went home.", parentNode: content };
+  paragraph.closest = () => paragraph;
+  const textNode = { nodeType: 3, textContent: paragraph.textContent, parentElement: paragraph, parentNode: paragraph };
+  const start = paragraph.textContent.indexOf("went");
+  const documentRef = {
+    getSelection: () => ({ isCollapsed: false, rangeCount: 1, toString: () => "went",
+      getRangeAt: () => ({ startContainer: textNode, endContainer: textNode, startOffset: start, endOffset: start + 4 }) }),
+    createRange: () => ({ selectNodeContents() {}, setEnd() {}, toString: () => paragraph.textContent.slice(0, start) })
+  };
+  const capture = getReaderSelectionCapture(documentRef);
+  assert.deepEqual(capture, { sentence: paragraph.textContent, targetOffset: start, targetEnd: start + 4, freeform: true });
+
+  const { adapters, readerRuntime } = createAdapters();
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters, readerRuntime });
+  let received;
+  adapters.vocabulary.setTermState = async (...args) => { received = args; };
+  await controller.resumeBook("recent");
+  store.dispatch(r3Actions.setReaderState({ vocabularyBubble: { term: "stolen", item: { capture: { unrelated: true } } } }));
+  await controller.setReaderVocabularyState("learning", "went", capture);
+  assert.deepEqual(received, ["went", "learning", capture]);
 });
 
 test("R3 controller replaces and toggles vocabulary bubbles by term", async () => {

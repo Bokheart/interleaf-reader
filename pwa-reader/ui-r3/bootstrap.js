@@ -109,6 +109,26 @@ function updateReaderSelectionBar(root, term = "") {
   }
 }
 
+export function getReaderSelectionCapture(documentRef) {
+  if (!getReaderSelectionTerm(documentRef)) return null;
+  const selection = documentRef.getSelection?.() || documentRef.defaultView?.getSelection?.();
+  const range = selection.getRangeAt(0);
+  const node = range.startContainer;
+  if (!Number.isInteger(range.startOffset) || !Number.isInteger(range.endOffset)) return null;
+  const block = node.parentElement?.closest?.("p, li, blockquote, h1, h2, h3, h4, h5, h6, div") || node.parentElement;
+  if (!block || !documentRef.createRange) return null;
+  const prefix = documentRef.createRange();
+  prefix.selectNodeContents(block);
+  prefix.setEnd(node, range.startOffset);
+  const selected = String(selection);
+  // Preserve case and surrounding prose; trim only the selection's outer noise.
+  const leading = selected.match(/^[^a-z0-9'-]*/i)?.[0].length || 0;
+  const trailing = selected.match(/[^a-z0-9'-]*$/i)?.[0].length || 0;
+  const targetOffset = prefix.toString().length + leading;
+  return { sentence: block.textContent, targetOffset,
+    targetEnd: prefix.toString().length + selected.length - trailing, freeform: true };
+}
+
 function getVocabularySnippet(hit) {
   const contentTags = new Set(["P", "LI", "BLOCKQUOTE", "FIGCAPTION", "TD", "TH"]);
   let context = hit?.parentNode;
@@ -702,6 +722,7 @@ function bindAppShellEvents(root, controller, browserEffects) {
     pendingChromeTap = null;
   };
   let selectionUpdateScheduled = false;
+  let readerSelectionCapture = null;
   const syncReaderSelection = () => {
     selectionUpdateScheduled = false;
     const selection = root.ownerDocument?.getSelection?.();
@@ -710,6 +731,7 @@ function bindAppShellEvents(root, controller, browserEffects) {
       classListContains(node, "r3-vocabulary-bubble")
       || classListContains(node, "r3-reader-overlay")
     ));
+    readerSelectionCapture = hasBlockingUi ? null : getReaderSelectionCapture(root.ownerDocument);
     updateReaderSelectionBar(root, hasBlockingUi ? "" : getReaderSelectionTerm(root.ownerDocument));
   };
   const scheduleReaderSelectionSync = () => {
@@ -820,7 +842,7 @@ function bindAppShellEvents(root, controller, browserEffects) {
     if (action === "reader-selection-save") {
       const term = actionElement.dataset.selectionTerm;
       if (term) {
-        controller.setReaderVocabularyState?.("learning", term);
+        controller.setReaderVocabularyState?.("learning", term, readerSelectionCapture);
       }
       return;
     }

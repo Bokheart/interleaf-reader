@@ -414,13 +414,14 @@ export function createR3Controller(options = {}) {
         if (options.waitForVocabularyOperation !== false) {
           await vocabularyOperation;
         }
-        vocabulary = await adapters.vocabulary.getReaderVocabulary();
+        vocabulary = await adapters.vocabulary.getReaderVocabulary(chapter);
       }
     } catch (error) {
       vocabularyMessage = translate("r3.vocabulary.assistanceUnavailable");
     }
     const rendered = adapters.modes.renderChapter(chapter, readingMode, {
       vocabularyItems: vocabulary.items,
+      resolveVocabularyMatch: vocabulary.resolveMatch,
       protectedTerms: [],
       isBuiltInGuide: Boolean(reader.book?.isBuiltInGuide)
     });
@@ -548,7 +549,7 @@ export function createR3Controller(options = {}) {
     }));
   }
 
-  async function setReaderVocabularyState(nextState, requestedTerm = null) {
+  async function setReaderVocabularyState(nextState, requestedTerm = null, selectionCapture = null) {
     const state = store.getState();
     const bubble = state.reader.vocabularyBubble;
     const preview = state.openOverlay === R3_OVERLAYS.VOCABULARY_PREVIEW
@@ -556,6 +557,7 @@ export function createR3Controller(options = {}) {
       : null;
     const term = normalizeTerm(requestedTerm || bubble?.term);
     const previewRow = preview?.rows?.find(item => normalizeTerm(item.term) === term);
+    const capture = selectionCapture || previewRow?.capture || (bubble?.term === term ? bubble.item?.capture : null);
     const isSelectionSave = nextState === "learning" && Boolean(requestedTerm) && Boolean(term);
     if (!activeReader || (!bubble && !previewRow && !isSelectionSave) || !["known", "learning", "hidden"].includes(nextState)) return state;
     const reader = activeReader;
@@ -569,7 +571,7 @@ export function createR3Controller(options = {}) {
       .catch(() => null)
       .then(async () => {
         try {
-          await adapters.vocabulary.setTermState(term, nextState);
+          await adapters.vocabulary.setTermState(term, nextState, capture);
         } catch (error) {
           if (activeReader === reader && sequence === readerSequence) {
             store.dispatch(r3Actions.setReaderState({
