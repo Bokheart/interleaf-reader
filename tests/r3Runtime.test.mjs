@@ -62,6 +62,41 @@ function createMockElement(tagName = "div") {
   };
 }
 
+test("R3 reading survives an unavailable or failing identity module with the real corpus adapter", async () => {
+  const adapterUrl = new URL('../pwa-reader/adapters/vocabularyAdapter.js', import.meta.url);
+  const source = await readFile(adapterUrl, 'utf8');
+  const { loadEffectiveKnownWordsForProfile } = await import('../pwa-reader/levelBaselineEngine.js');
+  const readerRoot = new URL('../pwa-reader/', import.meta.url);
+  for (const identityUrl of [
+    new URL('../generated/r1-convergence/absent-identity.mjs', import.meta.url).href,
+    'data:text/javascript,' + encodeURIComponent('export function addOccurrenceForms() { throw new Error("identity failure"); } export function captureOccurrence() {} export function resolveCapture() {}')
+  ]) {
+    // Fault injection changes only the optional module URL; the adapter and
+    // controller execute their production loading and recovery paths.
+    const isolatedSource = source.replace(/from "(\.\.\/[^\"]+)"/g, (_, path) => `from "${new URL(path, adapterUrl).href}"`)
+      .replaceAll('import("../identity/runtime.mjs")', `import(${JSON.stringify(identityUrl)})`);
+    const { createVocabularyAdapter } = await import(`data:text/javascript;base64,${Buffer.from(isolatedSource).toString('base64')}`);
+    const { adapters, readerRuntime } = createAdapters();
+    adapters.vocabulary = createVocabularyAdapter({
+      getVocabularyProfile: async () => ({ selectedLevel: 'level1' }),
+      loadVocabularyData: async () => [{ term: 'go' }],
+      loadEffectiveKnownWordsForProfile: profile => loadEffectiveKnownWordsForProfile(profile, {
+        fetchImpl: async path => ({ ok: true, json: async () => JSON.parse(await readFile(new URL(path, readerRoot), 'utf8')) })
+      })
+    });
+    adapters.modes.resolveModeFromProgress = () => 'english-study';
+    adapters.modes.renderChapter = chapter => ({ html: chapter.originalHtml, vocabularyPreview: [] });
+    readerRuntime.loadChapterContent = async () => ({ id: 'chapter-2', title: 'Chapter 2', plainText: 'They went home.', originalHtml: '<p>They went home.</p>' });
+    const store = createR3Store();
+    const controller = createR3Controller({ store, adapters, readerRuntime });
+    await controller.resumeBook('recent');
+    assert.equal(store.getState().reader.status, 'ready');
+    assert.equal(store.getState().reader.html, '<p>They went home.</p>');
+    assert.ok(store.getState().reader.vocabularyMessage);
+    assert.deepEqual(store.getState().reader.vocabularyItems, []);
+  }
+});
+
 function createMockDocument() {
   const body = createMockElement("body");
   const listeners = [];

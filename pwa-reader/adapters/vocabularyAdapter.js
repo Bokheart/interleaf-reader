@@ -146,7 +146,13 @@ export function createVocabularyAdapter(deps = {}) {
           const candidate = { ...item, term, capture: capture ? { ...capture, ...(freeform ? { freeform: true } : {}) } : {},
             matchTerms: [...new Set([...(item.matchTerms || [item.term]), span.text])] };
           if (excluded.has(normalizeTerm(term))) return null;
-          return filterVocabularyPreviewItems([candidate], personalization, { keepLearningWords: true })[0] || null;
+          // Occurrence identity wins: never remap its canonical term through
+          // corpus morphology. Exact surface fallbacks may still use form_index
+          // for filtering, without acquiring canonical identity or write authority.
+          const filteringState = identity.status === "resolved"
+            ? { ...personalization, formIndex: null }
+            : personalization;
+          return filterVocabularyPreviewItems([candidate], filteringState, { keepLearningWords: true })[0] || null;
         };
         matchPolicies.set(candidates, resolveMatch);
         return { profile, items: candidates, resolveMatch };
