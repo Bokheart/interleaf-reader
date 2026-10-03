@@ -150,6 +150,7 @@ for (const [key, english, chinese] of [
   ["reader.controls.progress", "Progress", "进度"],
   ["reader.controls.preview", "Preview", "词汇预览"],
   ["reader.controls.mode", "Mode", "阅读模式"],
+  ["reader.controls.appearance", "Appearance", "外观"],
   ["reader.mode.title", "Reading Mode", "阅读模式"],
   ["reader.sidebar.chapters", "Chapters", "章节"],
   ["reader.navigation.previous", "Previous Chapter", "上一章"],

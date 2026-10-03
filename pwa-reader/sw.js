@@ -1,4 +1,4 @@
-const CACHE_NAME = 'interleaf-reader-static-v3';
+const CACHE_NAME = 'interleaf-reader-static-v4';
 const CACHE_PREFIX = 'interleaf-reader-static-';
 
 const PRECACHE_ASSETS = [
@@ -15,6 +15,7 @@ const PRECACHE_ASSETS = [
   './navigationEngine.js',
   './readingModes.js',
   './storage.js',
+  './readerAppearance.js',
   './translationEngine.js',
   './vocabEngine.js',
   './identity/runtime.mjs',

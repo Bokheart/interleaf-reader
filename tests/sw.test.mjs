@@ -88,3 +88,17 @@ test('Service Worker Test Suite', async (t) => {
     assert.ok(swJs.includes("caches.match('./index.html')"), 'Should fallback to index.html');
   });
 });
+
+test('combined QA cache retires v3 and retains appearance, identity and frozen corpus dependencies', async () => {
+  const source = await fs.readFile(path.join(ROOT_DIR, 'pwa-reader/sw.js'), 'utf8');
+  assert.match(source, /const CACHE_NAME = 'interleaf-reader-static-v4'/);
+  const assets = [...source.match(/const PRECACHE_ASSETS = \[([\s\S]*?)\];/)[1].matchAll(/'([^']+)'/g)].map(match => match[1]);
+  assert.ok(assets.includes('./readerAppearance.js'), 'shared storage appearance dependency available under SW control');
+  for (const module of ['runtime', 'identity-resolver', 'identity-lexicon', 'resolver', 'lexicon', 'phrase-constraints']) {
+    assert.ok(assets.includes(`./identity/${module}.mjs`));
+  }
+  const corpus = '../data/level-corpus/interleaf-level-corpus-v2.0.0-frozen/';
+  for (const file of ['level1_basic_words.json', 'level2_basic_words.json', 'level3_basic_words.json', 'level4_basic_words.json', 'level5_basic_words.json', 'form_index.json', 'phrase_inventory.json', 'provenance_license_manifest.json', 'bysa_derived/README.json', 'bysa_derived/l5_balanced_wordfreq_additions.json', 'NOTICE.md']) {
+    assert.ok(assets.includes(corpus + file), file);
+  }
+});

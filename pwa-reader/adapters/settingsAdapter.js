@@ -2,6 +2,7 @@ import {
   getAppPreferences,
   setGuideVersionPreference,
   setGuideVisibilityPreference,
+  setReaderAppearancePreference,
   setReadingLayoutPreference,
   setUiLanguagePreference
 } from "../storage.js";
@@ -12,7 +13,8 @@ export function createSettingsAdapter(deps = {}) {
     setUiLanguagePreference: deps.setUiLanguagePreference || setUiLanguagePreference,
     setGuideVisibilityPreference: deps.setGuideVisibilityPreference || setGuideVisibilityPreference,
     setGuideVersionPreference: deps.setGuideVersionPreference || setGuideVersionPreference,
-    setReadingLayoutPreference: deps.setReadingLayoutPreference || setReadingLayoutPreference
+    setReadingLayoutPreference: deps.setReadingLayoutPreference || setReadingLayoutPreference,
+    setReaderAppearancePreference: deps.setReaderAppearancePreference || setReaderAppearancePreference
   };
 
   return {
@@ -34,6 +36,10 @@ export function createSettingsAdapter(deps = {}) {
 
     setReadingLayout(layout) {
       return api.setReadingLayoutPreference(layout);
+    },
+
+    setReaderAppearance(appearance) {
+      return api.setReaderAppearancePreference(appearance);
     },
 
     getFutureSettingsContracts() {
@@ -60,4 +66,5 @@ export const setUiLanguage = settingsAdapter.setUiLanguage;
 export const setGuideVisibility = settingsAdapter.setGuideVisibility;
 export const setGuideVersion = settingsAdapter.setGuideVersion;
 export const setReadingLayout = settingsAdapter.setReadingLayout;
+export const setReaderAppearance = settingsAdapter.setReaderAppearance;
 export const getFutureSettingsContracts = settingsAdapter.getFutureSettingsContracts;

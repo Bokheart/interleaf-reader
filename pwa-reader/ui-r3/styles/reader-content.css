@@ -2,8 +2,9 @@
   min-width: 0;
   overflow-wrap: anywhere;
   font-family: var(--r3-font-serif);
-  font-size: clamp(1.05rem, 1rem + 0.25vw, 1.16rem);
-  line-height: 1.8;
+  color: inherit;
+  font-size: var(--r3-reader-font-size, clamp(1.05rem, 1rem + 0.25vw, 1.16rem));
+  line-height: var(--r3-reader-line-height, 1.8);
 }
 
 .r3-reader-content > :first-child {

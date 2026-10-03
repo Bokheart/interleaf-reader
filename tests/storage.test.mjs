@@ -3,8 +3,11 @@ import { readFile } from "node:fs/promises";
 
 const levelBaselineSource = await readFile(new URL("../pwa-reader/levelBaselineEngine.js", import.meta.url), "utf8");
 const levelBaselineModuleUrl = `data:text/javascript;base64,${Buffer.from(levelBaselineSource).toString("base64")}`;
+const readerAppearanceSource = await readFile(new URL("../pwa-reader/readerAppearance.js", import.meta.url), "utf8");
+const readerAppearanceModuleUrl = `data:text/javascript;base64,${Buffer.from(readerAppearanceSource).toString("base64")}`;
 const source = (await readFile(new URL("../pwa-reader/storage.js", import.meta.url), "utf8"))
-  .replace('from "./levelBaselineEngine.js";', `from "${levelBaselineModuleUrl}";`);
+  .replace('from "./levelBaselineEngine.js";', `from "${levelBaselineModuleUrl}";`)
+  .replace('from "./readerAppearance.js";', `from "${readerAppearanceModuleUrl}";`);
 const moduleUrl = `data:text/javascript;base64,${Buffer.from(source).toString("base64")}`;
 const {
   addLearningWord,
@@ -35,6 +38,7 @@ const {
   saveVocabularyProfile,
   setGuideVersionPreference,
   setGuideVisibilityPreference,
+  setReaderAppearancePreference,
   setReadingLayoutPreference,
   setUiLanguagePreference,
   setVocabularyComfortLevel,
@@ -498,6 +502,12 @@ assert.deepEqual(
     guideVersion: "english",
     hasChosenGuideVersion: false,
     readingLayout: "page",
+    readerAppearance: {
+      fontSize: "md",
+      lineHeight: "normal",
+      margin: "medium",
+      theme: "light"
+    },
     updatedAt: null
   },
   "default app preferences keep legacy guideVersion independent from UI language"
@@ -519,6 +529,12 @@ assert.deepEqual(
     guideVersion: "bilingual",
     hasChosenGuideVersion: true,
     readingLayout: "page",
+    readerAppearance: {
+      fontSize: "md",
+      lineHeight: "normal",
+      margin: "medium",
+      theme: "light"
+    },
     updatedAt: 2000
   },
   "normalizes app preferences without renaming existing storage/database keys"
@@ -730,6 +746,47 @@ assert.equal(
   setReadingLayoutPreference("columns").readingLayout,
   "page",
   "invalid reading layouts normalize to page"
+);
+assert.deepEqual(
+  getAppPreferences().readerAppearance,
+  {
+    fontSize: "md",
+    lineHeight: "normal",
+    margin: "medium",
+    theme: "light"
+  },
+  "readerAppearance defaults stay available alongside layout"
+);
+assert.deepEqual(
+  setReaderAppearancePreference({
+    fontSize: "xl",
+    lineHeight: "relaxed",
+    margin: "wide",
+    theme: "dark",
+    unknown: true
+  }).readerAppearance,
+  {
+    fontSize: "xl",
+    lineHeight: "relaxed",
+    margin: "wide",
+    theme: "dark"
+  },
+  "setReaderAppearancePreference stores valid global appearance values"
+);
+assert.deepEqual(
+  setReaderAppearancePreference({
+    fontSize: "huge",
+    lineHeight: "loose",
+    margin: "giant",
+    theme: "sepia"
+  }).readerAppearance,
+  {
+    fontSize: "md",
+    lineHeight: "normal",
+    margin: "medium",
+    theme: "light"
+  },
+  "invalid reader appearance values fall back to defaults"
 );
 assert.equal(
   getAppPreferences().guideVersion,

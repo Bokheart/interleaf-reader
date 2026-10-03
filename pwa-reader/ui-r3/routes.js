@@ -16,7 +16,8 @@ export const R3_OVERLAYS = Object.freeze({
   PREVIEW: "reader.overlay.preview",
   POPOVER: "reader.overlay.popover",
   PROGRESS: "reader.overlay.progress",
-  MODE: "reader.overlay.mode"
+  MODE: "reader.overlay.mode",
+  APPEARANCE: "reader.overlay.appearance"
 });
 
 const ROUTE_VALUES = new Set(Object.values(R3_ROUTES));

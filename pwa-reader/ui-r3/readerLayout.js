@@ -1,4 +1,5 @@
 import { R3_ROUTES } from "./routes.js";
+import { applyReaderAppearanceDataset, readerAppearanceSignature, resolveReaderAppearance } from "../readerAppearance.js";
 
 // Pagination is a viewport-derived index. Durable locators address the source text,
 // independent of annotation spans, CSS columns, window size and layout direction.
@@ -160,6 +161,7 @@ export function createReaderLayout(root, store, controller) {
     const measure = documentRef.createElement("div");
     measure.className = "r3-reader-measure r3-reader-scroll";
     measure.dataset.layout = "page";
+    applyReaderAppearanceDataset(measure, resolveReaderAppearance(store.getState().reader));
     measure.setAttribute("aria-hidden", "true");
     measure.inert = true;
     measure.style.width = `${scroll.clientWidth}px`;
@@ -208,6 +210,7 @@ export function createReaderLayout(root, store, controller) {
     scroll = nextScroll;
     content = scroll.querySelector(".r3-reader-content");
     layout = state.reader.readingLayout || "page";
+    applyReaderAppearanceDataset(scroll, resolveReaderAppearance(state.reader));
     const sameChapter = chapterId === state.activeChapterId;
     chapterId = state.activeChapterId;
     const request = state.reader.positionRequest;
@@ -234,7 +237,8 @@ export function createReaderLayout(root, store, controller) {
     }
     restore(target || { chapterId, textOffset: 0 }, !freshRequest && sameChapter ? preservedPixels : null);
     const size = `${scroll.clientWidth}:${scroll.clientHeight}`;
-    const key = `${bookId}:${state.activeReadingMode}:${size}`;
+    const appearanceKey = readerAppearanceSignature(state.reader);
+    const key = `${bookId}:${state.activeReadingMode}:${size}:${appearanceKey}`;
     dimensions = size;
     if (key !== indexKey) { indexKey = key; void buildIndex(key); }
     else publish();

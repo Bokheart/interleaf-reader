@@ -1,4 +1,8 @@
 import { normalizeUserVocabularyProfile, normalizeWord } from "./levelBaselineEngine.js";
+import {
+  getDefaultReaderAppearance,
+  normalizeReaderAppearance
+} from "./readerAppearance.js";
 
 const STORAGE_PREFIX = "slash-reader-v2";
 const BOOK_DB_NAME = "slash-reader-v2-books";
@@ -111,6 +115,7 @@ export function getDefaultAppPreferences(options = {}) {
     guideVersion: "english",
     hasChosenGuideVersion: false,
     readingLayout: "page",
+    readerAppearance: getDefaultReaderAppearance(),
     updatedAt: null
   };
 }
@@ -126,6 +131,7 @@ export function normalizeAppPreferencesForStorage(preferences = {}, now = Date.n
     guideVersion: normalizeGuideVersionPreference(safePreferences.guideVersion, "english"),
     hasChosenGuideVersion: safePreferences.hasChosenGuideVersion === true,
     readingLayout: normalizeReadingLayoutPreference(safePreferences.readingLayout),
+    readerAppearance: normalizeReaderAppearance(safePreferences.readerAppearance),
     updatedAt: safePreferences.updatedAt || now
   };
 }
@@ -175,6 +181,18 @@ export function setReadingLayoutPreference(layout) {
   return saveAppPreferences({
     ...currentPreferences,
     readingLayout: normalizeReadingLayoutPreference(layout),
+    updatedAt: Date.now()
+  });
+}
+
+export function setReaderAppearancePreference(appearance = {}) {
+  const currentPreferences = getAppPreferences();
+  return saveAppPreferences({
+    ...currentPreferences,
+    readerAppearance: normalizeReaderAppearance({
+      ...currentPreferences.readerAppearance,
+      ...(appearance && typeof appearance === "object" ? appearance : {})
+    }),
     updatedAt: Date.now()
   });
 }

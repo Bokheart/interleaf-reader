@@ -6,6 +6,14 @@ import {
 } from "../components/dom.js";
 import { R3_OVERLAYS } from "../routes.js";
 import { createTranslator } from "../../i18n.js";
+import {
+  READER_APPEARANCE_FONT_SIZES,
+  READER_APPEARANCE_LINE_HEIGHTS,
+  READER_APPEARANCE_MARGINS,
+  READER_APPEARANCE_THEMES,
+  applyReaderAppearanceDataset,
+  resolveReaderAppearance
+} from "../../readerAppearance.js";
 
 function createReaderButton(documentRef, action, label, disabled = false) {
   return createActionButton(documentRef, {
@@ -118,6 +126,90 @@ function createReaderContentsOverlay(documentRef, reader = {}, t) {
     dataset: { action: "reader-close-contents" }
   }));
   overlay.appendChild(createReaderContents(documentRef, reader, t));
+  return overlay;
+}
+
+function createAppearanceChoiceGroup(documentRef, options = {}) {
+  const group = createElement(documentRef, "div", {
+    className: options.className || "r3-reader-appearance-group",
+    attrs: {
+      role: "group",
+      "aria-label": options.label
+    }
+  });
+  group.appendChild(createElement(documentRef, "h3", { text: options.label }));
+  const choices = createElement(documentRef, "div", {
+    className: options.listClassName || "r3-reader-appearance-choices"
+  });
+  for (const value of options.values) {
+    const selected = options.current === value;
+    choices.appendChild(createElement(documentRef, "button", {
+      className: `r3-reader-mode-choice${selected ? " is-selected" : ""}`,
+      text: options.formatLabel(value),
+      attrs: {
+        type: "button",
+        "aria-pressed": String(selected)
+      },
+      dataset: {
+        action: "reader-set-appearance",
+        appearanceKey: options.key,
+        appearanceValue: value
+      }
+    }));
+  }
+  group.appendChild(choices);
+  return group;
+}
+
+function createReaderAppearanceSheet(documentRef, reader = {}, t) {
+  const appearance = resolveReaderAppearance(reader);
+  const overlay = createElement(documentRef, "div", { className: "r3-reader-overlay" });
+  overlay.appendChild(createElement(documentRef, "div", {
+    className: "r3-reader-scrim",
+    attrs: { "aria-hidden": "true" },
+    dataset: { action: "reader-close-surface" }
+  }));
+  const title = t("reader.controls.appearance");
+  const panel = createElement(documentRef, "section", {
+    className: "r3-reader-sheet r3-reader-appearance-sheet",
+    attrs: { role: "dialog", "aria-modal": "true", "aria-label": title }
+  });
+  const header = createElement(documentRef, "div", { className: "r3-section-header" });
+  header.appendChild(createElement(documentRef, "h2", { text: title }));
+  header.appendChild(createIconButton(documentRef, {
+    icon: "chevronLeft", label: t("reader.common.close"), dataset: { action: "reader-close-surface" }
+  }));
+  panel.appendChild(header);
+  panel.appendChild(createAppearanceChoiceGroup(documentRef, {
+    key: "fontSize",
+    label: t("r3.reader.appearance.fontSize"),
+    values: READER_APPEARANCE_FONT_SIZES,
+    current: appearance.fontSize,
+    formatLabel: value => t(`r3.reader.appearance.fontSize.${value}`)
+  }));
+  panel.appendChild(createAppearanceChoiceGroup(documentRef, {
+    key: "lineHeight",
+    label: t("r3.reader.appearance.lineHeight"),
+    values: READER_APPEARANCE_LINE_HEIGHTS,
+    current: appearance.lineHeight,
+    formatLabel: value => t(`r3.reader.appearance.lineHeight.${value}`)
+  }));
+  panel.appendChild(createAppearanceChoiceGroup(documentRef, {
+    key: "margin",
+    label: t("r3.reader.appearance.margin"),
+    values: READER_APPEARANCE_MARGINS,
+    current: appearance.margin,
+    formatLabel: value => t(`r3.reader.appearance.margin.${value}`)
+  }));
+  panel.appendChild(createAppearanceChoiceGroup(documentRef, {
+    key: "theme",
+    label: t("r3.reader.appearance.theme"),
+    values: READER_APPEARANCE_THEMES,
+    current: appearance.theme,
+    listClassName: "r3-reader-appearance-choices r3-reader-appearance-themes",
+    formatLabel: value => t(`r3.reader.appearance.theme.${value}`)
+  }));
+  overlay.appendChild(panel);
   return overlay;
 }
 
@@ -475,13 +567,19 @@ function createSelectionSaveBar(documentRef, t) {
 
 export function createReaderView(documentRef, state, t = createTranslator("en")) {
   const reader = state.reader || {};
+  const appearance = resolveReaderAppearance(reader);
   const hasContents = state.openOverlay === R3_OVERLAYS.CONTENTS;
   const hasVocabularyPreview = state.openOverlay === R3_OVERLAYS.VOCABULARY_PREVIEW;
   const hasSheet = [R3_OVERLAYS.PROGRESS, R3_OVERLAYS.MODE].includes(state.openOverlay);
-  const hasReaderOverlay = hasContents || hasVocabularyPreview || hasSheet;
+  const hasAppearance = state.openOverlay === R3_OVERLAYS.APPEARANCE;
+  const hasReaderOverlay = hasContents || hasVocabularyPreview || hasSheet || hasAppearance;
   const view = createElement(documentRef, "div", {
     className: `r3-screen r3-reader-screen${hasReaderOverlay ? " has-overlay" : ""}`,
-    attrs: { "data-screen": "reader", "data-chrome-visible": String(reader.chromeVisible !== false) }
+    attrs: {
+      "data-screen": "reader",
+      "data-chrome-visible": String(reader.chromeVisible !== false),
+      "data-reader-theme": appearance.theme
+    }
   });
 
   const chromeAttrs = { inert: reader.chromeVisible === false || hasReaderOverlay, "aria-hidden": reader.chromeVisible === false || hasReaderOverlay ? "true" : undefined };
@@ -498,6 +596,17 @@ export function createReaderView(documentRef, state, t = createTranslator("en"))
     text: reader.chapterTitle || getReaderProgressLabel(reader, t)
   }));
   header.appendChild(titleGroup);
+  const appearanceButton = createElement(documentRef, "button", {
+    className: "r3-reader-aa-button",
+    text: "Aa",
+    attrs: {
+      type: "button",
+      "aria-label": t("reader.controls.appearance")
+    },
+    dataset: { action: "reader-appearance" },
+    disabled: reader.status !== "ready" || reader.modeSaving
+  });
+  header.appendChild(appearanceButton);
   view.appendChild(header);
 
   const scrollWorkspace = createElement(documentRef, "div", {
@@ -509,6 +618,7 @@ export function createReaderView(documentRef, state, t = createTranslator("en"))
       tabindex: "0"
     }
   });
+  applyReaderAppearanceDataset(scrollWorkspace, appearance);
   scrollWorkspace.appendChild(createReaderContent(documentRef, reader, t));
   view.appendChild(scrollWorkspace);
   if (reader.readingLayout !== "scroll") {
@@ -550,6 +660,8 @@ export function createReaderView(documentRef, state, t = createTranslator("en"))
     view.appendChild(createReaderContentsOverlay(documentRef, reader, t));
   } else if (hasVocabularyPreview) {
     view.appendChild(createVocabularyPreviewOverlay(documentRef, reader, t));
+  } else if (hasAppearance) {
+    view.appendChild(createReaderAppearanceSheet(documentRef, reader, t));
   } else if (hasSheet) {
     view.appendChild(createReaderSheet(documentRef, state, t));
   }

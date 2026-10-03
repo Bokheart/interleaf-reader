@@ -7,6 +7,7 @@ import { R3_OVERLAYS, R3_ROUTES } from "./routes.js";
 import { createAppShellView } from "./views/appShellView.js";
 import { createReaderLayout } from "./readerLayout.js";
 import { bindReaderHistory } from "./readerHistory.js";
+import { readerAppearanceSignature } from "../readerAppearance.js";
 
 let autoBootstrapScheduled = false;
 const READER_SELECTION_MAX_LENGTH = 80;
@@ -452,11 +453,13 @@ function mountAppShell(root, store, documentRef, controller, options = {}) {
       && previousState.activeBookId === state.activeBookId
       && previousState.activeChapterId === state.activeChapterId
     );
-    const preservedReaderScrollTop = shouldPreserveReaderScroll
+    const appearanceUnchanged = shouldPreserveReaderScroll
+      && previousState.reader.readingLayout === state.reader.readingLayout
+      && readerAppearanceSignature(previousState.reader) === readerAppearanceSignature(state.reader);
+    const preservedReaderScrollTop = appearanceUnchanged
       ? previousReaderScroll?.scrollTop
       : null;
-    const preservedLayoutScroll = shouldPreserveReaderScroll
-      && previousState.reader.readingLayout === state.reader.readingLayout
+    const preservedLayoutScroll = appearanceUnchanged
       && previousState.reader.status === "ready" && state.reader.status === "ready"
       ? { scrollTop: previousReaderScroll?.scrollTop || 0, scrollLeft: previousReaderScroll?.scrollLeft || 0 } : null;
     const preservedPassageLocator = shouldPreserveReaderScroll && previousPassageTarget
@@ -488,7 +491,7 @@ function mountAppShell(root, store, documentRef, controller, options = {}) {
       vocabularyFocusDescriptor = null;
     }
     const preservationSequence = String(++readerScrollPreservationSequence);
-    const readerSurfaceOverlays = [R3_OVERLAYS.CONTENTS, R3_OVERLAYS.PROGRESS, R3_OVERLAYS.MODE];
+    const readerSurfaceOverlays = [R3_OVERLAYS.CONTENTS, R3_OVERLAYS.PROGRESS, R3_OVERLAYS.MODE, R3_OVERLAYS.APPEARANCE];
     const surfaceFocus = readerSurfaceOverlays.includes(previousState?.openOverlay)
       ? documentRef.activeElement?.dataset : null;
     if (Number.isFinite(preservedReaderScrollTop)) {
@@ -575,7 +578,12 @@ function mountAppShell(root, store, documentRef, controller, options = {}) {
           : null;
         focusWithoutScrolling(focusTarget || root.querySelector?.(".r3-reader-overlay button:not(:disabled)"));
       } else if (readerSurfaceOverlays.includes(previousState?.openOverlay) && !state.openOverlay) {
-        const trigger = { [R3_OVERLAYS.CONTENTS]: "reader-contents", [R3_OVERLAYS.PROGRESS]: "reader-progress", [R3_OVERLAYS.MODE]: "reader-mode" }[previousState.openOverlay];
+        const trigger = {
+          [R3_OVERLAYS.CONTENTS]: "reader-contents",
+          [R3_OVERLAYS.PROGRESS]: "reader-progress",
+          [R3_OVERLAYS.MODE]: "reader-mode",
+          [R3_OVERLAYS.APPEARANCE]: "reader-appearance"
+        }[previousState.openOverlay];
         focusWithoutScrolling(findFirst(root, node => node.dataset?.action === trigger));
       }
     }
@@ -936,12 +944,22 @@ function bindAppShellEvents(root, controller, browserEffects) {
       controller.openReaderMode?.();
       return;
     }
+    if (action === "reader-appearance") {
+      controller.openReaderAppearance?.();
+      return;
+    }
     if (action === "reader-select-mode") {
       controller.setReaderMode?.(actionElement.dataset.mode);
       return;
     }
     if (action === "reader-select-layout") {
       controller.setReadingLayout?.(actionElement.dataset.layout);
+      return;
+    }
+    if (action === "reader-set-appearance") {
+      const key = actionElement.dataset.appearanceKey;
+      const value = actionElement.dataset.appearanceValue;
+      if (key && value) controller.setReaderAppearance?.({ [key]: value });
       return;
     }
     if (action === "reader-page-previous" || action === "reader-page-next") {

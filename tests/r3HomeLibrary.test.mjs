@@ -1328,5 +1328,5 @@ test("R3 scoped CSS separates the fluid application shell from the bounded readi
   assert.match(readerScreenRule, /display:\s*block/);
   assert.doesNotMatch(readerScreenRule, /grid-template-rows/);
   assert.match(readerScreenRule, /gap:\s*0/);
-  assert.match(readerArticleRule, /max-width:\s*var\(--r3-reading-measure\)/);
+  assert.match(readerArticleRule, /max-width:\s*var\(--r3-reader-measure,\s*var\(--r3-reading-measure\)\)/);
 });

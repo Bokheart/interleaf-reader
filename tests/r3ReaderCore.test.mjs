@@ -29,6 +29,7 @@ test("Existing progress overrides preserve logical anchors and old fields withou
   assert.equal(record.scrollRatio, 0.2);
   assert.equal(record.currentChapterId, "a");
   assert.equal("readingLayout" in record, false);
+  assert.equal("readerAppearance" in record, false);
   assert.equal("pageIndex" in record, false);
   const stale = normalizeReadingProgress({ bookKey: "old", scrollRatio: 0.5, readingLayout: "scroll" });
   assert.equal(stale.scrollRatio, 0.5);

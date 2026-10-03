@@ -1,5 +1,6 @@
 import { R3_ACTIONS } from "./actions.js";
 import { R3_ROUTES } from "./routes.js";
+import { getDefaultReaderAppearance } from "../readerAppearance.js";
 
 const DEFAULT_ADAPTER_STATUS = Object.freeze({
   books: false,
@@ -43,6 +44,7 @@ function createDefaultReaderState() {
   return {
     chromeVisible: true,
     readingLayout: "page",
+    readerAppearance: getDefaultReaderAppearance(),
     pagination: { status: "loading", pageIndex: 0, pageCount: 0 },
     status: "idle",
     bookTitle: "",
@@ -84,6 +86,7 @@ function createDefaultSettingsState() {
     uiLanguage: "en",
     hasChosenUiLanguage: null,
     readingLayout: "page",
+    readerAppearance: getDefaultReaderAppearance(),
     busy: false,
     error: null
   };

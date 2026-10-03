@@ -14,6 +14,7 @@ import {
 } from "../navigationEngine.js";
 import { r3Actions } from "./actions.js";
 import { R3_OVERLAYS, R3_ROUTES } from "./routes.js";
+import { resolveReaderAppearance } from "../readerAppearance.js";
 
 function createDefaultAdapters() {
   return {
@@ -959,6 +960,7 @@ export function createR3Controller(options = {}) {
       status: "loading",
       chromeVisible: true,
       readingLayout: store.getState().settings?.readingLayout === "scroll" ? "scroll" : "page",
+      readerAppearance: resolveReaderAppearance(store.getState().settings),
       pagination: { status: "loading", pageIndex: 0, pageCount: 0 },
       positionRequest: null,
       modeSaving: false,
@@ -1010,6 +1012,7 @@ export function createR3Controller(options = {}) {
       renderedChapterIndex: -1,
       readingMode,
       readingLayout: store.getState().settings?.readingLayout === "scroll" ? "scroll" : "page",
+      readerAppearance: resolveReaderAppearance(store.getState().settings),
       logicalPosition: restoration.progress?.logicalPosition || null,
       scrollMetrics: normalizeScrollMetrics(),
       pendingScrollTimer: null,
@@ -1079,6 +1082,7 @@ export function createR3Controller(options = {}) {
         uiLanguage: normalizeUiLanguage(preferences?.uiLanguage),
         hasChosenUiLanguage: preferences?.hasChosenUiLanguage === true,
         readingLayout: preferences?.readingLayout === "scroll" ? "scroll" : "page",
+        readerAppearance: resolveReaderAppearance(preferences),
         busy: false,
         error: null
       }));
@@ -1292,6 +1296,28 @@ export function createR3Controller(options = {}) {
     return store.getState();
   }
 
+  async function setReaderAppearance(patch = {}) {
+    if (!activeReader || store.getState().reader.status !== "ready") return store.getState();
+    const current = resolveReaderAppearance(
+      store.getState().reader.readerAppearance || store.getState().settings?.readerAppearance
+    );
+    let appearance = resolveReaderAppearance({ ...current, ...(patch && typeof patch === "object" ? patch : {}) });
+    try {
+      if (typeof adapters.settings.setReaderAppearance === "function") {
+        const preferences = await Promise.resolve(adapters.settings.setReaderAppearance(appearance));
+        appearance = resolveReaderAppearance(preferences);
+      }
+    } catch (_error) {
+      // Keep the in-memory appearance so prose stays readable if persistence fails.
+    }
+    store.dispatch(r3Actions.setSettingsState({ readerAppearance: appearance }));
+    activeReader.readerAppearance = appearance;
+    // Keep the durable logical anchor; Page may repaginate, Scroll must not jump.
+    store.dispatch(r3Actions.setReaderState({ readerAppearance: appearance }));
+    queueProgressSave();
+    return store.getState();
+  }
+
   function getReaderModeAvailability() {
     return adapters.modes.getModeAvailability({ isBuiltInGuide: Boolean(activeReader?.book?.isBuiltInGuide) });
   }
@@ -1443,6 +1469,7 @@ export function createR3Controller(options = {}) {
     seekReaderPosition,
     getPaginationChapters,
     setReadingLayout,
+    setReaderAppearance,
     setReaderPagination(pagination) {
       return store.dispatch(r3Actions.setReaderState({ pagination }));
     },
@@ -1452,6 +1479,7 @@ export function createR3Controller(options = {}) {
     toggleReaderChrome,
     openReaderProgress: () => openReaderSurface(R3_OVERLAYS.PROGRESS),
     openReaderMode: () => openReaderSurface(R3_OVERLAYS.MODE),
+    openReaderAppearance: () => openReaderSurface(R3_OVERLAYS.APPEARANCE),
     setReaderMode,
     selectReaderChapter,
     openVocabularyPreview,

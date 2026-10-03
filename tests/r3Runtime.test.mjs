@@ -189,12 +189,20 @@ function createAdapters() {
     renderChapter: [],
     getPreferences: 0,
     setUiLanguage: [],
-    setReadingLayout: []
+    setReadingLayout: [],
+    setReaderAppearance: []
   };
   let preferences = {
     uiLanguage: "en",
     hasChosenUiLanguage: true,
-    guideVisibleInLibrary: true
+    guideVisibleInLibrary: true,
+    readingLayout: "page",
+    readerAppearance: {
+      fontSize: "md",
+      lineHeight: "normal",
+      margin: "medium",
+      theme: "light"
+    }
   };
   const chapters = [
     { id: "chapter-1", title: "Chapter 1", order: 1 },
@@ -338,6 +346,20 @@ function createAdapters() {
           preferences = {
             ...preferences,
             readingLayout: layout === "scroll" ? "scroll" : "page"
+          };
+          return { ...preferences };
+        },
+        setReaderAppearance(appearance) {
+          calls.setReaderAppearance.push(appearance);
+          const current = preferences.readerAppearance || {};
+          preferences = {
+            ...preferences,
+            readerAppearance: {
+              fontSize: ["sm", "md", "lg", "xl"].includes(appearance?.fontSize) ? appearance.fontSize : (current.fontSize || "md"),
+              lineHeight: ["tight", "normal", "relaxed"].includes(appearance?.lineHeight) ? appearance.lineHeight : (current.lineHeight || "normal"),
+              margin: ["narrow", "medium", "wide"].includes(appearance?.margin) ? appearance.margin : (current.margin || "medium"),
+              theme: ["light", "dark"].includes(appearance?.theme) ? appearance.theme : (current.theme || "light")
+            }
           };
           return { ...preferences };
         }
@@ -642,6 +664,106 @@ test("R3 Page/Scroll share one global layout and keep logical position per book"
   assert.equal(store.getState().settings.readingLayout, "scroll");
 });
 
+test("R3 Reader Appearance is global, persists locally, and keeps logical position", async () => {
+  const { adapters, readerRuntime, calls } = createAdapters();
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters, readerRuntime });
+  await controller.initialize();
+  await controller.resumeBook("recent");
+  assert.deepEqual(store.getState().reader.readerAppearance, {
+    fontSize: "md",
+    lineHeight: "normal",
+    margin: "medium",
+    theme: "light"
+  });
+  const position = { chapterId: "chapter-2", textOffset: 246 };
+  controller.recordReaderPosition(position, { scrollTop: 320, scrollHeight: 1200, clientHeight: 240 });
+  controller.openReaderAppearance();
+  assert.equal(store.getState().openOverlay, R3_OVERLAYS.APPEARANCE);
+  const nodes = collectNodes(createReaderView(createMockDocument(), store.getState()));
+  assert.ok(nodes.some(node => node.dataset.action === "reader-set-appearance" && node.dataset.appearanceKey === "fontSize"));
+  assert.ok(nodes.some(node => node.className === "r3-reader-aa-button" || node.dataset?.action === "reader-appearance"));
+  await controller.setReaderAppearance({ fontSize: "xl", theme: "dark", lineHeight: "relaxed", margin: "wide" });
+  await controller.flushReaderProgress();
+  const payload = calls.savePosition.at(-1);
+  assert.deepEqual(payload.overrides.logicalPosition, position);
+  assert.equal("readerAppearance" in payload.overrides, false);
+  assert.equal("pageIndex" in payload.overrides, false);
+  assert.equal("readingLayout" in payload.overrides, false);
+  assert.deepEqual(store.getState().settings.readerAppearance, {
+    fontSize: "xl",
+    lineHeight: "relaxed",
+    margin: "wide",
+    theme: "dark"
+  });
+  assert.deepEqual(store.getState().reader.readerAppearance, {
+    fontSize: "xl",
+    lineHeight: "relaxed",
+    margin: "wide",
+    theme: "dark"
+  });
+  assert.deepEqual(calls.setReaderAppearance.at(-1), {
+    fontSize: "xl",
+    lineHeight: "relaxed",
+    margin: "wide",
+    theme: "dark"
+  });
+
+  await controller.setReadingLayout("page");
+  await controller.setReaderAppearance({ fontSize: "sm" });
+  await controller.flushReaderProgress();
+  assert.deepEqual(calls.savePosition.at(-1).overrides.logicalPosition, position);
+  assert.equal("pageIndex" in calls.savePosition.at(-1).overrides, false);
+
+  await controller.setReadingLayout("scroll");
+  await controller.setReaderAppearance({ margin: "narrow" });
+  await controller.flushReaderProgress();
+  assert.deepEqual(calls.savePosition.at(-1).overrides.logicalPosition, position);
+
+  const restoration = await adapters.reader.resumeBook("recent");
+  adapters.reader.resumeBook = async () => ({
+    ...restoration,
+    progress: { ...restoration.progress, ...payload.overrides, pageIndex: 9 }
+  });
+  await controller.exitReader();
+  await controller.resumeBook("recent");
+  assert.deepEqual(store.getState().reader.readerAppearance, {
+    fontSize: "sm",
+    lineHeight: "relaxed",
+    margin: "narrow",
+    theme: "dark"
+  });
+  assert.deepEqual(store.getState().reader.positionRequest.position, position);
+  assert.equal(store.getState().reader.positionRequest.position.textOffset, 246);
+});
+
+test("R3 invalid Reader Appearance values fall back without changing history semantics", async () => {
+  const { adapters, readerRuntime, calls } = createAdapters();
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters, readerRuntime });
+  await controller.initialize();
+  await controller.resumeBook("recent");
+  adapters.settings.setReaderAppearance = appearance => {
+    calls.setReaderAppearance.push(appearance);
+    return {
+      readerAppearance: {
+        fontSize: "huge",
+        lineHeight: "loose",
+        margin: "giant",
+        theme: "sepia"
+      }
+    };
+  };
+  await controller.setReaderAppearance({ fontSize: "huge", theme: "sepia" });
+  assert.deepEqual(store.getState().reader.readerAppearance, {
+    fontSize: "md",
+    lineHeight: "normal",
+    margin: "medium",
+    theme: "light"
+  });
+  assert.equal(store.getState().activeScreen, R3_ROUTES.READER);
+});
+
 test("R3 rapid book-page seeks cannot publish an older chapter or locator", async () => {
   const { adapters, readerRuntime, calls } = createAdapters();
   const store = createR3Store();
@@ -733,6 +855,12 @@ test("R3 store creates the expected initial runtime state", () => {
     reader: {
       chromeVisible: true,
       readingLayout: "page",
+      readerAppearance: {
+        fontSize: "md",
+        lineHeight: "normal",
+        margin: "medium",
+        theme: "light"
+      },
       pagination: { status: "loading", pageIndex: 0, pageCount: 0 },
       status: "idle",
       bookTitle: "",
@@ -786,6 +914,12 @@ test("R3 store creates the expected initial runtime state", () => {
       uiLanguage: "en",
       hasChosenUiLanguage: null,
       readingLayout: "page",
+      readerAppearance: {
+        fontSize: "md",
+        lineHeight: "normal",
+        margin: "medium",
+        theme: "light"
+      },
       busy: false,
       error: null
     },
@@ -933,6 +1067,12 @@ test("R3 controller initializes once and loads books through adapters", async ()
     uiLanguage: "en",
     hasChosenUiLanguage: true,
     readingLayout: "page",
+    readerAppearance: {
+      fontSize: "md",
+      lineHeight: "normal",
+      margin: "medium",
+      theme: "light"
+    },
     busy: false,
     error: null
   });
