@@ -368,9 +368,14 @@ function createAdapters() {
             CLOZE_MIXED: "cloze-mixed"
           };
         },
-        resolveModeFromProgress(progress, fallback) {
+        resolveModeFromProgress(progress, fallback = "english-study") {
           calls.resolveModeFromProgress.push({ progress, fallback });
           return progress?.currentMode || fallback;
+        },
+        // This renderer supplies synthetic readable prose for every fixture mode.
+        // Production unavailable representations are covered by languageModePersistence.
+        getModeRepresentation(mode) {
+          return { requestedMode: mode, effectiveMode: mode, representationStatus: "ready" };
         },
         getModeAvailability() {
           return [

@@ -57,14 +57,11 @@ function getProgressChapterIndex(progress = {}) {
   return -1;
 }
 
-function getSelectionPayload(restoration, store, adapters) {
+function getSelectionPayload(restoration, adapters) {
   const progress = restoration?.progress || {};
-  // Authored Guide variants are book-specific. A new imported book must not
-  // inherit the Guide's Chinese/Mixed mode; explicit saved modes stay compatible.
-  const fallbackMode = isGuideBookKey(restoration?.bookKey)
-    ? store.getState().activeReadingMode
-    : "english-study";
-  const readingMode = adapters.modes.resolveModeFromProgress(progress, fallbackMode);
+  // Only persisted book progress and the legacy persisted fallback resolve mode.
+  // The currently open book (including Guide) is never a fallback source.
+  const readingMode = adapters.modes.resolveModeFromProgress(progress);
 
   return {
     bookId: restoration?.bookKey || restoration?.savedBook?.bookKey || null,
@@ -126,6 +123,9 @@ function getReaderStateFromChapter(activeReader, chapter, chapterIndex, rendered
     bookTitle: activeReader.book?.title || activeReader.restoration?.savedBook?.title || "",
     chapterTitle: chapter?.title || "",
     html: rendered?.html || "",
+    requestedMode: rendered.requestedMode,
+    effectiveMode: rendered.effectiveMode,
+    representationStatus: rendered.representationStatus,
     chapterIndex,
     chapterCount,
     progressLabel: formatChapterProgress(activeReader.book?.chapters || [], chapterIndex),
@@ -438,7 +438,11 @@ export function createR3Controller(options = {}) {
       protectedTerms: [],
       isBuiltInGuide: Boolean(reader.book?.isBuiltInGuide)
     });
-    return { rendered, vocabulary, vocabularyMessage };
+    return {
+      rendered: { ...rendered, ...getReaderModeRepresentation(reader, readingMode) },
+      vocabulary,
+      vocabularyMessage
+    };
   }
 
   function getVocabularyTermState(profile = {}, term = "") {
@@ -998,10 +1002,7 @@ export function createR3Controller(options = {}) {
     }
 
     const progress = guidePayload.progress || {};
-    const readingMode = adapters.modes.resolveModeFromProgress(
-      progress,
-      store.getState().activeReadingMode
-    );
+    const readingMode = adapters.modes.resolveModeFromProgress(progress);
     const book = syncGuideBookForReadingMode(guidePayload.guideBook, readingMode);
     const chapterIndex = resolveChapterIndex(book.chapters, progress);
 
@@ -1077,7 +1078,7 @@ export function createR3Controller(options = {}) {
       throw new Error(translate("r3.reader.savedMissing"));
     }
 
-    const selection = getSelectionPayload(restoration, store, adapters);
+    const selection = getSelectionPayload(restoration, adapters);
     const readingMode = selection.readingMode;
     store.dispatch(r3Actions.setActiveBook({
       ...selection,
@@ -1299,7 +1300,7 @@ export function createR3Controller(options = {}) {
 
   function recordReaderScroll(metrics = {}) {
     const reader = activeReader;
-    if (!reader) {
+    if (!reader || !hasSourceRepresentation(reader)) {
       return store.getState();
     }
 
@@ -1391,9 +1392,18 @@ export function createR3Controller(options = {}) {
     return store.dispatch(r3Actions.setReaderState({ chromeVisible: state.reader.chromeVisible === false }));
   }
 
+  function getReaderModeRepresentation(reader, mode = reader.readingMode) {
+    const resolve = adapters.modes.getModeRepresentation || modesAdapter.getModeRepresentation;
+    return resolve(mode, { isBuiltInGuide: Boolean(reader.book?.isBuiltInGuide) });
+  }
+
+  function hasSourceRepresentation(reader = activeReader) {
+    return reader && getReaderModeRepresentation(reader).effectiveMode !== null;
+  }
+
   // Derived page indexes never enter storage. The existing progress queue owns all writes.
   function recordReaderPosition(position, metrics) {
-    if (!activeReader || store.getState().reader.status !== "ready"
+    if (!hasSourceRepresentation() || store.getState().reader.status !== "ready"
       || position?.chapterId !== getCurrentReaderChapter()?.id
       || !Number.isInteger(position.textOffset) || position.textOffset < 0) return;
     activeReader.logicalPosition = { chapterId: position.chapterId, textOffset: position.textOffset };
@@ -1402,7 +1412,7 @@ export function createR3Controller(options = {}) {
   }
 
   async function seekReaderPosition(chapterIndex, position) {
-    if (!activeReader || !Number.isInteger(chapterIndex)
+    if (!hasSourceRepresentation() || !Number.isInteger(chapterIndex)
       || activeReader.book.chapters[chapterIndex]?.id !== position?.chapterId
       || !Number.isInteger(position.textOffset) || position.textOffset < 0) return store.getState();
     if (activeReader.currentIndex !== chapterIndex || store.getState().reader.status !== "ready") {
@@ -1510,6 +1520,8 @@ export function createR3Controller(options = {}) {
       store.dispatch(r3Actions.setActiveMode(mode));
       store.dispatch(r3Actions.setReaderState({
         html: result.rendered.html,
+        ...getReaderModeRepresentation(reader, mode),
+        positionRequest: { sequence, position: reader.logicalPosition, legacyProgress: reader.pendingScrollRestore?.progress || null },
         chapterTitle: nextChapter?.title || store.getState().reader.chapterTitle || "",
         vocabularyItems: result.rendered.vocabularyPreview || [],
         learningWords: result.vocabulary.profile.learningWords || [],
