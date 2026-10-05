@@ -5,6 +5,11 @@ import * as settingsAdapter from "../adapters/settingsAdapter.js";
 import * as vocabularyAdapter from "../adapters/vocabularyAdapter.js";
 import { normalizeManualVocabularyTerm, VOCABULARY_LEVELS } from "../adapters/vocabularyAdapter.js";
 import { loadChapterContent, loadEpubFromFile } from "../epubLoader.js";
+import {
+  GUIDE_BOOK_KEY,
+  isGuideBookKey,
+  syncGuideBookForReadingMode
+} from "../guideBook.js";
 import { normalizeTerm } from "../vocabEngine.js";
 import { createTranslator, normalizeUiLanguage } from "../i18n.js";
 import {
@@ -54,7 +59,11 @@ function getProgressChapterIndex(progress = {}) {
 
 function getSelectionPayload(restoration, store, adapters) {
   const progress = restoration?.progress || {};
-  const fallbackMode = store.getState().activeReadingMode;
+  // Authored Guide variants are book-specific. A new imported book must not
+  // inherit the Guide's Chinese/Mixed mode; explicit saved modes stay compatible.
+  const fallbackMode = isGuideBookKey(restoration?.bookKey)
+    ? store.getState().activeReadingMode
+    : "english-study";
   const readingMode = adapters.modes.resolveModeFromProgress(progress, fallbackMode);
 
   return {
@@ -203,6 +212,7 @@ export function createR3Controller(options = {}) {
   let activeReader = null;
   let refreshSequence = 0;
   let readerSequence = 0;
+  let bubbleMetadataSequence = 0;
   let vocabularyOperation = null;
   let pendingVocabularyOperations = 0;
   let vocabularyProfileReadSequence = 0;
@@ -411,7 +421,9 @@ export function createR3Controller(options = {}) {
     let vocabulary = { items: [], profile: {} };
     let vocabularyMessage = "";
     try {
-      if (readingMode === "english-study" && adapters.vocabulary.getReaderVocabulary) {
+      const shouldLoadVocabulary = readingMode === "english-study"
+        || Boolean(reader.book?.isBuiltInGuide);
+      if (shouldLoadVocabulary && adapters.vocabulary.getReaderVocabulary) {
         if (options.waitForVocabularyOperation !== false) {
           await vocabularyOperation;
         }
@@ -534,6 +546,7 @@ export function createR3Controller(options = {}) {
   }
 
   function closeVocabularyBubble() {
+    bubbleMetadataSequence += 1;
     if (!store.getState().reader.vocabularyBubble) return store.getState();
     return store.dispatch(r3Actions.setReaderState({ vocabularyBubble: null }));
   }
@@ -545,9 +558,36 @@ export function createR3Controller(options = {}) {
     const item = adapters.vocabulary.getTermMetadata?.(key, state.reader.vocabularyItems || []);
     if (!item) return state;
     if (state.reader.vocabularyBubble?.term === key) return closeVocabularyBubble();
-    return store.dispatch(r3Actions.setReaderState({
+    const lookupSequence = ++bubbleMetadataSequence;
+    const reader = activeReader;
+    const sequence = readerSequence;
+    const result = store.dispatch(r3Actions.setReaderState({
       vocabularyBubble: { term: key, item, x: getFiniteNumber(anchor.x), y: getFiniteNumber(anchor.y) }
     }));
+    // Open immediately with existing metadata. Optional lookup may only enrich
+    // this bubble, never its term/capture or the canonical vocabulary state.
+    if (typeof adapters.vocabulary.resolveTermMetadata === "function") {
+      Promise.resolve().then(() => adapters.vocabulary.resolveTermMetadata(key, state.reader.vocabularyItems || []))
+        .then(metadata => {
+          const current = store.getState();
+          const bubble = current.reader.vocabularyBubble;
+          if (!metadata || lookupSequence !== bubbleMetadataSequence || activeReader !== reader
+              || sequence !== readerSequence || current.activeScreen !== R3_ROUTES.READER
+              || current.openOverlay || bubble?.term !== key) return;
+          const enriched = { ...bubble.item };
+          let changed = false;
+          for (const field of ["chineseMeaning", "englishDefinition", "source", "status"]) {
+            if (typeof metadata[field] === "string"
+                && (metadata.status !== "miss" || ["source", "status"].includes(field))
+                && metadata[field] !== enriched[field]) {
+              enriched[field] = metadata[field];
+              changed = true;
+            }
+          }
+          if (changed) store.dispatch(r3Actions.setReaderState({ vocabularyBubble: { ...bubble, item: enriched } }));
+        }).catch(() => { /* Keep the usable bubble on a dictionary miss/failure. */ });
+    }
+    return result;
   }
 
   async function setReaderVocabularyState(nextState, requestedTerm = null, selectionCapture = null) {
@@ -825,6 +865,14 @@ export function createR3Controller(options = {}) {
     }
   }
 
+  async function resolveChapterForReader(reader, chapter) {
+    if (reader?.book?.isBuiltInGuide) {
+      return chapter;
+    }
+
+    return readerRuntime.loadChapterContent(reader.handle, chapter);
+  }
+
   async function renderReaderChapter(chapterIndex, position = null) {
     const reader = activeReader;
     if (!reader) {
@@ -868,7 +916,7 @@ export function createR3Controller(options = {}) {
     }));
 
     try {
-      const loadedChapter = await readerRuntime.loadChapterContent(reader.handle, chapter);
+      const loadedChapter = await resolveChapterForReader(reader, chapter);
       if (sequence !== readerSequence || activeReader !== reader) {
         return store.getState();
       }
@@ -939,6 +987,86 @@ export function createR3Controller(options = {}) {
         error
       }));
     }
+  }
+
+  async function openReaderFromGuide(guidePayload) {
+    await flushReaderProgress();
+    cleanupReaderRuntime();
+
+    if (!guidePayload?.guideBook?.isBuiltInGuide) {
+      throw new Error(translate("r3.reader.savedMissing"));
+    }
+
+    const progress = guidePayload.progress || {};
+    const readingMode = adapters.modes.resolveModeFromProgress(
+      progress,
+      store.getState().activeReadingMode
+    );
+    const book = syncGuideBookForReadingMode(guidePayload.guideBook, readingMode);
+    const chapterIndex = resolveChapterIndex(book.chapters, progress);
+
+    store.dispatch(r3Actions.setActiveBook({
+      bookId: GUIDE_BOOK_KEY,
+      chapterId: null,
+      chapterIndex: -1,
+      readingMode
+    }));
+    store.dispatch(r3Actions.setReaderState({
+      status: "loading",
+      chromeVisible: true,
+      readingLayout: store.getState().settings?.readingLayout === "scroll" ? "scroll" : "page",
+      readerAppearance: resolveReaderAppearance(store.getState().settings),
+      pagination: { status: "loading", pageIndex: 0, pageCount: 0 },
+      positionRequest: null,
+      modeSaving: false,
+      modeMessage: "",
+      bookTitle: book.title || translate("r3.common.untitledBook"),
+      chapterTitle: "",
+      html: "",
+      chapterIndex: -1,
+      chapterCount: book.chapters?.length || 0,
+      progressLabel: translate("reader.status.chapterLoading"),
+      hasPrevious: false,
+      hasNext: false,
+      error: null
+    }));
+
+    activeReader = {
+      bookKey: GUIDE_BOOK_KEY,
+      restoration: {
+        bookKey: GUIDE_BOOK_KEY,
+        savedBook: null,
+        progress
+      },
+      handle: null,
+      book,
+      currentIndex: chapterIndex,
+      renderedChapterId: null,
+      renderedChapterIndex: -1,
+      readingMode,
+      readingLayout: store.getState().settings?.readingLayout === "scroll" ? "scroll" : "page",
+      readerAppearance: resolveReaderAppearance(store.getState().settings),
+      logicalPosition: progress?.logicalPosition || null,
+      scrollMetrics: normalizeScrollMetrics(),
+      pendingScrollTimer: null,
+      pendingScrollRestore: null,
+      saveVersion: 0,
+      lastStartedSaveVersion: 0,
+      lastCompletedSaveSignature: null,
+      inFlightSaveSignature: null,
+      pendingSave: null,
+      saveInFlight: null,
+      lastValidReaderState: null
+    };
+
+    store.dispatch(r3Actions.setActiveBook({
+      bookId: GUIDE_BOOK_KEY,
+      chapterId: book.chapters[chapterIndex]?.id || null,
+      chapterIndex,
+      readingMode
+    }));
+    store.dispatch(r3Actions.navigate(R3_ROUTES.READER));
+    return renderReaderChapter(chapterIndex);
   }
 
   async function openReaderFromRestoration(restoration) {
@@ -1094,13 +1222,31 @@ export function createR3Controller(options = {}) {
   }
 
   async function selectBook(bookKey) {
+    if (isGuideBookKey(bookKey)) {
+      return openGuide();
+    }
+
     return runControllerOperation(store, "reader.openBook", async () => {
       const restoration = await adapters.reader.openBook(bookKey);
       return openReaderFromRestoration(restoration);
     });
   }
 
+  async function openGuide() {
+    return runControllerOperation(store, "reader.openGuide", async () => {
+      if (typeof adapters.reader.openGuide !== "function") {
+        throw new Error("Built-in Guide adapter is unavailable.");
+      }
+      const guidePayload = await adapters.reader.openGuide();
+      return openReaderFromGuide(guidePayload);
+    });
+  }
+
   async function resumeBook(bookKey = null) {
+    if (isGuideBookKey(bookKey)) {
+      return openGuide();
+    }
+
     return runControllerOperation(store, "reader.resumeBook", async () => {
       const restoration = await adapters.reader.resumeBook(bookKey);
       return openReaderFromRestoration(restoration);
@@ -1276,7 +1422,7 @@ export function createR3Controller(options = {}) {
     // Use the same renderer/profile as the Reader, with no parallel eligibility path.
     for (let index = 0; index < reader.book.chapters.length; index += 1) {
       if (reader !== activeReader || reader.readingMode !== mode) return;
-      const chapter = await readerRuntime.loadChapterContent(reader.handle, reader.book.chapters[index]);
+      const chapter = await resolveChapterForReader(reader, reader.book.chapters[index]);
       if (reader !== activeReader || reader.readingMode !== mode) return;
       const result = await renderWithVocabulary(reader, chapter);
       if (reader !== activeReader || reader.readingMode !== mode) return;
@@ -1344,19 +1490,36 @@ export function createR3Controller(options = {}) {
     try {
       await flushReaderProgress(reader);
       if (activeReader !== reader || sequence !== readerSequence) return store.getState();
-      const result = await renderWithVocabulary(reader, chapter, { readingMode: mode });
+      // Stage authored variants without mutating the active book. A failed or
+      // superseded render must leave its chapter metadata in the committed mode.
+      const nextBook = reader.book?.isBuiltInGuide
+        ? syncGuideBookForReadingMode({
+            ...reader.book,
+            chapters: reader.book.chapters.map(entry => ({ ...entry }))
+          }, mode)
+        : reader.book;
+      const nextChapter = nextBook.chapters[reader.currentIndex] || chapter;
+      const result = await renderWithVocabulary(
+        { ...reader, book: nextBook }, nextChapter, { readingMode: mode }
+      );
       if (activeReader !== reader || sequence !== readerSequence) return store.getState();
+      reader.book = nextBook;
       reader.readingMode = mode;
       reader.vocabularyProfile = result.vocabulary.profile;
       reader.vocabularyItems = result.vocabulary.items;
       store.dispatch(r3Actions.setActiveMode(mode));
       store.dispatch(r3Actions.setReaderState({
         html: result.rendered.html,
+        chapterTitle: nextChapter?.title || store.getState().reader.chapterTitle || "",
         vocabularyItems: result.rendered.vocabularyPreview || [],
         learningWords: result.vocabulary.profile.learningWords || [],
         vocabularyMessage: result.vocabularyMessage,
         vocabularyBubble: null,
-        vocabularyPreview: null
+        vocabularyPreview: null,
+        toc: store.getState().openOverlay === R3_OVERLAYS.CONTENTS
+          || (store.getState().reader?.toc?.length > 0)
+          ? buildReaderToc(reader)
+          : store.getState().reader?.toc || []
       }));
       if (store.getState().openOverlay === R3_OVERLAYS.MODE) store.dispatch(r3Actions.closeOverlay());
       await queueProgressSave(reader);
@@ -1415,6 +1578,7 @@ export function createR3Controller(options = {}) {
     refreshShellData,
     importBook,
     selectBook,
+    openGuide,
     resumeBook,
     async goToReaderChapter(direction) {
       if (!activeReader) {

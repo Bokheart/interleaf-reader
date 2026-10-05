@@ -916,6 +916,11 @@ function bindAppShellEvents(root, controller, browserEffects) {
       return;
     }
 
+    if (action === "open-guide") {
+      controller.openGuide?.();
+      return;
+    }
+
     if (action === "select-book") {
       controller.selectBook(actionElement.dataset.bookKey);
       return;

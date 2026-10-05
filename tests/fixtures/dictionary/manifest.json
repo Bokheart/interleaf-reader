@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "source": "interleaf-authored-fixture",
+  "version": "1",
+  "leaves": { "go": ["go"], "gl": ["glo", "glob"], "st": ["st"], "ba": ["ba"] }
+}

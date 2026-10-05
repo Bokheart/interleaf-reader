@@ -970,9 +970,13 @@ test("Unsupported actions remain disabled while Vocabulary navigation is enabled
   const shell = createAppShellView(documentRef, createShellState());
   const unsupported = findByDataAction(shell, "unsupported");
   const vocabularyNav = findAll(shell, (node) => node.dataset?.route === R3_ROUTES.VOCABULARY)[0];
+  const guideCard = findByDataAction(shell, "open-guide")[0];
 
-  assert.ok(unsupported.length >= 3);
+  assert.ok(unsupported.length >= 2);
   assert.ok(unsupported.every((node) => node.disabled || node.getAttribute("aria-disabled") === "true"));
+  assert.ok(guideCard);
+  assert.equal(guideCard.disabled, false);
+  assert.equal(guideCard.dataset.bookKey, "built-in:interleaf-reader-guide");
   assert.equal(vocabularyNav.getAttribute("aria-disabled"), null);
   assert.equal(vocabularyNav.disabled, false);
   assert.equal(vocabularyNav.dataset.action, "navigate");

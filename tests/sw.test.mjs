@@ -89,9 +89,9 @@ test('Service Worker Test Suite', async (t) => {
   });
 });
 
-test('combined QA cache retires v3 and retains appearance, identity and frozen corpus dependencies', async () => {
+test('dictionary foundation cache retires v4 and retains appearance, identity and frozen corpus dependencies', async () => {
   const source = await fs.readFile(path.join(ROOT_DIR, 'pwa-reader/sw.js'), 'utf8');
-  assert.match(source, /const CACHE_NAME = 'interleaf-reader-static-v4'/);
+  assert.match(source, /const CACHE_NAME = 'interleaf-reader-static-v5'/);
   const assets = [...source.match(/const PRECACHE_ASSETS = \[([\s\S]*?)\];/)[1].matchAll(/'([^']+)'/g)].map(match => match[1]);
   assert.ok(assets.includes('./readerAppearance.js'), 'shared storage appearance dependency available under SW control');
   for (const module of ['runtime', 'identity-resolver', 'identity-lexicon', 'resolver', 'lexicon', 'phrase-constraints']) {

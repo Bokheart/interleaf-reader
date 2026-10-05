@@ -20,6 +20,66 @@ import {
   r3Reducer
 } from "../pwa-reader/ui-r3/store.js";
 
+test('R3 bubble loads dynamic metadata without changing vocabulary identity or state', async () => {
+  const { adapters, readerRuntime } = createAdapters();
+  const pending = createDeferred();
+  const item = { term: 'go', capture: { sentence: 'They went.', targetOffset: 5, targetEnd: 9 } };
+  adapters.modes.resolveModeFromProgress = () => 'english-study';
+  adapters.vocabulary.getReaderVocabulary = async () => ({ profile: { learningWords: ['go'] }, items: [item] });
+  adapters.vocabulary.getTermMetadata = () => item;
+  adapters.vocabulary.resolveTermMetadata = () => pending.promise;
+  adapters.modes.renderChapter = () => ({ html: '<p>They went.</p>', vocabularyPreview: [item] });
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters, readerRuntime });
+  await controller.resumeBook('recent');
+  controller.toggleVocabularyBubble('go', { x: 20, y: 40 });
+  const before = structuredClone(store.getState().reader);
+  assert.deepEqual(store.getState().reader.vocabularyBubble.item, item);
+  pending.resolve({ chineseMeaning: '去', englishDefinition: 'move to another place', source: 'authored', status: 'dictionary', term: 'evil', capture: null, libraryKey: 'en:evil' });
+  await new Promise(resolve => setImmediate(resolve));
+  const reader = store.getState().reader;
+  assert.equal(reader.vocabularyBubble.item.chineseMeaning, '去');
+  assert.equal(reader.vocabularyBubble.item.englishDefinition, 'move to another place');
+  assert.equal(reader.vocabularyBubble.item.term, 'go');
+  assert.deepEqual(reader.vocabularyBubble.item.capture, item.capture);
+  assert.equal('libraryKey' in reader.vocabularyBubble.item, false);
+  assert.deepEqual(reader.learningWords, before.learningWords);
+  assert.deepEqual(reader.vocabularyItems, before.vocabularyItems);
+  const nodes = collectNodes(createReaderView(createMockDocument(), store.getState()));
+  const bubble = nodes.find(node => node.className === 'r3-vocabulary-bubble');
+  assert.equal(bubble.dataset.metadataSource, 'authored');
+  assert.equal(bubble.dataset.metadataStatus, 'dictionary');
+  assert.ok(nodes.some(node => node.textContent === '去'));
+  assert.ok(nodes.some(node => node.textContent === 'move to another place'));
+});
+
+test('R3 bubble keeps usable fallback on miss/failure and ignores late closed, replaced or navigated lookups', async () => {
+  for (const outcome of ['miss', 'failure', 'closed', 'replaced', 'chapter']) {
+    const { adapters, readerRuntime } = createAdapters();
+    const pending = createDeferred();
+    const items = [{ term: 'go', englishDefinition: 'fallback' }, { term: 'steal' }];
+    adapters.modes.resolveModeFromProgress = () => 'english-study';
+    adapters.vocabulary.getReaderVocabulary = async () => ({ profile: {}, items });
+    adapters.vocabulary.getTermMetadata = term => items.find(item => item.term === term);
+    adapters.vocabulary.resolveTermMetadata = term => term === 'go' ? pending.promise : Promise.resolve(items[1]);
+    adapters.modes.renderChapter = () => ({ html: '<p>go steal</p>', vocabularyPreview: items });
+    const store = createR3Store();
+    const controller = createR3Controller({ store, adapters, readerRuntime });
+    await controller.resumeBook('recent');
+    controller.toggleVocabularyBubble('go');
+    if (outcome === 'closed') controller.closeVocabularyBubble();
+    if (outcome === 'replaced') controller.toggleVocabularyBubble('steal');
+    if (outcome === 'chapter') await controller.selectReaderChapter(0);
+    if (outcome === 'failure') pending.reject(new Error('offline'));
+    else pending.resolve({ status: outcome === 'miss' ? 'miss' : 'dictionary', source: '', englishDefinition: outcome === 'miss' ? '' : 'late' });
+    await new Promise(resolve => setImmediate(resolve));
+    const bubble = store.getState().reader.vocabularyBubble;
+    if (['miss', 'failure'].includes(outcome)) assert.equal(bubble.item.englishDefinition, 'fallback');
+    if (['closed', 'chapter'].includes(outcome)) assert.equal(bubble, null);
+    if (outcome === 'replaced') assert.equal(bubble.term, 'steal');
+  }
+});
+
 function createMockElement(tagName = "div") {
   return {
     tagName: tagName.toUpperCase(),

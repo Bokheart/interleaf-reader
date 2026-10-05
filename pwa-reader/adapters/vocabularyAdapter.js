@@ -1,5 +1,6 @@
 import { normalizeTerm, buildVocabularyPreview, loadVocabularyData, filterVocabularyPreviewItems } from "../vocabEngine.js";
 import { loadEffectiveKnownWordsForProfile } from "../levelBaselineEngine.js";
+import { createCuratedMetadataProvider, createDictionaryMetadataProvider, createLocalShardMetadataProvider } from "../dictionaryMetadata.js";
 import {
   addLearningWord,
   createVocabularyProfileBackup,
@@ -111,16 +112,21 @@ export function createVocabularyAdapter(deps = {}) {
 
   let vocabularyDataPromise = null;
   const matchPolicies = new WeakMap();
+  const dictionaryMetadataProvider = deps.dictionaryMetadataProvider || createLocalShardMetadataProvider();
+
+  function loadCuratedItems() {
+    if (!vocabularyDataPromise) {
+      vocabularyDataPromise = Promise.resolve().then(() => api.loadVocabularyData()).catch(error => {
+        vocabularyDataPromise = null;
+        throw error;
+      });
+    }
+    return vocabularyDataPromise;
+  }
 
   return {
     async getReaderVocabulary(chapter = null) {
-      if (!vocabularyDataPromise) {
-        vocabularyDataPromise = Promise.resolve().then(() => api.loadVocabularyData()).catch(error => {
-          vocabularyDataPromise = null;
-          throw error;
-        });
-      }
-      const [items, profile] = await Promise.all([vocabularyDataPromise, api.getVocabularyProfile()]);
+      const [items, profile] = await Promise.all([loadCuratedItems(), api.getVocabularyProfile()]);
       const personalization = await api.loadEffectiveKnownWordsForProfile(profile);
       const excluded = new Set([...(profile.knownWords || []), ...(profile.ignoredWords || [])].map(normalizeTerm));
       const curatedTerms = new Set(items.map(item => normalizeTerm(item.term)));
@@ -286,6 +292,28 @@ export function createVocabularyAdapter(deps = {}) {
       };
     },
 
+    async resolveTermMetadata(term, vocabularyItems = []) {
+      const item = this.getTermMetadata(term, vocabularyItems);
+      // Manual/freeform terms preserve the synchronous, curated-only behavior.
+      // Re-resolve the existing occurrence; never trust surface or forged keys.
+      if (!item?.capture) return item;
+      try {
+        const { resolveCapture } = await import("../identity/runtime.mjs");
+        const identity = resolveCapture(item.capture);
+        if (identity?.status !== "resolved" || !identity.canonicalTerm || !identity.libraryKey) return item;
+        const surface = normalizeTerm(item.capture.sentence?.slice(item.capture.targetOffset, item.capture.targetEnd));
+        if (![surface, identity.canonicalTerm].includes(normalizeTerm(term))) return item;
+        let curatedItems = [];
+        try { curatedItems = await loadCuratedItems(); } catch { /* dictionary can still assist */ }
+        const provider = createDictionaryMetadataProvider([
+          createCuratedMetadataProvider(curatedItems), dictionaryMetadataProvider
+        ]);
+        const metadata = await provider.resolveMetadata(identity.canonicalTerm);
+        if (metadata.status === "miss") return { ...item, status: "miss", source: item.source || "" };
+        return { ...item, ...metadata };
+      } catch { return item; }
+    },
+
     getTermMetadata(term, vocabularyItems = []) {
       const normalized = normalizeTerm(term);
 
@@ -313,3 +341,5 @@ export const restoreLibraryBackup = vocabularyAdapter.restoreLibraryBackup;
 export const setTermState = vocabularyAdapter.setTermState;
 export const listVocabulary = vocabularyAdapter.listVocabulary;
 export const getTermMetadata = vocabularyAdapter.getTermMetadata;
+// Bind because the asynchronous facade reuses the synchronous lookup method.
+export const resolveTermMetadata = vocabularyAdapter.resolveTermMetadata.bind(vocabularyAdapter);

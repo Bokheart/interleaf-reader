@@ -1,3 +1,4 @@
+import { createGuideBook, GUIDE_BOOK_KEY, isGuideBookKey } from "../guideBook.js";
 import { getChapterIndex, getAdjacentChapterIndex } from "../navigationEngine.js";
 import { createReadingProgressRecord, resolveRestoredScrollTop } from "../readerProgress.js";
 import {
@@ -38,17 +39,39 @@ export function createReaderAdapter(deps = {}) {
     getReadingProgress: deps.getReadingProgress || getReadingProgress,
     saveReadingProgress: deps.saveReadingProgress || saveReadingProgress,
     createFile: deps.createFile || defaultCreateFile,
+    createGuideBook: deps.createGuideBook || createGuideBook,
     now: deps.now || Date.now
   };
 
   return {
     async openBook(bookKey) {
+      if (isGuideBookKey(bookKey)) {
+        throw new Error("Built-in Guide opens through openGuide, not as an imported EPUB.");
+      }
+
       const savedBook = await api.getStoredBook(bookKey);
       const progress = await api.getReadingProgress(bookKey);
       return createOpenPayload(savedBook, progress, api.createFile);
     },
 
+    async openGuide(options = {}) {
+      const progress = await api.getReadingProgress(GUIDE_BOOK_KEY);
+      const requestedMode = typeof options.mode === "string" ? options.mode : null;
+      const guideBook = api.createGuideBook(requestedMode || progress?.currentMode || "english-study");
+
+      return {
+        bookKey: GUIDE_BOOK_KEY,
+        guideBook,
+        progress,
+        isBuiltInGuide: true
+      };
+    },
+
     async resumeBook(bookKey = null) {
+      if (isGuideBookKey(bookKey)) {
+        return this.openGuide();
+      }
+
       const savedBook = bookKey
         ? await api.getStoredBook(bookKey)
         : await api.getMostRecentStoredBook();
@@ -97,7 +120,8 @@ export function createReaderAdapter(deps = {}) {
 const readerAdapter = createReaderAdapter();
 
 export const openBook = readerAdapter.openBook;
-export const resumeBook = readerAdapter.resumeBook;
+export const openGuide = readerAdapter.openGuide;
+export const resumeBook = readerAdapter.resumeBook.bind(readerAdapter);
 export const getTableOfContents = readerAdapter.getTableOfContents;
 export const getAdjacentChapter = readerAdapter.getAdjacentChapter;
 export const restorePosition = readerAdapter.restorePosition;

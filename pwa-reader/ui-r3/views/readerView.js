@@ -508,6 +508,7 @@ function createVocabularyBubble(documentRef, reader, t) {
   const { term, item } = reader.vocabularyBubble;
   const bubble = createElement(documentRef, "section", {
     className: "r3-vocabulary-bubble",
+    dataset: { metadataSource: item.source || "", metadataStatus: item.status || "" },
     attrs: { role: "dialog", "aria-label": t("reader.vocabularyNote.aria") }
   });
   const header = createElement(documentRef, "div", { className: "r3-section-header" });

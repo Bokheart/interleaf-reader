@@ -13,7 +13,8 @@ export function createModesAdapter(deps = {}) {
     },
 
     resolveModeFromProgress(progress = {}, fallback = MODES.ENGLISH_STUDY) {
-      return MODE_VALUES.includes(progress.currentMode) ? progress.currentMode : fallback;
+      const safeProgress = progress && typeof progress === "object" ? progress : {};
+      return MODE_VALUES.includes(safeProgress.currentMode) ? safeProgress.currentMode : fallback;
     },
 
     getModeAvailability(context = {}) {

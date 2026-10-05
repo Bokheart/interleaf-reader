@@ -199,6 +199,28 @@ test("readerAdapter opens stored books as a pure restoration payload", async () 
   assert.equal(payload.progress.currentMode, "cloze-mixed");
 });
 
+test("readerAdapter opens the built-in Guide without a stored EPUB blob", async () => {
+  const adapter = createReaderAdapter({
+    getReadingProgress: async (bookKey) => ({
+      bookKey,
+      currentChapterId: "guide-welcome",
+      currentChapterIndex: 0,
+      currentMode: "english-study"
+    }),
+    getStoredBook: async () => {
+      throw new Error("Guide must not read stored books");
+    }
+  });
+
+  const payload = await adapter.openGuide();
+
+  assert.equal(payload.bookKey, "built-in:interleaf-reader-guide");
+  assert.equal(payload.isBuiltInGuide, true);
+  assert.equal(payload.guideBook.isBuiltInGuide, true);
+  assert.equal(payload.guideBook.chapters.length, 6);
+  assert.equal("file" in payload, false);
+});
+
 test("readerAdapter preserves chapter IDs and adjacent-index behavior", () => {
   const adapter = createReaderAdapter();
   const chapters = [

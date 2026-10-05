@@ -1,5 +1,7 @@
-const CACHE_NAME = 'interleaf-reader-static-v4';
+const CACHE_NAME = 'interleaf-reader-static-v5';
 const CACHE_PREFIX = 'interleaf-reader-static-';
+const DICTIONARY_CACHE_NAME = 'interleaf-reader-dictionary-metadata-v1';
+const DICTIONARY_CACHE_PREFIX = 'interleaf-reader-dictionary-';
 
 const PRECACHE_ASSETS = [
   './',
@@ -18,6 +20,7 @@ const PRECACHE_ASSETS = [
   './readerAppearance.js',
   './translationEngine.js',
   './vocabEngine.js',
+  './dictionaryMetadata.js',
   './identity/runtime.mjs',
   './identity/identity-resolver.mjs',
   './identity/identity-lexicon.mjs',
@@ -67,6 +70,10 @@ self.addEventListener('activate', event => {
           if (cacheName.startsWith(CACHE_PREFIX) && cacheName !== CACHE_NAME) {
             return caches.delete(cacheName);
           }
+          // Retire stale metadata caches, including the old research namespace.
+          if (cacheName.startsWith(DICTIONARY_CACHE_PREFIX) && cacheName !== DICTIONARY_CACHE_NAME) {
+            return caches.delete(cacheName);
+          }
         })
       );
     })
@@ -90,6 +97,30 @@ self.addEventListener('fetch', event => {
   if (request.headers.has('range')) return;
 
   const scopeUrl = new URL(self.registration.scope);
+
+  // Exact deployment-relative public dataset boundary. No books, profiles,
+  // query-bearing requests, or other projects enter the dictionary cache.
+  const dictionaryRoot = new URL('../data/dictionary/', scopeUrl).pathname;
+  const dictionaryPath = url.pathname.startsWith(dictionaryRoot) ? url.pathname.slice(dictionaryRoot.length) : '';
+  if (!url.search && /^(?:[a-z0-9][a-z0-9._-]*\/)?(?:manifest\.json|shards\/[a-z0-9]+\.json)$/i.test(dictionaryPath)) {
+    event.respondWith((async () => {
+      let cache = null;
+      try {
+        cache = await caches.open(DICTIONARY_CACHE_NAME);
+        const cached = await cache.match(request);
+        if (cached) return cached;
+      } catch { /* Cache Storage is optional; still try the network. */ }
+      try {
+        const response = await fetch(request);
+        if (cache && response?.ok && !response.redirected
+            && response.headers.get('content-type')?.includes('application/json')) {
+          try { await cache.put(request, response.clone()); } catch { /* Quota cannot hide a successful response. */ }
+        }
+        return response;
+      } catch { return new Response('', { status: 504 }); }
+    })());
+    return;
+  }
 
   // Navigation fallback inside scope: network first, then cached index.html
   if (request.mode === 'navigate' && url.pathname.startsWith(scopeUrl.pathname)) {

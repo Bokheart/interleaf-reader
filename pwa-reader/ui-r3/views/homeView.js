@@ -162,14 +162,15 @@ function createRecentHelpful(documentRef, state, t) {
   const guide = createElement(documentRef, "button", {
     className: "r3-guide-card",
     attrs: {
-      type: "button",
-      "aria-disabled": "true"
+      type: "button"
     },
-    dataset: { action: "unsupported" },
-    disabled: true
+    dataset: {
+      action: "open-guide",
+      bookKey: "built-in:interleaf-reader-guide"
+    }
   });
   guide.appendChild(createElement(documentRef, "strong", { text: t("r3.home.guide") }));
-  guide.appendChild(createElement(documentRef, "span", { text: t("r3.home.guidePending") }));
+  guide.appendChild(createElement(documentRef, "span", { text: t("r3.home.guideNote") }));
   list.appendChild(guide);
 
   section.appendChild(list);

@@ -279,7 +279,7 @@ export const zhCN = Object.freeze({
   "r3.home.notAvailable": "R3 \u6682\u4e0d\u53ef\u7528",
   "r3.home.recentHelpful": "\u6700\u8fd1\u9605\u8bfb\u4e0e\u5e2e\u52a9",
   "r3.home.guide": "\u5185\u7f6e\u6307\u5357",
-  "r3.home.guidePending": "R3 \u6307\u5357\u63a5\u5165\u5f85\u5b8c\u6210",
+  "r3.home.guideNote": "\u5728\u9605\u8bfb\u5668\u4e2d\u6253\u5f00\uff0c\u4e0d\u5c5e\u4e8e\u7528\u6237\u5bfc\u5165\u7684 EPUB\u3002",
   "r3.library.eyebrow": "\u672c\u5730\u4e66\u7c4d",
   "r3.library.title": "\u672c\u5730\u4e66\u5e93",
   "r3.library.searchUnavailable": "\u641c\u7d22\u6682\u4e0d\u53ef\u7528",

@@ -279,7 +279,7 @@ export const en = Object.freeze({
   "r3.home.notAvailable": "Not available in R3 yet",
   "r3.home.recentHelpful": "Recent & Helpful",
   "r3.home.guide": "Built-in Guide",
-  "r3.home.guidePending": "R3 guide wiring pending",
+  "r3.home.guideNote": "Opens in Reader. Not a user-imported EPUB.",
   "r3.library.eyebrow": "Local books",
   "r3.library.title": "Library",
   "r3.library.searchUnavailable": "Search unavailable",
