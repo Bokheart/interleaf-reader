@@ -5,7 +5,7 @@ import { normalizeWord } from "../levelBaselineEngine.js";
 import { normalizeTerm } from "../vocabEngine.js";
 import { R3_OVERLAYS, R3_ROUTES } from "./routes.js";
 import { createAppShellView } from "./views/appShellView.js";
-import { createReaderLayout } from "./readerLayout.js";
+import { createReaderLayout, getReaderPageSwipeDirection } from "./readerLayout.js";
 import { bindReaderHistory } from "./readerHistory.js";
 import { readerAppearanceSignature } from "../readerAppearance.js";
 
@@ -358,10 +358,6 @@ function mountAppShell(root, store, documentRef, controller, options = {}) {
     if (title) title.textContent = state.reader.chapterTitle;
     const error = root.querySelector?.("[data-role='reader-seek-message']");
     if (error) { error.textContent = state.reader.error?.message || ""; error.hidden = !error.textContent; }
-    for (const [action, disabled] of [["reader-page-previous", pages.pageIndex <= 0], ["reader-page-next", pages.pageIndex >= pages.pageCount - 1]]) {
-      const button = root.querySelector?.(`[data-action='${action}']`);
-      if (button) button.disabled = pages.status !== "ready" || disabled;
-    }
     for (const [action, available] of [["reader-previous", state.reader.hasPrevious], ["reader-next", state.reader.hasNext]]) {
       const button = root.querySelector?.(`[data-action='${action}']`);
       if (button) button.disabled = !available || state.reader.status !== "ready";
@@ -428,7 +424,7 @@ function mountAppShell(root, store, documentRef, controller, options = {}) {
       const visible = state.reader.chromeVisible !== false;
       const screen = findFirst(root, node => classListContains(node, "r3-reader-screen"));
       screen?.setAttribute("data-chrome-visible", String(visible));
-      for (const className of ["r3-reader-header", "r3-reader-footer", "r3-reader-page-nav"]) {
+      for (const className of ["r3-reader-header", "r3-reader-footer", "r3-reader-page-indicator"]) {
         const chrome = findFirst(root, node => classListContains(node, className));
         if (chrome) {
           chrome.inert = !visible;
@@ -440,8 +436,6 @@ function mountAppShell(root, store, documentRef, controller, options = {}) {
     }
     const previousReaderScroll = findReaderScrollElement(root);
     const readerHadFocus = previousReaderScroll && documentRef.activeElement === previousReaderScroll;
-    const readerControlFocus = previousState?.activeScreen === R3_ROUTES.READER && !previousState.openOverlay
-      ? documentRef.activeElement?.dataset?.action : null;
     const previousPreviewScroll = findVocabularyPreviewScrollElement(root);
     const previousVocabularyScroll = findVocabularyScrollElement(root);
     const previousPassageTarget = findFirst(root, node => (
@@ -593,9 +587,6 @@ function mountAppShell(root, store, documentRef, controller, options = {}) {
     updatePaginationControls(store.getState());
     if (state.activeScreen === R3_ROUTES.READER && !state.openOverlay) {
       if (readerHadFocus) focusWithoutScrolling(findReaderScrollElement(root));
-      else if (readerControlFocus?.startsWith("reader-page-")) {
-        focusWithoutScrolling(findFirst(root, node => node.dataset?.action === readerControlFocus));
-      }
     }
   };
 
@@ -643,6 +634,27 @@ function isReaderChromeTap(event, root) {
     current = current.parentNode;
   }
   return false;
+}
+
+function hasActiveReaderSelection(documentRef) {
+  const selection = documentRef?.getSelection?.() || documentRef?.defaultView?.getSelection?.();
+  return Boolean(selection && !selection.isCollapsed && String(selection).length);
+}
+
+function getReaderPageGestureSurface(start, root) {
+  let surface = null;
+  let current = start;
+  while (current && current !== root) {
+    if (["A", "BUTTON", "INPUT", "SELECT", "TEXTAREA", "LABEL", "SUMMARY", "AUDIO", "VIDEO"].includes(current.tagName)
+      || current.isContentEditable || current.getAttribute?.("contenteditable") === "true"
+      || ["button", "link", "slider", "dialog"].includes(current.getAttribute?.("role"))
+      || current.dataset?.action
+      || ["vocab-hit", "r3-vocabulary-bubble", "r3-selection-save-bar", "r3-reader-overlay", "r3-reader-sheet"]
+        .some(name => classListContains(current, name))) return null;
+    if (classListContains(current, "r3-reader-scroll")) surface = current;
+    current = current.parentNode;
+  }
+  return surface?.dataset?.layout === "page" ? surface : null;
 }
 
 function getImportInput(root) {
@@ -714,7 +726,7 @@ function createBrowserEffects(documentRef) {
   };
 }
 
-function bindAppShellEvents(root, controller, browserEffects) {
+function bindAppShellEvents(root, store, controller, browserEffects) {
   if (root.dataset.r3ShellEventsBound === "true") {
     return;
   }
@@ -725,6 +737,9 @@ function bindAppShellEvents(root, controller, browserEffects) {
   );
   const chromeTimers = root.ownerDocument?.defaultView || globalThis;
   let pendingChromeTap = null;
+  let pageSwipe = null;
+  let suppressReaderClick = false;
+  const activeTouchPointers = new Set();
   const cancelChromeTap = () => {
     if (pendingChromeTap !== null) chromeTimers.clearTimeout(pendingChromeTap);
     pendingChromeTap = null;
@@ -789,9 +804,60 @@ function bindAppShellEvents(root, controller, browserEffects) {
   };
 
   root.ownerDocument?.addEventListener?.("selectionchange", scheduleReaderSelectionSync);
+  root.addEventListener("pointerdown", event => {
+    if (event.pointerType !== "touch") return;
+    activeTouchPointers.add(event.pointerId);
+    if (activeTouchPointers.size > 1 || event.isPrimary === false) {
+      pageSwipe = null;
+      return;
+    }
+    const state = store.getState();
+    const surface = getReaderPageGestureSurface(event.target, root);
+    if (!surface || state?.activeScreen !== R3_ROUTES.READER || state.openOverlay
+      || state.reader?.status !== "ready" || hasActiveReaderSelection(root.ownerDocument)) {
+      pageSwipe = null;
+      return;
+    }
+    pageSwipe = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      surface
+    };
+  }, { passive: true });
+  root.addEventListener("pointerup", event => {
+    if (event.pointerType !== "touch") return;
+    activeTouchPointers.delete(event.pointerId);
+    const gesture = pageSwipe;
+    pageSwipe = null;
+    if (!gesture || gesture.pointerId !== event.pointerId || activeTouchPointers.size
+      || hasActiveReaderSelection(root.ownerDocument)) return;
+    const state = store.getState();
+    if (state?.activeScreen !== R3_ROUTES.READER || state.openOverlay
+      || state.reader?.readingLayout !== "page" || state.reader?.status !== "ready") return;
+    const direction = getReaderPageSwipeDirection({
+      startX: gesture.startX,
+      startY: gesture.startY,
+      endX: event.clientX,
+      endY: event.clientY,
+      viewportWidth: gesture.surface.clientWidth || root.ownerDocument?.defaultView?.innerWidth
+    });
+    if (!direction) return;
+    suppressReaderClick = true;
+    chromeTimers.setTimeout?.(() => { suppressReaderClick = false; }, 0);
+    root.__readerLayout?.turn(direction);
+  }, { passive: true });
+  root.addEventListener("pointercancel", event => {
+    activeTouchPointers.delete(event.pointerId);
+    if (pageSwipe?.pointerId === event.pointerId || activeTouchPointers.size > 1) pageSwipe = null;
+  }, { passive: true });
   root.addEventListener("pointerup", scheduleReaderSelectionSync, { passive: true });
   root.addEventListener("keyup", scheduleReaderSelectionSync);
   root.addEventListener("click", (event) => {
+    if (suppressReaderClick && findAncestorByClass(event.target, root, "r3-reader-scroll")) {
+      suppressReaderClick = false;
+      return;
+    }
     cancelChromeTap();
     const hit = event.target.closest?.(".r3-reader-content .vocab-hit[data-vocab-term]");
     if (hit) {
@@ -967,11 +1033,6 @@ function bindAppShellEvents(root, controller, browserEffects) {
       if (key && value) controller.setReaderAppearance?.({ [key]: value });
       return;
     }
-    if (action === "reader-page-previous" || action === "reader-page-next") {
-      root.__readerLayout?.turn(action === "reader-page-next" ? 1 : -1);
-      return;
-    }
-
     if (action === "vocabulary-preview-open") {
       controller.openVocabularyPreview?.(collectVocabularyOccurrences(root));
       return;
@@ -1153,7 +1214,7 @@ export async function bootstrapR3App(options = {}) {
     toastDurationMs: options.toastDurationMs,
     errorToastDurationMs: options.errorToastDurationMs
   });
-  bindAppShellEvents(root, controller, options.browserEffects || createBrowserEffects(documentRef));
+  bindAppShellEvents(root, store, controller, options.browserEffects || createBrowserEffects(documentRef));
   bindPageLifecycleEvents(documentRef, controller);
   root.__readerHistory = bindReaderHistory(documentRef.defaultView, store, controller);
   const app = {

@@ -1,7 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { locateBookPage, pageForOffset, measureChapterPages } from "../pwa-reader/ui-r3/readerLayout.js";
+import {
+  getReaderPageSwipeDirection,
+  getReaderPageStep,
+  locateBookPage,
+  pageForOffset,
+  measureChapterPages
+} from "../pwa-reader/ui-r3/readerLayout.js";
 import { bindReaderHistory } from "../pwa-reader/ui-r3/readerHistory.js";
 import { createR3Store } from "../pwa-reader/ui-r3/store.js";
 import { r3Actions } from "../pwa-reader/ui-r3/actions.js";
@@ -75,6 +81,21 @@ test("Viewport page boundaries use rendered ranges and survive vocabulary wrappe
   assert.deepEqual(measureChapterPages(content, 393), [0]);
 });
 
+test("Page swipe direction maps touch movement to the locked next and previous contract", () => {
+  assert.equal(getReaderPageSwipeDirection({ startX: 300, startY: 420, endX: 220, endY: 428, viewportWidth: 393 }), 1);
+  assert.equal(getReaderPageSwipeDirection({ startX: 90, startY: 420, endX: 180, endY: 414, viewportWidth: 393 }), -1);
+});
+
+test("Page swipe rejects movement below its centralized threshold or dominated by vertical travel", () => {
+  assert.equal(getReaderPageSwipeDirection({ startX: 200, startY: 420, endX: 165, endY: 422, viewportWidth: 393 }), 0);
+  assert.equal(getReaderPageSwipeDirection({ startX: 260, startY: 300, endX: 190, endY: 410, viewportWidth: 393 }), 0);
+});
+
+test("Page step follows the rendered column gap so wide margins cannot reveal the next page", () => {
+  assert.equal(getReaderPageStep(640, 120), 760);
+  assert.equal(getReaderPageStep(345, "normal"), 393);
+});
+
 test("Reader creates one internal entry; native Back returns to Library and Forward restores the book", async () => {
   const { entries, history, store, controller, bridge } = historyHarness();
   await controller.navigate(R3_ROUTES.LIBRARY);
@@ -113,11 +134,16 @@ test("Rapid history events serialize and leave the latest requested screen visib
   assert.equal(h.entries.length, 2);
 });
 
-test("Reader chrome is overlay-only and Page columns retain selectable source prose", async () => {
+test("Reader Page columns retain selectable source prose and reserve stable chrome safe areas", async () => {
   const css = await readFile(new URL("../pwa-reader/ui-r3/styles/base.css", import.meta.url), "utf8");
   for (const selector of ["header", "footer", "scroll"]) {
     assert.match(css, new RegExp(`\\.r3-reader-${selector} \\{\\s+position: absolute;`));
   }
   assert.match(css, /column-fill: auto/);
   assert.doesNotMatch(css, /user-select:\s*none/);
+  assert.match(css, /--r3-reader-page-safe-top:/);
+  assert.match(css, /--r3-reader-page-safe-bottom:/);
+  assert.match(css, /\.r3-reader-scroll\[data-layout="page"\][\s\S]*padding-top:\s*var\(--r3-reader-page-safe-top\)/);
+  assert.match(css, /\.r3-reader-scroll\[data-layout="page"\][\s\S]*padding-bottom:\s*var\(--r3-reader-page-safe-bottom\)/);
+  assert.match(css, /column-gap:\s*calc\(48px \+ var\(--r3-reader-margin-inline\)\)/);
 });

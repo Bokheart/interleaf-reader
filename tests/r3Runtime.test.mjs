@@ -575,6 +575,97 @@ test("R3 chrome has left icon Back, four quick controls, Contents scrim and Prog
   assert.equal(calls.savePosition.at(-1).currentChapterId, "chapter-1");
 });
 
+test("R3 Page removes persistent arrow buttons while Scroll appends boundary-aware chapter actions", () => {
+  const document = createMockDocument();
+  const base = {
+    status: "ready",
+    chapterTitle: "Chapter",
+    html: "<p>Reader text</p>",
+    pagination: { status: "ready", pageIndex: 1, pageCount: 3 }
+  };
+  const page = collectNodes(createReaderView(document, createInitialR3State({
+    activeScreen: R3_ROUTES.READER,
+    reader: { ...base, readingLayout: "page", hasPrevious: true, hasNext: true }
+  })));
+  assert.equal(page.some(node => ["reader-page-previous", "reader-page-next"].includes(node.dataset?.action)), false);
+  assert.ok(page.some(node => node.dataset?.role === "reader-page-label"));
+  assert.equal(page.some(node => node.className === "r3-reader-chapter-end-nav"), false);
+
+  const first = collectNodes(createReaderView(document, createInitialR3State({
+    activeScreen: R3_ROUTES.READER,
+    reader: { ...base, readingLayout: "scroll", hasPrevious: false, hasNext: true }
+  })));
+  assert.deepEqual(first.filter(node => node.parentNode?.className === "r3-reader-chapter-end-nav").map(node => node.dataset.action), ["reader-next"]);
+
+  const last = collectNodes(createReaderView(document, createInitialR3State({
+    activeScreen: R3_ROUTES.READER,
+    reader: { ...base, readingLayout: "scroll", hasPrevious: true, hasNext: false }
+  })));
+  assert.deepEqual(last.filter(node => node.parentNode?.className === "r3-reader-chapter-end-nav").map(node => node.dataset.action), ["reader-previous"]);
+});
+
+test("R3 Page swipe and Arrow keys turn once while selection, controls, overlays and multitouch arbitrate", async () => {
+  const document = createMockDocument();
+  document.defaultView = { innerWidth: 393, addEventListener() {} };
+  const { adapters, readerRuntime } = createAdapters();
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters, readerRuntime });
+  const app = await bootstrapR3App({ document, store, controller });
+  await controller.resumeBook("recent");
+  const root = app.root;
+  const content = collectNodes(root).find(node => node.className === "r3-reader-content");
+  const scroll = collectNodes(root).find(node => node.className === "r3-reader-scroll");
+  const turns = [];
+  root.__readerLayout = { turn: direction => turns.push(direction) };
+  const down = root.eventListeners.get("pointerdown")[0];
+  const up = root.eventListeners.get("pointerup")[0];
+  const cancel = root.eventListeners.get("pointercancel")[0];
+  const keydown = root.eventListeners.get("keydown")[0];
+  const pointer = (target, pointerId, x, y, extras = {}) => ({
+    target, pointerId, pointerType: "touch", isPrimary: true, clientX: x, clientY: y, ...extras
+  });
+
+  down(pointer(content, 1, 300, 420));
+  up(pointer(content, 1, 220, 428));
+  down(pointer(content, 2, 90, 420));
+  up(pointer(content, 2, 180, 414));
+  assert.deepEqual(turns, [1, -1]);
+
+  down(pointer(content, 3, 200, 420));
+  up(pointer(content, 3, 165, 422));
+  down(pointer(content, 4, 260, 300));
+  up(pointer(content, 4, 190, 410));
+  assert.deepEqual(turns, [1, -1]);
+
+  document.getSelection = () => ({ isCollapsed: false, toString: () => "selected prose" });
+  down(pointer(content, 5, 300, 420));
+  up(pointer(content, 5, 220, 428));
+  document.getSelection = () => null;
+  for (const target of [
+    document.createElement("button"),
+    document.createElement("a"),
+    Object.assign(document.createElement("span"), { className: "vocab-hit" }),
+    Object.assign(document.createElement("div"), { className: "r3-vocabulary-bubble" })
+  ]) {
+    content.appendChild(target);
+    down(pointer(target, 6, 300, 420));
+    up(pointer(target, 6, 220, 428));
+  }
+  controller.openReaderMode();
+  down(pointer(content, 7, 300, 420));
+  up(pointer(content, 7, 220, 428));
+  controller.closeOverlay();
+  down(pointer(content, 8, 300, 420));
+  down(pointer(content, 9, 290, 420, { isPrimary: false }));
+  up(pointer(content, 8, 220, 428));
+  cancel(pointer(content, 9, 290, 420, { isPrimary: false }));
+  assert.deepEqual(turns, [1, -1]);
+
+  keydown({ key: "ArrowLeft", target: scroll, preventDefault() {} });
+  keydown({ key: "ArrowRight", target: scroll, preventDefault() {} });
+  assert.deepEqual(turns, [1, -1, -1, 1]);
+});
+
 test("R3 Mode uses adapter availability and persists only a successful available mode", async () => {
   const { adapters, readerRuntime, calls } = createAdapters();
   adapters.modes.resolveModeFromProgress = () => "english-study";

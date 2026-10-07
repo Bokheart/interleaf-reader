@@ -1,6 +1,35 @@
 import { R3_ROUTES } from "./routes.js";
 import { applyReaderAppearanceDataset, readerAppearanceSignature, resolveReaderAppearance } from "../readerAppearance.js";
 
+export const READER_PAGE_SWIPE = Object.freeze({
+  minimumDistance: 48,
+  maximumDistance: 72,
+  viewportRatio: 0.12,
+  dominanceRatio: 1.35
+});
+
+export function getReaderPageSwipeDirection({ startX, startY, endX, endY, viewportWidth }) {
+  const coordinates = [startX, startY, endX, endY].map(Number);
+  if (!coordinates.every(Number.isFinite)) return 0;
+  const [resolvedStartX, resolvedStartY, resolvedEndX, resolvedEndY] = coordinates;
+  const horizontal = resolvedEndX - resolvedStartX;
+  const vertical = resolvedEndY - resolvedStartY;
+  const width = Math.max(0, Number(viewportWidth) || 0);
+  const threshold = Math.min(
+    READER_PAGE_SWIPE.maximumDistance,
+    Math.max(READER_PAGE_SWIPE.minimumDistance, width * READER_PAGE_SWIPE.viewportRatio)
+  );
+  if (Math.abs(horizontal) < threshold
+    || Math.abs(horizontal) < Math.abs(vertical) * READER_PAGE_SWIPE.dominanceRatio) return 0;
+  return horizontal < 0 ? 1 : -1;
+}
+
+export function getReaderPageStep(contentWidth, columnGap) {
+  const width = Math.max(0, Number(contentWidth) || 0);
+  const parsedGap = Number.parseFloat(columnGap);
+  return width + (Number.isFinite(parsedGap) ? parsedGap : 48);
+}
+
 // Pagination is a viewport-derived index. Durable locators address the source text,
 // independent of annotation spans, CSS columns, window size and layout direction.
 export function pageForOffset(pages, offset) {
@@ -81,9 +110,9 @@ function firstOffset(content, source, predicate) {
   return low;
 }
 
-export function measureChapterPages(content, step) {
+export function measureChapterPages(content, step, columnGap = 48) {
   const source = sourceUnits(content);
-  const count = Math.max(1, Math.ceil((content.scrollWidth + 48 - 1) / step));
+  const count = Math.max(1, Math.ceil((content.scrollWidth + columnGap - 1) / step));
   const left = content.getBoundingClientRect().left;
   const pages = [0];
   for (let page = 1; page < count; page += 1) {
@@ -116,7 +145,8 @@ export function createReaderLayout(root, store, controller) {
   let lastPagination = "";
   const metrics = () => ({ scrollTop: scroll?.scrollTop || 0,
     scrollHeight: scroll?.scrollHeight || 0, clientHeight: scroll?.clientHeight || 0 });
-  const step = () => (content?.clientWidth || 0) + 48;
+  const columnGap = element => Number.parseFloat(windowRef.getComputedStyle?.(element)?.columnGap) || 48;
+  const step = () => getReaderPageStep(content?.clientWidth, columnGap(content));
 
   function publish(status = chapters.length ? "ready" : "loading") {
     let pageIndex = 0;
@@ -181,7 +211,8 @@ export function createReaderLayout(root, store, controller) {
         body.innerHTML = chapter.html;
         await Promise.all([...body.querySelectorAll("img")].map(img => img.decode?.().catch(() => {}) ));
         if (token !== generation) return;
-        measured.push({ id: chapter.id, index: chapter.index, pages: measureChapterPages(body, body.clientWidth + 48) });
+        const gap = columnGap(body);
+        measured.push({ id: chapter.id, index: chapter.index, pages: measureChapterPages(body, getReaderPageStep(body.clientWidth, gap), gap) });
         // Yield between chapters; imported books must not lock input while indexing.
         await new Promise(resolve => windowRef.setTimeout(resolve, 0));
       }
@@ -216,7 +247,7 @@ export function createReaderLayout(root, store, controller) {
     const request = state.reader.positionRequest;
     const freshRequest = request && request.sequence !== requestSequence;
     requestSequence = request?.sequence;
-    localPages = layout === "page" ? measureChapterPages(content, step()) : [0];
+    localPages = layout === "page" ? measureChapterPages(content, step(), columnGap(content)) : [0];
     if (layout === "page") {
       // Overflowing CSS columns omit the trailing padding from scrollWidth in
       // Chromium. Explicitly include it so the last page aligns like every other.

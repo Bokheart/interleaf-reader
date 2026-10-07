@@ -61,6 +61,29 @@ function createReaderContent(documentRef, reader = {}, t) {
   }
 
   panel.appendChild(content);
+  if (reader.readingLayout === "scroll" && (reader.hasPrevious || reader.hasNext)) {
+    const navigation = createElement(documentRef, "nav", {
+      className: "r3-reader-chapter-end-nav",
+      attrs: { "aria-label": t("reader.aria.chapterNavigation") }
+    });
+    if (reader.hasPrevious) {
+      navigation.appendChild(createReaderButton(
+        documentRef,
+        "reader-previous",
+        t("reader.navigation.previous"),
+        reader.status !== "ready"
+      ));
+    }
+    if (reader.hasNext) {
+      navigation.appendChild(createReaderButton(
+        documentRef,
+        "reader-next",
+        t("reader.navigation.next"),
+        reader.status !== "ready"
+      ));
+    }
+    panel.appendChild(navigation);
+  }
   return panel;
 }
 
@@ -623,13 +646,12 @@ export function createReaderView(documentRef, state, t = createTranslator("en"))
   scrollWorkspace.appendChild(createReaderContent(documentRef, reader, t));
   view.appendChild(scrollWorkspace);
   if (reader.readingLayout !== "scroll") {
-    const pageNav = createElement(documentRef, "nav", {
-      className: "r3-reader-page-nav", attrs: { ...chromeAttrs, "aria-label": t("r3.reader.seekPage") }
+    const pageIndicator = createElement(documentRef, "div", {
+      className: "r3-reader-page-indicator",
+      attrs: { ...chromeAttrs, role: "status", "aria-live": "polite" }
     });
-    pageNav.appendChild(createIconButton(documentRef, { icon: "chevronLeft", label: t("r3.reader.previousPage"), dataset: { action: "reader-page-previous" } }));
-    pageNav.appendChild(createElement(documentRef, "span", { dataset: { role: "reader-page-label" } }));
-    pageNav.appendChild(createIconButton(documentRef, { icon: "chevronRight", label: t("r3.reader.nextPage"), dataset: { action: "reader-page-next" } }));
-    view.appendChild(pageNav);
+    pageIndicator.appendChild(createElement(documentRef, "span", { dataset: { role: "reader-page-label" } }));
+    view.appendChild(pageIndicator);
   }
 
   const nav = createElement(documentRef, "nav", { className: "r3-reader-quick-controls", attrs: { "aria-label": t("reader.aria.quickControls") } });
