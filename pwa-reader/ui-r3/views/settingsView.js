@@ -41,8 +41,10 @@ export function createSettingsView(documentRef, state, t) {
   header.appendChild(createIconButton(documentRef, {
     className: "r3-icon-button r3-settings-back",
     icon: "chevronLeft",
-    label: t("settings.backHome"),
-    dataset: { action: "navigate", route: R3_ROUTES.HOME }
+    label: settings.returnScreen === R3_ROUTES.READER
+      ? t("r3.settings.backReader")
+      : settings.returnScreen === R3_ROUTES.LIBRARY ? t("r3.settings.backLibrary") : t("settings.backHome"),
+    dataset: { action: "settings-return" }
   }));
   header.appendChild(createElement(documentRef, "h1", { text: t("settings.title") }));
   view.appendChild(header);

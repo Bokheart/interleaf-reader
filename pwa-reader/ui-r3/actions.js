@@ -103,10 +103,10 @@ export const r3Actions = Object.freeze({
     };
   },
 
-  openOverlay(overlay) {
+  openOverlay(overlay, reader = null) {
     return {
       type: R3_ACTIONS.OPEN_OVERLAY,
-      payload: { overlay }
+      payload: reader ? { overlay, reader } : { overlay }
     };
   },
 

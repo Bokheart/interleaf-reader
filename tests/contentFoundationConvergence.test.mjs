@@ -324,14 +324,17 @@ test('named Guide resume export reaches progress storage without requiring a rec
   await assert.rejects(() => resumeBook(GUIDE_BOOK_KEY), /IndexedDB is not available/);
 });
 
-test('v5 preserves every base precache asset and adds only dictionary foundation code', async () => {
+test('v6 preserves every base precache asset and adds dictionary and R3 runtime dependencies', async () => {
   const assets = source => [...source.match(/const PRECACHE_ASSETS = \[([\s\S]*?)\];/)[1].matchAll(/'([^']+)'/g)].map(match => match[1]);
   const base = execFileSync('git', ['show', 'd7f42c0:pwa-reader/sw.js'], { encoding: 'utf8' });
   const current = await readFile(new URL('sw.js', readerRoot), 'utf8');
   const before = assets(base);
   const after = assets(current);
   assert.deepEqual(before.filter(asset => !after.includes(asset)), []);
-  assert.deepEqual(after.filter(asset => !before.includes(asset)), ['./dictionaryMetadata.js']);
-  assert.match(current, /CACHE_NAME = 'interleaf-reader-static-v5'/);
+  assert.ok(after.includes('./dictionaryMetadata.js'));
+  for (const asset of after.filter(asset => !before.includes(asset))) {
+    assert.match(asset, /^\.\/(?:dictionaryMetadata\.js|readerBookmarks\.js|readerProgress\.js|r3\.html|ui-r3\/|adapters\/)/);
+  }
+  assert.match(current, /CACHE_NAME = 'interleaf-reader-static-v6'/);
   assert.ok(!after.some(asset => asset.includes('data/dictionary/')));
 });

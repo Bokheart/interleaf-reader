@@ -6,6 +6,7 @@ import {
   createSectionHeader
 } from "../components/dom.js";
 import { createTranslator } from "../../i18n.js";
+import { R3_ROUTES } from "../routes.js";
 
 function createLibraryHeader(documentRef, t) {
   const header = createElement(documentRef, "header", { className: "r3-library-header" });
@@ -22,10 +23,8 @@ function createLibraryHeader(documentRef, t) {
     dataset: { action: "unsupported" }
   }));
   actions.appendChild(createIconButton(documentRef, {
-    icon: "menu",
-    label: t("r3.library.menuUnavailable"),
-    disabled: true,
-    dataset: { action: "unsupported" }
+    icon: "settings", label: t("settings.open"),
+    dataset: { action: "navigate", route: R3_ROUTES.SETTINGS_HOME }
   }));
   header.appendChild(actions);
   return header;

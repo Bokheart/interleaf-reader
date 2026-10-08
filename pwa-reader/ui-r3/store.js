@@ -327,7 +327,10 @@ export function r3Reducer(state = createInitialR3State(), action = {}) {
     case R3_ACTIONS.OPEN_OVERLAY:
       return {
         ...state,
-        openOverlay: action.payload?.overlay || null
+        openOverlay: action.payload?.overlay || null,
+        reader: action.payload?.reader
+          ? { ...state.reader, ...action.payload.reader }
+          : state.reader
       };
 
     case R3_ACTIONS.CLOSE_OVERLAY:

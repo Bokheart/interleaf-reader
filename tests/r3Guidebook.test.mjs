@@ -545,3 +545,18 @@ test("Guide progress can restore without entering Local Library as an imported E
   const books = await harness.adapters.books.listBooks();
   assert.equal(books.some((book) => book.bookKey === GUIDE_BOOK_KEY), false);
 });
+
+test("Guide renders just its restored current chapter on open and reopen", async () => {
+  const h = createGuideHarness();
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters: h.adapters, readerRuntime: h.readerRuntime });
+  await controller.openGuide();
+  assert.equal(store.getState().reader.status, "ready");
+  assert.equal(h.calls.renderChapter.length, 1);
+  assert.equal(h.calls.getReaderVocabulary.length, 1);
+  assert.equal(controller.getPaginationChapters, undefined);
+  await controller.exitReader();
+  await controller.openGuide();
+  assert.equal(h.calls.renderChapter.length, 2);
+  assert.equal(h.calls.loadChapterContent.length, 0);
+});

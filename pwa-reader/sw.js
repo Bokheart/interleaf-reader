@@ -1,4 +1,4 @@
-const CACHE_NAME = 'interleaf-reader-static-v5';
+const CACHE_NAME = 'interleaf-reader-static-v6';
 const CACHE_PREFIX = 'interleaf-reader-static-';
 const DICTIONARY_CACHE_NAME = 'interleaf-reader-dictionary-metadata-v1';
 const DICTIONARY_CACHE_PREFIX = 'interleaf-reader-dictionary-';
@@ -6,6 +6,34 @@ const DICTIONARY_CACHE_PREFIX = 'interleaf-reader-dictionary-';
 const PRECACHE_ASSETS = [
   './',
   './index.html',
+  './adapters/booksAdapter.js',
+  './adapters/modesAdapter.js',
+  './adapters/readerAdapter.js',
+  './adapters/settingsAdapter.js',
+  './adapters/vocabularyAdapter.js',
+  './r3.html',
+  './readerBookmarks.js',
+  './readerProgress.js',
+  './ui-r3/actions.js',
+  './ui-r3/bootstrap.js',
+  './ui-r3/components/bookRow.js',
+  './ui-r3/components/bottomNavigation.js',
+  './ui-r3/components/dom.js',
+  './ui-r3/controller.js',
+  './ui-r3/readerHistory.js',
+  './ui-r3/readerLayout.js',
+  './ui-r3/readerPageTurn.js',
+  './ui-r3/routes.js',
+  './ui-r3/store.js',
+  './ui-r3/styles/base.css',
+  './ui-r3/styles/reader-content.css',
+  './ui-r3/styles/tokens.css',
+  './ui-r3/views/appShellView.js',
+  './ui-r3/views/homeView.js',
+  './ui-r3/views/libraryView.js',
+  './ui-r3/views/readerView.js',
+  './ui-r3/views/settingsView.js',
+  './ui-r3/views/vocabularyView.js',
   './styles.css',
   './manifest.webmanifest',
   './app.js',
@@ -126,6 +154,7 @@ self.addEventListener('fetch', event => {
   if (request.mode === 'navigate' && url.pathname.startsWith(scopeUrl.pathname)) {
     event.respondWith(
       fetch(request).catch(() => {
+        if (url.pathname === new URL('./r3.html', scopeUrl).pathname) return caches.match('./r3.html');
         return caches.match('./index.html');
       })
     );

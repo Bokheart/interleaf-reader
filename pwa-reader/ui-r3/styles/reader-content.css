@@ -198,6 +198,13 @@
   cursor: pointer;
 }
 
+.r3-reader-content .r3-vocabulary-pending {
+  text-decoration: underline;
+  text-decoration-color: var(--r3-color-accent);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
 .r3-reader-content .vocab-hit:focus-visible {
   outline: 2px solid var(--r3-color-accent);
   outline-offset: 2px;

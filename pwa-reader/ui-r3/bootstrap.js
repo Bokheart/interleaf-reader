@@ -5,7 +5,7 @@ import { normalizeWord } from "../levelBaselineEngine.js";
 import { normalizeTerm } from "../vocabEngine.js";
 import { R3_OVERLAYS, R3_ROUTES } from "./routes.js";
 import { createAppShellView } from "./views/appShellView.js";
-import { createReaderLayout, getReaderPageSwipeDirection } from "./readerLayout.js";
+import { createReaderLayout, readerSwipeIntent, getReaderPageSwipeDirection } from "./readerLayout.js";
 import { bindReaderHistory } from "./readerHistory.js";
 import { readerAppearanceSignature } from "../readerAppearance.js";
 
@@ -130,6 +130,69 @@ export function getReaderSelectionCapture(documentRef) {
     targetEnd: prefix.toString().length + selected.length - trailing, freeform: true };
 }
 
+const READER_SELECTION_BLOCKS = ".r3-reader-content p, .r3-reader-content li, .r3-reader-content blockquote, .r3-reader-content h1, .r3-reader-content h2, .r3-reader-content h3, .r3-reader-content h4, .r3-reader-content h5, .r3-reader-content h6, .r3-reader-content div";
+const READER_SELECTION_BLOCK_TAGS = "p, li, blockquote, h1, h2, h3, h4, h5, h6, div";
+
+function markPendingSelection(documentRef, block, start, length, term) {
+  if (!block || !length) return;
+  const walker = documentRef.createTreeWalker(block, 4);
+  const segments = [];
+  let node, offset = 0;
+  while ((node = walker.nextNode())) {
+    const end = offset + node.textContent.length;
+    if (start < end && start + length > offset) {
+      segments.push({ node, start: Math.max(0, start - offset), end: Math.min(node.textContent.length, start + length - offset) });
+    }
+    offset = end;
+  }
+  // Collect first because wrapping text changes the live tree.
+  for (const segment of segments.reverse()) {
+    const mark = documentRef.createElement("span");
+    mark.className = "r3-vocabulary-pending";
+    mark.dataset.pendingVocabularyTerm = term;
+    const range = documentRef.createRange();
+    range.setStart(segment.node, segment.start);
+    range.setEnd(segment.node, segment.end);
+    try { range.surroundContents(mark); } catch { /* Keep native selection usable. */ }
+  }
+}
+
+function capturePendingSelectionUnderline(root, documentRef) {
+  const selection = documentRef?.getSelection?.();
+  if (!selection || selection.rangeCount !== 1 || selection.isCollapsed
+      || !root?.querySelectorAll || !documentRef?.createRange || !documentRef?.createTreeWalker) return null;
+  const range = selection.getRangeAt(0);
+  const block = range.startContainer?.parentElement?.closest?.(READER_SELECTION_BLOCK_TAGS);
+  const blockIndex = [...root.querySelectorAll(READER_SELECTION_BLOCKS)].indexOf(block);
+  if (blockIndex < 0) return null;
+  const prefix = documentRef.createRange();
+  prefix.selectNodeContents(block);
+  prefix.setEnd(range.startContainer, range.startOffset);
+  const start = prefix.toString().length, length = String(selection).length;
+  const term = getReaderSelectionTerm(documentRef);
+  return () => markPendingSelection(documentRef, root.querySelectorAll(READER_SELECTION_BLOCKS)[blockIndex], start, length, term);
+}
+
+function preservePendingSelectionUnderlines(root, documentRef, pendingTerms = []) {
+  if (!pendingTerms.length || !documentRef?.createRange || !documentRef?.createTreeWalker) return null;
+  const blocks = [...root.querySelectorAll(READER_SELECTION_BLOCKS)];
+  const snapshots = [];
+  for (const mark of root.querySelectorAll(".r3-vocabulary-pending")) {
+    const term = mark.dataset.pendingVocabularyTerm;
+    if (!pendingTerms.includes(term)) continue;
+    const block = mark.closest(READER_SELECTION_BLOCK_TAGS), blockIndex = blocks.indexOf(block);
+    if (blockIndex < 0) continue;
+    const prefix = documentRef.createRange();
+    prefix.selectNodeContents(block);
+    prefix.setEndBefore(mark);
+    snapshots.push({ blockIndex, start: prefix.toString().length, length: mark.textContent.length, term });
+  }
+  return () => {
+    const currentBlocks = root.querySelectorAll(READER_SELECTION_BLOCKS);
+    for (const mark of snapshots) markPendingSelection(documentRef, currentBlocks[mark.blockIndex], mark.start, mark.length, mark.term);
+  };
+}
+
 function getVocabularySnippet(hit) {
   const contentTags = new Set(["P", "LI", "BLOCKQUOTE", "FIGCAPTION", "TD", "TH"]);
   let context = hit?.parentNode;
@@ -173,7 +236,23 @@ function getVocabularySnippet(hit) {
   return `${start > 0 ? "…" : ""}${excerpt}${start + 174 < text.length ? "…" : ""}`;
 }
 
-export function collectVocabularyOccurrences(root) {
+function sourceOffsetForElement(content, target) {
+  if (!content?.childNodes || !target) return null;
+  let offset = 0;
+  let found = false;
+  const visit = node => {
+    if (node === target) { found = true; return; }
+    if (node.nodeType === 3) { offset += node.textContent?.length || 0; return; }
+    if (["IMG", "SVG", "VIDEO", "HR"].includes(node.tagName)) { offset += 1; return; }
+    if (!["SCRIPT", "STYLE"].includes(node.tagName)) {
+      for (const child of node.childNodes || []) { if (found) break; visit(child); }
+    }
+  };
+  visit(content);
+  return found ? offset : null;
+}
+
+export function collectVocabularyOccurrences(root, chapterId = null) {
   const occurrences = {};
   const stack = root ? [root] : [];
   while (stack.length) {
@@ -182,9 +261,12 @@ export function collectVocabularyOccurrences(root) {
       const term = normalizeTerm(node.dataset?.vocabTerm);
       if (term) {
         const termOccurrences = occurrences[term] || [];
+        const content = findAncestorByClass(node, root, "r3-reader-content");
+        const textOffset = sourceOffsetForElement(content, node);
         termOccurrences.push({
           occurrenceIndex: termOccurrences.length,
-          snippet: getVocabularySnippet(node)
+          snippet: getVocabularySnippet(node),
+          ...(chapterId && Number.isInteger(textOffset) ? { chapterId, textOffset } : {})
         });
         occurrences[term] = termOccurrences;
       }
@@ -344,14 +426,19 @@ function mountAppShell(root, store, documentRef, controller, options = {}) {
   const updatePaginationControls = (state) => {
     const pages = state.reader.pagination || {};
     const t = (key, params) => getTranslation(state.settings?.uiLanguage || "en", key, params);
-    const label = pages.status === "ready" ? t("r3.reader.bookPage", { current: pages.pageIndex + 1, total: pages.pageCount })
-      : t(pages.status === "error" ? "r3.reader.paginationError" : "r3.reader.paginating");
-    for (const node of root.querySelectorAll?.("[data-role='reader-page-label']") || []) node.textContent = label;
+    const label = pages.status === "ready"
+      ? (state.reader.readingLayout === "scroll" ? "" : (pages.pageIndex + 1) + " / " + pages.pageCount + " · ")
+        + Math.floor((pages.bookProgress || 0) * 100) + "%"
+      : "";
+    for (const node of root.querySelectorAll?.("[data-role='reader-page-label']") || []) {
+      node.textContent = label;
+      node.setAttribute("title", t("r3.reader.seekPage") + " · " + t("r3.reader.sourceProgress"));
+    }
     const slider = root.querySelector?.("[data-action='reader-progress-page']");
     if (slider) {
-      slider.max = String(Math.max(0, (pages.pageCount || 1) - 1));
-      slider.value = String(pages.pageIndex || 0);
-      slider.disabled = pages.status !== "ready" || pages.pageCount < 2;
+      slider.max = "1000";
+      slider.value = String(Math.round((pages.bookProgress || 0) * 1000));
+      slider.disabled = pages.status !== "ready";
       slider.setAttribute("aria-valuetext", `${label} · ${state.reader.chapterTitle}`);
     }
     const title = root.querySelector?.(".r3-reader-progress-title");
@@ -410,7 +497,27 @@ function mountAppShell(root, store, documentRef, controller, options = {}) {
     }, delay);
   };
 
-  const render = (state) => {
+  const render = (state, action = null) => {
+    if (action?.optimisticVocabulary
+        && previousState?.activeScreen === R3_ROUTES.READER
+        && state.activeScreen === R3_ROUTES.READER
+        && previousState.activeBookId === state.activeBookId
+        && previousState.activeChapterId === state.activeChapterId
+        && previousState.openOverlay === state.openOverlay
+        && previousState.reader.html === state.reader.html) {
+      const previewStates = new Map((state.reader.vocabularyPreview?.rows || [])
+        .map(row => [normalizeTerm(row.term), row.state]));
+      for (const button of root.querySelectorAll?.(".r3-vocabulary-state-button") || []) {
+        const selected = previewStates.get(normalizeTerm(button.dataset.vocabularyTerm)) === button.dataset.vocabularyState;
+        button.classList.toggle("is-selected", selected);
+        button.setAttribute("aria-pressed", String(selected));
+      }
+      for (const button of root.querySelectorAll?.('.r3-vocabulary-bubble [data-action="vocabulary-state"]') || []) {
+        button.disabled = state.reader.vocabularySaving;
+      }
+      previousState = state;
+      return;
+    }
     if (previousState?.activeScreen === R3_ROUTES.READER && state.activeScreen === R3_ROUTES.READER
       && JSON.stringify({ ...previousState, reader: { ...previousState.reader, pagination: state.reader.pagination } }) === JSON.stringify(state)) {
       previousState = state;
@@ -424,7 +531,7 @@ function mountAppShell(root, store, documentRef, controller, options = {}) {
       const visible = state.reader.chromeVisible !== false;
       const screen = findFirst(root, node => classListContains(node, "r3-reader-screen"));
       screen?.setAttribute("data-chrome-visible", String(visible));
-      for (const className of ["r3-reader-header", "r3-reader-footer", "r3-reader-page-indicator"]) {
+      for (const className of ["r3-reader-header", "r3-reader-footer"]) {
         const chrome = findFirst(root, node => classListContains(node, className));
         if (chrome) {
           chrome.inert = !visible;
@@ -434,6 +541,7 @@ function mountAppShell(root, store, documentRef, controller, options = {}) {
       previousState = state;
       return;
     }
+    readerLayout?.cancelTurn();
     const previousReaderScroll = findReaderScrollElement(root);
     const readerHadFocus = previousReaderScroll && documentRef.activeElement === previousReaderScroll;
     const previousPreviewScroll = findVocabularyPreviewScrollElement(root);
@@ -447,6 +555,8 @@ function mountAppShell(root, store, documentRef, controller, options = {}) {
       && previousState.activeBookId === state.activeBookId
       && previousState.activeChapterId === state.activeChapterId
     );
+    const restorePendingUnderlines = shouldPreserveReaderScroll
+      ? preservePendingSelectionUnderlines(root, documentRef, state.reader.pendingVocabularyTerms) : null;
     const appearanceUnchanged = shouldPreserveReaderScroll
       && previousState.reader.readingLayout === state.reader.readingLayout
       && readerAppearanceSignature(previousState.reader) === readerAppearanceSignature(state.reader);
@@ -518,6 +628,7 @@ function mountAppShell(root, store, documentRef, controller, options = {}) {
       root.textContent = view.textContent;
       root.replaceChildren(view);
     }
+    restorePendingUnderlines?.();
     if (Number.isFinite(preservedPreviewScrollTop)) {
       const previewScroll = findVocabularyPreviewScrollElement(root);
       if (previewScroll) previewScroll.scrollTop = preservedPreviewScrollTop;
@@ -591,7 +702,7 @@ function mountAppShell(root, store, documentRef, controller, options = {}) {
   };
 
   render(store.getState());
-  const unsubscribe = store.subscribe((state) => render(state));
+  const unsubscribe = store.subscribe((state, action) => render(state, action));
   return () => {
     clearVocabularyToastTimer();
     readerLayout?.destroy();
@@ -739,6 +850,13 @@ function bindAppShellEvents(root, store, controller, browserEffects) {
   let pendingChromeTap = null;
   let pageSwipe = null;
   let suppressReaderClick = false;
+  let swipeClickTimer = null;
+  const suppressGestureClick = () => {
+    suppressReaderClick = true;
+    cancelChromeTap();
+    chromeTimers.clearTimeout?.(swipeClickTimer);
+    swipeClickTimer = chromeTimers.setTimeout?.(() => { suppressReaderClick = false; }, 450);
+  };
   const activeTouchPointers = new Set();
   const cancelChromeTap = () => {
     if (pendingChromeTap !== null) chromeTimers.clearTimeout(pendingChromeTap);
@@ -814,7 +932,7 @@ function bindAppShellEvents(root, store, controller, browserEffects) {
     const state = store.getState();
     const surface = getReaderPageGestureSurface(event.target, root);
     if (!surface || state?.activeScreen !== R3_ROUTES.READER || state.openOverlay
-      || state.reader?.status !== "ready" || hasActiveReaderSelection(root.ownerDocument)) {
+      || state.reader?.status !== "ready" || state.reader?.vocabularyBubble || hasActiveReaderSelection(root.ownerDocument)) {
       pageSwipe = null;
       return;
     }
@@ -822,9 +940,25 @@ function bindAppShellEvents(root, store, controller, browserEffects) {
       pointerId: event.pointerId,
       startX: event.clientX,
       startY: event.clientY,
+      startTime: event.timeStamp || Date.now(),
+      viewportWidth: root.ownerDocument?.defaultView?.innerWidth || surface.clientWidth,
+      intent: "pending",
       surface
     };
   }, { passive: true });
+  root.addEventListener("pointermove", event => {
+    if (!pageSwipe || pageSwipe.pointerId !== event.pointerId) return;
+    const state = store.getState();
+    if (state.openOverlay || state.reader?.vocabularyBubble || hasActiveReaderSelection(root.ownerDocument)) {
+      pageSwipe.intent = "rejected";
+      return;
+    }
+    pageSwipe.intent = readerSwipeIntent(pageSwipe, event.clientX, event.clientY, event.timeStamp || Date.now());
+    if (pageSwipe.intent === "horizontal") {
+      cancelChromeTap();
+      if (event.cancelable) event.preventDefault();
+    }
+  }, { passive: false });
   root.addEventListener("pointerup", event => {
     if (event.pointerType !== "touch") return;
     activeTouchPointers.delete(event.pointerId);
@@ -832,8 +966,11 @@ function bindAppShellEvents(root, store, controller, browserEffects) {
     pageSwipe = null;
     if (!gesture || gesture.pointerId !== event.pointerId || activeTouchPointers.size
       || hasActiveReaderSelection(root.ownerDocument)) return;
+    if (Math.hypot(event.clientX - gesture.startX, event.clientY - gesture.startY) >= 12) suppressGestureClick();
+    gesture.intent = readerSwipeIntent(gesture, event.clientX, event.clientY, event.timeStamp || Date.now());
+    if (gesture.intent !== "horizontal") return;
     const state = store.getState();
-    if (state?.activeScreen !== R3_ROUTES.READER || state.openOverlay
+    if (state?.activeScreen !== R3_ROUTES.READER || state.openOverlay || state.reader?.vocabularyBubble
       || state.reader?.readingLayout !== "page" || state.reader?.status !== "ready") return;
     const direction = getReaderPageSwipeDirection({
       startX: gesture.startX,
@@ -843,8 +980,7 @@ function bindAppShellEvents(root, store, controller, browserEffects) {
       viewportWidth: gesture.surface.clientWidth || root.ownerDocument?.defaultView?.innerWidth
     });
     if (!direction) return;
-    suppressReaderClick = true;
-    chromeTimers.setTimeout?.(() => { suppressReaderClick = false; }, 0);
+    suppressGestureClick();
     root.__readerLayout?.turn(direction);
   }, { passive: true });
   root.addEventListener("pointercancel", event => {
@@ -916,7 +1052,9 @@ function bindAppShellEvents(root, store, controller, browserEffects) {
     if (action === "reader-selection-save") {
       const term = actionElement.dataset.selectionTerm;
       if (term) {
+        const underline = capturePendingSelectionUnderline(root, root.ownerDocument);
         controller.setReaderVocabularyState?.("learning", term, readerSelectionCapture);
+        underline?.();
       }
       return;
     }
@@ -935,8 +1073,11 @@ function bindAppShellEvents(root, store, controller, browserEffects) {
     if (action === "vocabulary-preview-passage") {
       const term = actionElement.dataset.vocabularyTerm;
       const occurrenceIndex = Number(actionElement.dataset.occurrenceIndex);
+      const beforeChapter = store.getState().activeChapterId;
+      const row = store.getState().reader.vocabularyPreview?.rows?.find(item => normalizeTerm(item.term) === normalizeTerm(term));
+      const targetChapter = row?.occurrences?.find(item => Number(item.occurrenceIndex) === occurrenceIndex)?.chapterId;
       if (controller.goToVocabularyPreviewOccurrence?.(term, occurrenceIndex)) {
-        scrollToVocabularyHit(root, term, occurrenceIndex);
+        if (!targetChapter || targetChapter === beforeChapter) scrollToVocabularyHit(root, term, occurrenceIndex);
       }
       return;
     }
@@ -957,6 +1098,11 @@ function bindAppShellEvents(root, store, controller, browserEffects) {
       return;
     }
     controller.closeVocabularyBubble?.();
+
+    if (action === "settings-return") {
+      if (!root.__readerHistory?.backFromSettings()) controller.returnFromSettings?.();
+      return;
+    }
 
     if (action === "navigate") {
       const route = actionElement.dataset.route;
@@ -1011,6 +1157,14 @@ function bindAppShellEvents(root, store, controller, browserEffects) {
       controller.openReaderProgress?.();
       return;
     }
+    if (action === "reader-return-position") {
+      controller.returnFromPassageDetour?.();
+      return;
+    }
+    if (action === "reader-continue-here") {
+      controller.continueFromPassageDetour?.();
+      return;
+    }
     if (action === "reader-mode") {
       controller.openReaderMode?.();
       return;
@@ -1034,7 +1188,7 @@ function bindAppShellEvents(root, store, controller, browserEffects) {
       return;
     }
     if (action === "vocabulary-preview-open") {
-      controller.openVocabularyPreview?.(collectVocabularyOccurrences(root));
+      controller.openVocabularyPreview?.(() => collectVocabularyOccurrences(root, store.getState().activeChapterId), { defer: true });
       return;
     }
 
@@ -1050,6 +1204,18 @@ function bindAppShellEvents(root, store, controller, browserEffects) {
       }
       return;
     }
+    if (action === "reader-toggle-bookmark") {
+      controller.toggleReaderBookmark?.();
+      return;
+    }
+    if (action === "reader-seek-bookmark") {
+      controller.seekReaderBookmark?.(actionElement.dataset.bookmarkId);
+      return;
+    }
+    if (action === "reader-delete-bookmark") {
+      controller.deleteReaderBookmark?.(actionElement.dataset.bookmarkId);
+      return;
+    }
 
     if (action === "reader-close-contents" || action === "reader-close-surface") {
       controller.closeOverlay();
@@ -1062,12 +1228,12 @@ function bindAppShellEvents(root, store, controller, browserEffects) {
   });
 
   root.addEventListener("input", event => {
-    if (event.target.dataset?.action === "reader-progress-page") root.__readerLayout?.seek(Number(event.target.value));
+    if (event.target.dataset?.action === "reader-progress-page") controller.seekReaderSourceFraction?.(Number(event.target.value) / 1000);
   });
   root.addEventListener("change", (event) => {
     const actionElement = findActionElement(event.target, root);
     if (actionElement?.dataset?.action === "reader-progress-page") {
-      root.__readerLayout?.seek(Number(actionElement.value));
+      controller.seekReaderSourceFraction?.(Number(actionElement.value) / 1000);
       return;
     }
     if (actionElement?.dataset?.action === "vocabulary-level") {
@@ -1207,7 +1373,8 @@ export async function bootstrapR3App(options = {}) {
   const controller = options.controller || createR3Controller({
     store,
     adapters: options.adapters,
-    collectVocabularyOccurrences: () => collectVocabularyOccurrences(root)
+    waitForReaderTurn: () => root.__readerLayout?.waitForTurn(),
+    collectVocabularyOccurrences: () => collectVocabularyOccurrences(root, store.getState().activeChapterId)
   });
   const unsubscribe = mountAppShell(root, store, documentRef, controller, {
     toastTimers: options.toastTimers,
@@ -1240,6 +1407,9 @@ export function autoBootstrapR3App(documentRef = globalThis.document) {
 
   autoBootstrapScheduled = true;
   const start = () => {
+    // Register from the R3 entry too; offline reload must retain this shell.
+    documentRef.defaultView?.navigator?.serviceWorker?.register(new URL("../sw.js", import.meta.url))
+      .catch(error => console.warn("R3 offline cache registration failed.", error));
     bootstrapR3App({ document: documentRef }).catch((error) => {
       console.error("R3 development bootstrap failed.", error);
     });

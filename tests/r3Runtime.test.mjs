@@ -620,6 +620,7 @@ test("R3 Page swipe and Arrow keys turn once while selection, controls, overlays
   const down = root.eventListeners.get("pointerdown")[0];
   const up = root.eventListeners.get("pointerup")[0];
   const cancel = root.eventListeners.get("pointercancel")[0];
+  const move = root.eventListeners.get("pointermove")[0];
   const keydown = root.eventListeners.get("keydown")[0];
   const pointer = (target, pointerId, x, y, extras = {}) => ({
     target, pointerId, pointerType: "touch", isPrimary: true, clientX: x, clientY: y, ...extras
@@ -660,6 +661,26 @@ test("R3 Page swipe and Arrow keys turn once while selection, controls, overlays
   up(pointer(content, 8, 220, 428));
   cancel(pointer(content, 9, 290, 420, { isPrimary: false }));
   assert.deepEqual(turns, [1, -1]);
+
+  down(pointer(content, 10, 10, 400, { timeStamp: 100 }));
+  move(pointer(content, 10, 70, 400, { timeStamp: 140 }));
+  up(pointer(content, 10, 140, 400, { timeStamp: 180 }));
+  down(pointer(content, 11, 250, 400, { timeStamp: 100 }));
+  move(pointer(content, 11, 248, 430, { timeStamp: 130 }));
+  up(pointer(content, 11, 120, 430, { timeStamp: 180 }));
+  down(pointer(content, 12, 250, 400, { timeStamp: 100 }));
+  move(pointer(content, 12, 120, 400, { timeStamp: 480 }));
+  up(pointer(content, 12, 120, 400, { timeStamp: 500 }));
+  assert.deepEqual(turns, [1, -1], "edge, vertical-then-horizontal, and long-press never turn");
+  down(pointer(content, 13, 250, 400, { timeStamp: 100 }));
+  let prevented = false;
+  move(pointer(content, 13, 225, 402, { timeStamp: 130, cancelable: true, preventDefault() { prevented = true; } }));
+  assert.equal(prevented, true, "horizontal intent is claimed before pointerup");
+  document.getSelection = () => ({ isCollapsed: false, toString: () => "selection" });
+  move(pointer(content, 13, 200, 402, { timeStamp: 150 }));
+  document.getSelection = () => null;
+  up(pointer(content, 13, 100, 402, { timeStamp: 200 }));
+  assert.deepEqual(turns, [1, -1], "selection rejection remains sticky after deselection");
 
   keydown({ key: "ArrowLeft", target: scroll, preventDefault() {} });
   keydown({ key: "ArrowRight", target: scroll, preventDefault() {} });
@@ -869,7 +890,7 @@ test("R3 Reader Appearance is global, persists locally, and keeps logical positi
   await controller.setReaderAppearance({ fontSize: "sm" });
   await controller.flushReaderProgress();
   assert.deepEqual(calls.savePosition.at(-1).overrides.logicalPosition, position);
-  assert.equal("pageIndex" in calls.savePosition.at(-1).overrides, false);
+  assert.equal("pageIndex" in (calls.savePosition.at(-1).overrides || {}), false);
 
   await controller.setReadingLayout("scroll");
   await controller.setReaderAppearance({ margin: "narrow" });
@@ -951,19 +972,20 @@ test("R3 rapid book-page seeks cannot publish an older chapter or locator", asyn
   assert.equal(store.getState().activeChapterIndex, 1);
 });
 
-test("R3 page indexing uses existing renderer and does not navigate or save measured chapters", async () => {
+test("R3 open and reopen load only the current chapter and do not expose an eager indexer", async () => {
   const { adapters, readerRuntime, calls } = createAdapters();
   const store = createR3Store();
   const controller = createR3Controller({ store, adapters, readerRuntime });
   await controller.resumeBook("recent");
-  await controller.flushReaderProgress();
-  const before = calls.savePosition.length;
-  const chapters = [];
-  for await (const chapter of controller.getPaginationChapters()) chapters.push(chapter);
-  assert.deepEqual(chapters.map(chapter => chapter.id), ["chapter-1", "chapter-2"]);
-  assert.match(chapters[0].html, /rendered in cloze-mixed/);
-  assert.equal(store.getState().activeChapterIndex, 1);
-  assert.equal(calls.savePosition.length, before);
+  assert.equal(store.getState().reader.status, "ready");
+  assert.equal(calls.loadChapterContent.length, 1);
+  assert.equal(controller.getPaginationChapters, undefined);
+  await controller.selectReaderChapter(0);
+  await controller.selectReaderChapter(1);
+  assert.equal(calls.loadChapterContent.length, 2, "recent source body is reused");
+  await controller.exitReader();
+  await controller.resumeBook("recent");
+  assert.equal(calls.loadChapterContent.length, 3, "reopen loads one chapter, never the full book");
 });
 
 test("R3 failed seek rendering keeps the last successful chapter and persisted anchor", async () => {
@@ -984,7 +1006,7 @@ test("R3 failed seek rendering keeps the last successful chapter and persisted a
   assert.deepEqual(calls.savePosition.at(-1).overrides.logicalPosition, position);
 });
 
-test("R3 stale page index stops after Reader exit and invalid locators cannot change progress", async () => {
+test("R3 invalid locators cannot change progress", async () => {
   const { adapters, readerRuntime } = createAdapters();
   const store = createR3Store();
   const controller = createR3Controller({ store, adapters, readerRuntime });
@@ -993,10 +1015,7 @@ test("R3 stale page index stops after Reader exit and invalid locators cannot ch
   await controller.seekReaderPosition(0, { chapterId: "chapter-2", textOffset: 20 });
   await controller.seekReaderPosition(0, { chapterId: "chapter-1", textOffset: -2 });
   assert.deepEqual(store.getState().reader.positionRequest, before);
-  const iterator = controller.getPaginationChapters();
-  assert.equal((await iterator.next()).done, false);
   await controller.exitReader();
-  assert.equal((await iterator.next()).done, true);
 });
 
 test("R3 store creates the expected initial runtime state", () => {
@@ -1340,7 +1359,7 @@ test("R3 interface language selection persists across reinitialization without m
   assert.equal(englishReloadStore.getState().settings.hasChosenUiLanguage, true);
 });
 
-test("R3 Settings is a secondary localized route with Home back navigation", () => {
+test("R3 Settings is a secondary localized route with origin-aware back navigation", () => {
   const documentRef = createMockDocument();
   const settingsState = createInitialR3State({
     initialized: true,
@@ -1355,7 +1374,7 @@ test("R3 Settings is a secondary localized route with Home back navigation", () 
   });
   const settingsNodes = collectNodes(createAppShellView(documentRef, settingsState));
   const settingsScreen = settingsNodes.find(node => node.getAttribute?.("data-screen") === "settings");
-  const back = settingsNodes.find(node => node.dataset?.action === "navigate" && node.dataset?.route === R3_ROUTES.HOME);
+  const back = settingsNodes.find(node => node.dataset?.action === "settings-return");
   const languageChoices = settingsNodes.filter(node => node.dataset?.action === "set-ui-language");
   const settingsText = settingsNodes.map(node => node.textContent).filter(Boolean).join(" ");
 
@@ -1386,6 +1405,12 @@ test("R3 Settings is a secondary localized route with Home back navigation", () 
   assert.equal(settingsEntry.dataset.action, "navigate");
   assert.equal(settingsEntry.disabled, undefined);
   assert.equal(settingsEntry.getAttribute("aria-label"), "Settings");
+  const libraryNodes = collectNodes(createAppShellView(documentRef, createInitialR3State({
+    initialized: true, activeScreen: R3_ROUTES.LIBRARY,
+    settings: { status: "ready", uiLanguage: "en", hasChosenUiLanguage: true }
+  })));
+  assert.ok(libraryNodes.some(node => node.dataset?.action === "navigate"
+    && node.dataset?.route === R3_ROUTES.SETTINGS_HOME));
 });
 
 test("R3 localized chrome changes while imported book content and vocabulary data remain unchanged", () => {
@@ -2246,6 +2271,79 @@ test("R3 controller serializes vocabulary writes through their rendered refresh"
   assert.equal(state.reader.vocabularySaving, false);
 });
 
+test("R3 vocabulary intent is visible before storage and rolls back on failure", async () => {
+  const { adapters, readerRuntime } = createAdapters();
+  const item = { term: "mutter" };
+  const pending = createDeferred();
+  let persisted = null;
+  adapters.modes.resolveModeFromProgress = () => "english-study";
+  adapters.modes.renderChapter = () => ({ html: "<p>mutter</p>", vocabularyPreview: [item] });
+  adapters.vocabulary.getReaderVocabulary = async () => ({
+    profile: { knownWords: persisted === "known" ? [item.term] : [], learningWords: persisted === "learning" ? [item.term] : [], ignoredWords: persisted === "hidden" ? [item.term] : [] },
+    items: [item]
+  });
+  adapters.vocabulary.getChapterPreview = () => [item];
+  adapters.vocabulary.setTermState = async (_term, state) => { await pending.promise; persisted = state; };
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters, readerRuntime });
+  await controller.resumeBook("recent");
+  controller.openVocabularyPreview();
+  const actions = [];
+  store.subscribe((_state, action) => actions.push(action));
+  const saving = controller.setReaderVocabularyState("learning", item.term);
+  assert.equal(store.getState().reader.vocabularyPreview.rows[0].state, "learning");
+  assert.deepEqual(store.getState().reader.learningWords, [item.term]);
+  pending.reject(new Error("storage failed"));
+  await saving;
+  assert.equal(store.getState().reader.vocabularyPreview.rows[0].state, null);
+  assert.deepEqual(store.getState().reader.learningWords, []);
+  assert.ok(store.getState().reader.vocabularyMessage);
+  assert.notEqual(actions.find(action => action.payload?.reader?.vocabularyMessage)?.optimisticVocabulary, true);
+});
+
+test("R3 rapid Learning Known Hide stays on latest intent through serialized refresh", async () => {
+  const { adapters, readerRuntime } = createAdapters();
+  const item = { term: "mutter" };
+  const firstRefresh = createDeferred();
+  const firstRefreshStarted = createDeferred();
+  const writes = [];
+  let persisted = null;
+  let reads = 0;
+  adapters.modes.resolveModeFromProgress = () => "english-study";
+  adapters.modes.renderChapter = () => ({ html: "<p>mutter</p>", vocabularyPreview: [item] });
+  adapters.vocabulary.getReaderVocabulary = async () => {
+    reads += 1;
+    const state = persisted;
+    if (reads === 2) { firstRefreshStarted.resolve(); await firstRefresh.promise; }
+    return { profile: {
+      knownWords: state === "known" ? [item.term] : [],
+      learningWords: state === "learning" ? [item.term] : [],
+      ignoredWords: state === "hidden" ? [item.term] : []
+    }, items: [item] };
+  };
+  adapters.vocabulary.getChapterPreview = () => [item];
+  adapters.vocabulary.setTermState = async (_term, next) => { writes.push(next); persisted = next; };
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters, readerRuntime });
+  await controller.resumeBook("recent");
+  controller.openVocabularyPreview();
+  const learning = controller.setReaderVocabularyState("learning", item.term);
+  assert.equal(store.getState().reader.vocabularyPreview.rows[0].state, "learning");
+  await firstRefreshStarted.promise;
+  const known = controller.setReaderVocabularyState("known", item.term);
+  assert.equal(store.getState().reader.vocabularyPreview.rows[0].state, "known");
+  const hidden = controller.setReaderVocabularyState("hidden", item.term);
+  assert.equal(store.getState().reader.vocabularyPreview.rows[0].state, "hidden");
+  assert.deepEqual(store.getState().reader.learningWords, []);
+  firstRefresh.resolve();
+  await Promise.all([learning, known, hidden]);
+  assert.deepEqual(writes, ["learning", "known", "hidden"]);
+  assert.equal(persisted, "hidden");
+  assert.equal(store.getState().reader.vocabularyPreview.rows[0].state, "hidden");
+  assert.deepEqual(store.getState().reader.learningWords, []);
+  assert.equal(store.getState().reader.vocabularySaving, false);
+});
+
 test("R3 Preview opens with a snapshot generated for the current chapter", async () => {
   const { adapters, readerRuntime } = createAdapters();
   const item = { term: "mutter", chineseMeaning: "低声嘟囔", englishDefinition: "to speak quietly" };
@@ -2289,6 +2387,62 @@ test("R3 Preview opens with a snapshot generated for the current chapter", async
     ],
     hasLiveAnnotation: true
   }]);
+});
+
+test("R3 Preview shell opens before occurrence work and ignores a closed load", async () => {
+  const { adapters, readerRuntime } = createAdapters();
+  const frames = [];
+  const tasks = [];
+  let builds = 0;
+  let scans = 0;
+  adapters.modes.resolveModeFromProgress = () => "english-study";
+  adapters.modes.renderChapter = () => ({ html: "<p>mutter</p>", vocabularyPreview: [{ term: "mutter" }] });
+  adapters.vocabulary.getReaderVocabulary = async () => ({ profile: {}, items: [{ term: "mutter" }] });
+  adapters.vocabulary.getChapterPreview = () => { builds += 1; return [{ term: "mutter" }]; };
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters, readerRuntime, timers: {
+    requestAnimationFrame: callback => frames.push(callback),
+    setTimeout: callback => tasks.push(callback),
+    clearTimeout: () => {}
+  } });
+  await controller.resumeBook("recent");
+  const openActions = [];
+  const stopTracking = store.subscribe((_state, action) => openActions.push(action.type));
+  controller.openVocabularyPreview(() => { scans += 1; return {}; }, { defer: true });
+  stopTracking();
+  assert.deepEqual(openActions, [R3_ACTIONS.OPEN_OVERLAY]);
+  assert.equal(store.getState().openOverlay, R3_OVERLAYS.VOCABULARY_PREVIEW);
+  assert.equal(store.getState().reader.vocabularyPreview.loading, true);
+  const shellNodes = collectNodes(createReaderView(createMockDocument(), store.getState()));
+  assert.ok(shellNodes.some(node => String(node.className || "").includes("r3-reader-quick-control is-active")));
+  assert.ok(shellNodes.some(node => node.textContent === "Loading vocabulary…"));
+  assert.equal(builds, 0);
+  assert.equal(scans, 0);
+  frames.shift()();
+  tasks.shift()();
+  assert.equal(store.getState().reader.vocabularyPreview.loading, false);
+  assert.equal(builds, 1);
+  assert.equal(scans, 1);
+  controller.closeVocabularyPreview();
+  controller.openVocabularyPreview(() => { scans += 1; return {}; }, { defer: true });
+  controller.closeVocabularyPreview();
+  frames.shift()();
+  tasks.shift()();
+  assert.equal(builds, 1);
+  assert.equal(scans, 1);
+  assert.equal(store.getState().openOverlay, null);
+  assert.equal(store.getState().reader.vocabularyPreview, null);
+  controller.openVocabularyPreview(() => { scans += 1; return {}; }, { defer: true });
+  controller.closeVocabularyPreview();
+  controller.openVocabularyPreview(() => { scans += 1; return {}; }, { defer: true });
+  frames.shift()();
+  tasks.shift()();
+  assert.equal(store.getState().reader.vocabularyPreview.loading, true);
+  assert.equal(builds, 1);
+  frames.shift()();
+  tasks.shift()();
+  assert.equal(store.getState().reader.vocabularyPreview.loading, false);
+  assert.equal(builds, 2);
 });
 
 test("R3 Preview defaults to compact collapsed rows with icon state and no empty-choice copy", () => {
@@ -3143,6 +3297,254 @@ test("R3 bootstrap shows Selection Save DOM-locally without clearing native sele
   assert.equal(nativeSelectionClears, 0);
 });
 
+test("R3 live AppShell keeps Reader DOM on optimistic Save", async () => {
+  const frameCallbacks = [];
+  const documentRef = createMockDocument();
+  documentRef.defaultView = {
+    innerWidth: 393,
+    innerHeight: 852,
+    addEventListener() {},
+    requestAnimationFrame(callback) {
+      frameCallbacks.push(callback);
+      return frameCallbacks.length;
+    }
+  };
+
+  const pending = createDeferred();
+  let persisted = null;
+  const item = { term: "mutter" };
+  const { adapters, readerRuntime } = createAdapters();
+  adapters.modes.resolveModeFromProgress = () => "english-study";
+  adapters.modes.renderChapter = () => ({ html: "<p>mutter</p>", vocabularyPreview: [item] });
+  adapters.vocabulary.getReaderVocabulary = async () => ({
+    profile: {
+      knownWords: [],
+      learningWords: persisted === "learning" ? [item.term] : [],
+      ignoredWords: []
+    },
+    items: [item]
+  });
+  adapters.vocabulary.getChapterPreview = () => [item];
+  adapters.vocabulary.setTermState = async (_term, state) => {
+    await pending.promise;
+    persisted = state;
+  };
+
+  const store = createR3Store();
+  const controller = createR3Controller({
+    store,
+    adapters,
+    readerRuntime,
+    collectVocabularyOccurrences: () => ({})
+  });
+  const app = await bootstrapR3App({ document: documentRef, store, controller });
+  await controller.resumeBook("recent");
+
+  const findBy = predicate => {
+    const stack = [app.root];
+    while (stack.length) {
+      const node = stack.shift();
+      if (predicate(node)) return node;
+      stack.push(...(node.children || []));
+    }
+    return null;
+  };
+
+  controller.openVocabularyPreview();
+  const content = findBy(node => String(node.className || "").split(/\s+/).includes("r3-reader-content"));
+  const scroll = findBy(node => String(node.className || "").split(/\s+/).includes("r3-reader-scroll"));
+  assert.ok(content && scroll);
+
+  app.root.querySelectorAll = (selector) => {
+    if (String(selector).includes("vocabulary-state")) return [];
+    return [];
+  };
+
+  const forwarded = [];
+  const stopForwardWatch = store.subscribe((_state, action) => {
+    if (action?.optimisticVocabulary) forwarded.push(action);
+  });
+  const saving = controller.setReaderVocabularyState("learning", item.term);
+  stopForwardWatch();
+
+  assert.equal(forwarded.length > 0, true, "optimisticVocabulary must reach live-shell subscribers");
+  assert.equal(store.getState().reader.vocabularyPreview.rows[0].state, "learning");
+  assert.deepEqual(store.getState().reader.learningWords, [item.term]);
+  assert.equal(
+    findBy(node => String(node.className || "").split(/\s+/).includes("r3-reader-content")),
+    content,
+    "optimistic Save must not rebuild Reader prose"
+  );
+  assert.equal(
+    findBy(node => String(node.className || "").split(/\s+/).includes("r3-reader-scroll")),
+    scroll
+  );
+
+  pending.resolve();
+  await saving;
+  assert.equal(persisted, "learning");
+  assert.deepEqual(store.getState().reader.learningWords, [item.term]);
+
+  const afterPersistContent = findBy(node => (
+    String(node.className || "").split(/\s+/).includes("r3-reader-content")
+  ));
+  controller.openReaderContents();
+  assert.notEqual(
+    findBy(node => String(node.className || "").split(/\s+/).includes("r3-reader-content")),
+    afterPersistContent,
+    "ordinary Reader updates must still rebuild"
+  );
+  controller.closeOverlay();
+  frameCallbacks.splice(0).forEach(callback => callback());
+});
+
+test("R3 live AppShell Selection Save paints pending underline without rebuilding prose", async () => {
+  const frameCallbacks = [];
+  const documentRef = createMockDocument();
+  documentRef.defaultView = {
+    innerWidth: 393,
+    innerHeight: 852,
+    addEventListener() {},
+    requestAnimationFrame(callback) {
+      frameCallbacks.push(callback);
+      return frameCallbacks.length;
+    }
+  };
+
+  const term = "mutter";
+  const { adapters, readerRuntime } = createAdapters();
+  adapters.modes.resolveModeFromProgress = () => "english-study";
+  adapters.modes.renderChapter = () => ({ html: "<p>mutter</p>", vocabularyPreview: [] });
+  adapters.vocabulary.getReaderVocabulary = async () => ({
+    profile: { knownWords: [], learningWords: [term], ignoredWords: [] },
+    items: [{ term }]
+  });
+  adapters.vocabulary.getChapterPreview = () => [];
+  adapters.vocabulary.setTermState = async () => {};
+
+  const store = createR3Store();
+  const controller = createR3Controller({
+    store,
+    adapters,
+    readerRuntime,
+    collectVocabularyOccurrences: () => ({})
+  });
+  const app = await bootstrapR3App({ document: documentRef, store, controller });
+  await controller.resumeBook("recent");
+
+  const findBy = predicate => {
+    const stack = [app.root];
+    while (stack.length) {
+      const node = stack.shift();
+      if (predicate(node)) return node;
+      stack.push(...(node.children || []));
+    }
+    return null;
+  };
+
+  const content = findBy(node => String(node.className || "").split(/\s+/).includes("r3-reader-content"));
+  documentRef.createRange = () => {
+    let contents = null;
+    let endOffset = 0;
+    let startNode = null;
+    let startOffset = 0;
+    let finishOffset = 0;
+    return {
+      selectNodeContents(node) { contents = node; },
+      setEnd(_node, offset) {
+        if (startNode) {
+          finishOffset = offset;
+          return;
+        }
+        endOffset = offset;
+      },
+      setStart(node, offset) {
+        startNode = node;
+        startOffset = offset;
+      },
+      toString() {
+        return String(contents?.textContent || "").slice(0, endOffset);
+      },
+      surroundContents(mark) {
+        const parent = startNode.parentElement || startNode.parentNode;
+        const text = String(startNode.textContent || "");
+        mark.textContent = text.slice(startOffset, finishOffset);
+        parent.children = [mark];
+        mark.parentNode = parent;
+        parent.textContent = text;
+      }
+    };
+  };
+  documentRef.createTreeWalker = (rootNode) => {
+    const nodes = [];
+    const visit = (node) => {
+      if (node?.nodeType === 3) nodes.push(node);
+      for (const child of node?.children || []) visit(child);
+    };
+    visit(rootNode);
+    let index = 0;
+    return { nextNode() { return nodes[index++] || null; } };
+  };
+
+  const paragraph = documentRef.createElement("p");
+  paragraph.textContent = term;
+  paragraph.closest = () => paragraph;
+  const textNode = {
+    nodeType: 3,
+    textContent: term,
+    parentNode: paragraph,
+    parentElement: paragraph,
+    ownerDocument: documentRef
+  };
+  paragraph.appendChild(textNode);
+  content.appendChild(paragraph);
+  app.root.querySelectorAll = (selector) => {
+    if (!String(selector).includes(".r3-reader-content p")) return [];
+    return [paragraph];
+  };
+  documentRef.getSelection = () => ({
+    isCollapsed: false,
+    rangeCount: 1,
+    toString: () => term,
+    getRangeAt: () => ({
+      startContainer: textNode,
+      endContainer: textNode,
+      startOffset: 0,
+      endOffset: term.length
+    })
+  });
+  documentRef.listeners.find(listener => listener.type === "selectionchange").listener();
+  frameCallbacks.splice(0).forEach(callback => callback());
+  const saveButton = findBy(node => node.dataset?.action === "reader-selection-save");
+  assert.equal(saveButton.dataset.selectionTerm, term);
+
+  const pending = createDeferred();
+  adapters.vocabulary.setTermState = async () => {
+    await pending.promise;
+  };
+  let savePromise = null;
+  const originalSetState = controller.setReaderVocabularyState.bind(controller);
+  controller.setReaderVocabularyState = (...args) => {
+    savePromise = originalSetState(...args);
+    return savePromise;
+  };
+  app.root.eventListeners.get("click")[0]({ target: saveButton });
+  assert.equal(
+    findBy(node => String(node.className || "").split(/\s+/).includes("r3-reader-content")),
+    content,
+    "optimistic Selection Save must not rebuild Reader prose"
+  );
+  const pendingMark = collectNodes(content).find(node => (
+    String(node.className || "").split(/\s+/).includes("r3-vocabulary-pending")
+  ));
+  assert.ok(pendingMark, "pending underline must paint on the preserved DOM");
+  assert.equal(pendingMark.textContent, term);
+  assert.ok(savePromise);
+  pending.resolve();
+  await savePromise;
+  frameCallbacks.splice(0).forEach(callback => callback());
+});
+
 test("R3 bootstrap preserves an open vocabulary bubble through same-chapter scroll restoration", async () => {
   const frameCallbacks = [];
   const documentRef = createMockDocument();
@@ -3242,4 +3644,319 @@ test("R3 store and diagnostic view do not import storage, engines, or IndexedDB"
     assert.doesNotMatch(source, /readingModes\.js/i, file);
     assert.doesNotMatch(source, /vocabEngine\.js/i, file);
   }
+});
+
+test("R3 loading copy interpolates chapter titles and uses neutral copy without a title", async () => {
+  const { createTranslator } = await import("../pwa-reader/i18n.js");
+  for (const language of ["en", "zh-CN"]) {
+    for (const chapterTitle of ["", "Title Page"]) {
+      const state = createInitialR3State();
+      state.reader = { ...state.reader, status: "loading", chapterTitle };
+      const nodes = collectNodes(createReaderView(createMockDocument(), state, createTranslator(language)));
+      const text = nodes.map(node => node.textContent).join(" ");
+      assert.doesNotMatch(text, /\{title\}/);
+      if (chapterTitle) assert.ok(text.includes(chapterTitle));
+    }
+  }
+});
+
+test("R3 source cache evicts old chapter bodies and retains the recent return path", async () => {
+  const { adapters, readerRuntime, calls } = createAdapters();
+  const original = readerRuntime.loadEpubFromFile;
+  readerRuntime.loadEpubFromFile = async file => {
+    const loaded = await original(file);
+    loaded.book.chapters = Array.from({ length: 7 }, (_, i) => ({ id: "chapter-" + (i + 1), title: "Chapter " + (i + 1), order: i + 1 }));
+    return loaded;
+  };
+  const controller = createR3Controller({ store: createR3Store(), adapters, readerRuntime });
+  await controller.resumeBook("recent");
+  for (const index of [2, 3, 4, 5, 6]) await controller.selectReaderChapter(index);
+  const loaded = calls.loadChapterContent.length;
+  await controller.selectReaderChapter(5);
+  assert.equal(calls.loadChapterContent.length, loaded);
+  await controller.selectReaderChapter(1);
+  assert.equal(calls.loadChapterContent.length, loaded + 1);
+});
+
+test("R3 source progress seeks restore a source fraction without enumerating chapters or persisting page numbers", async () => {
+  const { adapters, readerRuntime, calls } = createAdapters();
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters, readerRuntime });
+  await controller.resumeBook("recent");
+  await controller.setReadingLayout("scroll");
+  assert.equal(typeof controller.seekReaderSourceFraction, "function");
+  await controller.seekReaderSourceFraction(0.25);
+  assert.equal(store.getState().activeChapterIndex, 0);
+  assert.equal(store.getState().reader.positionRequest.sourceFraction, 0.5);
+  assert.equal(calls.loadChapterContent.length, 2);
+  await controller.seekReaderSourceFraction(0.4);
+  assert.equal(calls.loadChapterContent.length, 2);
+  assert.equal(store.getState().reader.positionRequest.sourceFraction, 0.8);
+  await controller.flushReaderProgress();
+  assert.equal("sourceFraction" in (calls.savePosition.at(-1).overrides || {}), false);
+  assert.equal("pageIndex" in (calls.savePosition.at(-1).overrides || {}), false);
+});
+
+test("Settings returns to the exact live Reader A session after language change", async () => {
+  const { adapters, readerRuntime, calls } = createAdapters();
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters, readerRuntime });
+  await controller.initialize();
+  await controller.selectBook("older");
+  await controller.selectBook("recent");
+  await controller.seekReaderPosition(1, { chapterId: "chapter-2", textOffset: 37 });
+  const loadCount = calls.loadEpubFromFile.length;
+  await controller.navigate(R3_ROUTES.SETTINGS_HOME);
+  await controller.setUiLanguage("zh-CN");
+  await controller.returnFromSettings();
+  const state = store.getState();
+  assert.equal(state.activeScreen, R3_ROUTES.READER);
+  assert.equal(state.activeBookId, "recent");
+  assert.equal(state.activeChapterId, "chapter-2");
+  assert.deepEqual(state.reader.positionRequest.position, { chapterId: "chapter-2", textOffset: 37 });
+  assert.equal(state.activeReadingMode, "cloze-mixed");
+  assert.equal(state.reader.readingLayout, "page");
+  assert.equal(state.reader.readerAppearance.fontSize, "md");
+  assert.equal(state.settings.uiLanguage, "zh-CN");
+  assert.equal(calls.loadEpubFromFile.length, loadCount);
+  assert.deepEqual(calls.openBook, ["older", "recent"]);
+  assert.deepEqual(calls.resumeBook, []);
+
+  await controller.selectBook("older");
+  await controller.seekReaderPosition(0, { chapterId: "chapter-1", textOffset: 9 });
+  await controller.navigate(R3_ROUTES.SETTINGS_HOME);
+  await controller.returnFromSettings();
+  assert.equal(store.getState().activeBookId, "older");
+  assert.deepEqual(store.getState().reader.positionRequest.position,
+    { chapterId: "chapter-1", textOffset: 9 });
+});
+
+test("Settings return without language change and Library origin never fabricate a Reader", async () => {
+  const { adapters, readerRuntime } = createAdapters();
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters, readerRuntime });
+  await controller.initialize();
+  await controller.selectBook("recent");
+  await controller.seekReaderPosition(1, { chapterId: "chapter-2", textOffset: 14 });
+  await controller.navigate(R3_ROUTES.SETTINGS_HOME);
+  await controller.returnFromSettings();
+  assert.equal(store.getState().activeBookId, "recent");
+  assert.deepEqual(store.getState().reader.positionRequest.position, { chapterId: "chapter-2", textOffset: 14 });
+  await controller.navigate(R3_ROUTES.LIBRARY);
+  await controller.navigate(R3_ROUTES.SETTINGS_HOME);
+  await controller.returnFromSettings();
+  assert.equal(store.getState().activeScreen, R3_ROUTES.LIBRARY);
+  assert.equal(store.getState().activeBookId, null);
+});
+
+test("Passage detour crosses chapters without saving destination and returns to source anchor", async () => {
+  const { adapters, readerRuntime, calls } = createAdapters();
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters, readerRuntime });
+  await controller.resumeBook("recent");
+  await controller.seekReaderPosition(1, { chapterId: "chapter-2", textOffset: 48 });
+  await controller.flushReaderProgress();
+  const before = calls.savePosition.length;
+  await controller.startPassageDetour({ chapterId: "chapter-1", textOffset: 17 });
+  assert.equal(store.getState().activeChapterId, "chapter-1");
+  assert.equal(store.getState().reader.passageReturn, true);
+  await controller.flushReaderProgress();
+  assert.equal(calls.savePosition.length, before);
+  await controller.returnFromPassageDetour();
+  assert.equal(store.getState().activeChapterId, "chapter-2");
+  assert.deepEqual(store.getState().reader.positionRequest.position, { chapterId: "chapter-2", textOffset: 48 });
+  assert.equal(store.getState().reader.passageReturn, false);
+});
+
+test("Passage detour is canceled by book switch and only explicit continue saves destination", async () => {
+  const { adapters, readerRuntime, calls } = createAdapters();
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters, readerRuntime });
+  await controller.resumeBook("recent");
+  await controller.seekReaderPosition(1, { chapterId: "chapter-2", textOffset: 40 });
+  await controller.flushReaderProgress();
+  await controller.startPassageDetour({ chapterId: "chapter-1", textOffset: 8 });
+  await controller.continueFromPassageDetour();
+  assert.equal(calls.savePosition.at(-1).currentChapterId, "chapter-1");
+  assert.deepEqual(calls.savePosition.at(-1).overrides.logicalPosition,
+    { chapterId: "chapter-1", textOffset: 8 });
+  await controller.startPassageDetour({ chapterId: "chapter-2", textOffset: 21 });
+  await controller.selectBook("older");
+  assert.equal(store.getState().reader.passageReturn, false);
+  await controller.returnFromPassageDetour();
+  assert.equal(store.getState().activeBookId, "older");
+});
+
+test("Reader bookmark toggles exact source anchors, seeks across chapters, and isolates books", async () => {
+  const { adapters, readerRuntime, calls } = createAdapters();
+  const saved = new Map();
+  let nextId = 0;
+  adapters.bookmarks = {
+    list(bookKey) { return saved.get(bookKey) || []; },
+    toggle(anchor) {
+      const items = saved.get(anchor.bookKey) || [];
+      const existing = items.find(item => item.chapterId === anchor.chapterId && item.textOffset === anchor.textOffset);
+      const next = existing ? items.filter(item => item !== existing)
+        : [...items, { ...anchor, id: `mark-${++nextId}`, createdAt: nextId }];
+      saved.set(anchor.bookKey, next);
+      return next;
+    },
+    remove(bookKey, id) {
+      const next = (saved.get(bookKey) || []).filter(item => item.id !== id);
+      saved.set(bookKey, next);
+      return next;
+    }
+  };
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters, readerRuntime });
+  await controller.selectBook("recent");
+  await controller.seekReaderPosition(1, { chapterId: "chapter-2", textOffset: 35 });
+  await controller.toggleReaderBookmark();
+  assert.equal(store.getState().reader.bookmarkActive, true);
+  assert.equal(store.getState().reader.bookmarks.length, 1);
+  assert.equal(store.getState().reader.bookmarks[0].chapterTitle, "Chapter 2");
+  await controller.toggleReaderBookmark();
+  assert.equal(store.getState().reader.bookmarks.length, 0);
+  await controller.toggleReaderBookmark();
+  const bookmarkId = store.getState().reader.bookmarks[0].id;
+  await controller.seekReaderPosition(0, { chapterId: "chapter-1", textOffset: 4 });
+  await controller.seekReaderBookmark(bookmarkId);
+  assert.deepEqual(store.getState().reader.positionRequest.position, { chapterId: "chapter-2", textOffset: 35 });
+  const beforeDelete = calls.savePosition.length;
+  await controller.deleteReaderBookmark(bookmarkId);
+  assert.equal(store.getState().reader.bookmarks.length, 0);
+  assert.equal(calls.savePosition.length, beforeDelete);
+  await controller.selectBook("older");
+  assert.equal(store.getState().reader.bookmarks.length, 0);
+});
+
+test("Reader chrome and Contents expose bookmark toggle, seek, and delete", () => {
+  const documentRef = createMockDocument();
+  const state = createInitialR3State({
+    activeScreen: R3_ROUTES.READER,
+    activeBookId: "recent",
+    activeChapterId: "chapter-2",
+    openOverlay: R3_OVERLAYS.CONTENTS,
+    reader: { status: "ready", bookTitle: "Recent Book", chapterTitle: "Chapter 2",
+      html: "<p>Story</p>", chapterIndex: 1, chapterCount: 2, bookmarkActive: true,
+      bookmarks: [{ id: "mark", bookKey: "recent", chapterId: "chapter-1",
+        textOffset: 12, chapterTitle: "Chapter 1", createdAt: 1 }], toc: [] }
+  });
+  const nodes = collectNodes(createReaderView(documentRef, state));
+  const toggle = nodes.find(node => node.dataset?.action === "reader-toggle-bookmark");
+  assert.equal(toggle?.getAttribute?.("aria-pressed"), "true");
+  assert.ok(nodes.find(node => node.dataset?.action === "reader-seek-bookmark" && node.dataset?.bookmarkId === "mark"));
+  assert.ok(nodes.find(node => node.dataset?.action === "reader-delete-bookmark" && node.dataset?.bookmarkId === "mark"));
+});
+
+test("Preview passage occurrence carries a source offset through annotation wrappers", () => {
+  const root = createMockElement("main");
+  const content = createMockElement("div");
+  content.className = "r3-reader-content";
+  const paragraph = createMockElement("p");
+  paragraph.textContent = "Before mutter after";
+  const hit = createMockElement("button");
+  hit.className = "vocab-hit";
+  hit.dataset.vocabTerm = "mutter";
+  hit.textContent = "mutter";
+  paragraph.appendChild(hit);
+  content.appendChild(paragraph);
+  root.appendChild(content);
+  paragraph.childNodes = [{ nodeType: 3, textContent: "Before " }, hit,
+    { nodeType: 3, textContent: " after" }];
+  content.childNodes = [paragraph];
+  assert.deepEqual(collectVocabularyOccurrences(root, "chapter-2").mutter[0], {
+    occurrenceIndex: 0, snippet: "Before mutter after", chapterId: "chapter-2", textOffset: 7
+  });
+});
+
+test("Preview View in passage starts a transient detour and reload starts without one", async () => {
+  const { adapters, readerRuntime, calls } = createAdapters();
+  adapters.modes.resolveModeFromProgress = () => "english-study";
+  adapters.vocabulary.getReaderVocabulary = async () => ({ profile: {}, items: [{ term: "mutter" }] });
+  adapters.vocabulary.getChapterPreview = (_chapter, items) => items;
+  adapters.modes.renderChapter = () => ({ html: "<p>mutter</p>", vocabularyPreview: [] });
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters, readerRuntime });
+  await controller.resumeBook("recent");
+  await controller.seekReaderPosition(1, { chapterId: "chapter-2", textOffset: 31 });
+  controller.openVocabularyPreview({ mutter: [{ occurrenceIndex: 0, snippet: "mutter",
+    chapterId: "chapter-2", textOffset: 9 }] });
+  const before = calls.savePosition.length;
+  assert.equal(controller.goToVocabularyPreviewOccurrence("mutter", 0), true);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(store.getState().reader.passageReturn, true);
+  await controller.flushReaderProgress();
+  assert.ok(calls.savePosition.slice(before).every(save =>
+    save.overrides?.logicalPosition?.textOffset === 31));
+  await controller.returnFromPassageDetour();
+  assert.deepEqual(store.getState().reader.positionRequest.position, { chapterId: "chapter-2", textOffset: 31 });
+  const reloadStore = createR3Store();
+  const reloaded = createR3Controller({ store: reloadStore, adapters, readerRuntime });
+  await reloaded.resumeBook("recent");
+  assert.equal(reloadStore.getState().reader.passageReturn, false);
+});
+
+test("bookmarks keep source anchors through Page Scroll appearance changes and Reader reopen", async () => {
+  const { adapters, readerRuntime, calls } = createAdapters();
+  const saved = new Map();
+  adapters.bookmarks = {
+    list(key) { return saved.get(key) || []; },
+    toggle(anchor) {
+      const next = [{ ...anchor, id: "mark", createdAt: 1 }];
+      saved.set(anchor.bookKey, next);
+      return next;
+    },
+    remove(key) { saved.set(key, []); return []; }
+  };
+  const store = createR3Store();
+  const controller = createR3Controller({ store, adapters, readerRuntime });
+  await controller.resumeBook("recent");
+  await controller.seekReaderPosition(1, { chapterId: "chapter-2", textOffset: 63 });
+  const progressSaves = calls.savePosition.length;
+  await controller.toggleReaderBookmark();
+  assert.equal(calls.savePosition.length, progressSaves);
+  await controller.setReadingLayout("scroll");
+  await controller.setReaderAppearance({ fontSize: "xl" });
+  assert.deepEqual(saved.get("recent")[0].textOffset, 63);
+  assert.equal("pageIndex" in saved.get("recent")[0], false);
+  assert.equal(store.getState().activeReadingMode, "cloze-mixed");
+  assert.equal(store.getState().reader.bookmarkActive, true);
+  await controller.exitReader();
+  await controller.resumeBook("recent");
+  assert.equal(store.getState().reader.bookmarks.length, 1);
+  await controller.seekReaderBookmark("mark");
+  assert.deepEqual(store.getState().reader.positionRequest.position,
+    { chapterId: "chapter-2", textOffset: 63 });
+});
+
+
+test("delayed failed Save cannot publish rollback after Reader exit", async () => {
+ const {adapters,readerRuntime}=createAdapters();
+ const readStarted=createDeferred(),readDone=createDeferred();let reads=0;
+ adapters.modes.resolveModeFromProgress=()=>"english-study";
+ adapters.vocabulary.getReaderVocabulary=async()=>{if(++reads===2){readStarted.resolve();await readDone.promise;}return {profile:{learningWords:[]},items:[]};};
+ adapters.vocabulary.setTermState=async()=>{throw Error("failed write");};
+ const store=createR3Store();const controller=createR3Controller({store,adapters,readerRuntime});
+ await controller.resumeBook("recent");const saving=controller.setReaderVocabularyState("learning","visitor");await readStarted.promise;
+ await controller.exitReader();const cleared=store.getState().reader;
+ readDone.resolve();await saving;
+ assert.equal(store.getState().reader.vocabularyMessage,cleared.vocabularyMessage);
+ assert.equal(store.getState().activeBookId,null);
+});
+
+test("failed Save waits for a turn started during authoritative rollback read", async () => {
+ const {adapters,readerRuntime}=createAdapters();
+ const readStarted=createDeferred(),readDone=createDeferred(),turnDone=createDeferred();let reads=0,waits=0;
+ adapters.modes.resolveModeFromProgress=()=>"english-study";
+ adapters.vocabulary.getReaderVocabulary=async()=>{if(++reads===2){readStarted.resolve();await readDone.promise;}return {profile:{learningWords:[]},items:[]};};
+ adapters.vocabulary.setTermState=async()=>{throw Error("failed write");};
+ const store=createR3Store();const controller=createR3Controller({store,adapters,readerRuntime,waitForReaderTurn:()=>++waits===1?Promise.resolve():turnDone.promise});
+ await controller.resumeBook("recent");const saving=controller.setReaderVocabularyState("learning","visitor");await readStarted.promise;
+ readDone.resolve();await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(waits,2,"rollback must recheck the visual transaction after its async read");
+ assert.equal(store.getState().reader.vocabularyMessage,"");
+ turnDone.resolve();await saving;
+ assert.ok(store.getState().reader.vocabularyMessage);
+ assert.deepEqual(store.getState().reader.learningWords,[]);
 });

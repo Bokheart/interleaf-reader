@@ -1,5 +1,6 @@
+import { createPageTurnTransition } from "./readerPageTurn.js";
 import { R3_ROUTES } from "./routes.js";
-import { applyReaderAppearanceDataset, readerAppearanceSignature, resolveReaderAppearance } from "../readerAppearance.js";
+import { applyReaderAppearanceDataset, resolveReaderAppearance } from "../readerAppearance.js";
 
 export const READER_PAGE_SWIPE = Object.freeze({
   minimumDistance: 48,
@@ -7,6 +8,18 @@ export const READER_PAGE_SWIPE = Object.freeze({
   viewportRatio: 0.12,
   dominanceRatio: 1.35
 });
+
+// Ownership is delayed until 12px of horizontal intent. Once rejected, a
+// gesture cannot turn into a page swipe later (selection/scroll/long press).
+export function readerSwipeIntent(gesture, x, y, time) {
+  if (gesture.intent === "rejected" || gesture.startX <= 24
+    || gesture.startX >= gesture.viewportWidth - 24) return "rejected";
+  const dx = Math.abs(x - gesture.startX), dy = Math.abs(y - gesture.startY);
+  if (gesture.intent === "horizontal") return dy > Math.max(24, dx / 1.35) ? "rejected" : "horizontal";
+  if (time - gesture.startTime >= 350) return "rejected";
+  if (dy >= 12 && dy >= dx) return "rejected";
+  return dx >= 12 && dx >= dy * 1.35 ? "horizontal" : "pending";
+}
 
 export function getReaderPageSwipeDirection({ startX, startY, endX, endY, viewportWidth }) {
   const coordinates = [startX, startY, endX, endY].map(Number);
@@ -47,6 +60,14 @@ export function locateBookPage(chapters, requestedPage) {
     page -= chapter.pages.length;
   }
   return null;
+}
+
+// Equal-weight spine sections provide stable source progress without opening other
+// bodies. This is a section-based estimate, not a whole-book character/page count.
+export function sourceBookProgress(index, count, offset, length) {
+  if (count <= 0) return 0;
+  const fraction = length > 0 ? Math.max(0, Math.min(1, offset / length)) : 0;
+  return Math.max(0, Math.min(1, (index + fraction) / count));
 }
 
 function sourceUnits(content) {
@@ -134,9 +155,9 @@ export function createReaderLayout(root, store, controller) {
   let bookId = null;
   let requestSequence = null;
   let localPages = [0];
-  let chapters = [];
-  let indexKey = "";
-  let generation = 0;
+  const transition = createPageTurnTransition(windowRef);
+  let source = null;
+  let changingChapter = false;
   let suppressScroll = false;
   let restoreFrame = null;
   let resizeTimer = null;
@@ -148,13 +169,16 @@ export function createReaderLayout(root, store, controller) {
   const columnGap = element => Number.parseFloat(windowRef.getComputedStyle?.(element)?.columnGap) || 48;
   const step = () => getReaderPageStep(content?.clientWidth, columnGap(content));
 
-  function publish(status = chapters.length ? "ready" : "loading") {
-    let pageIndex = 0;
-    for (const chapter of chapters) {
-      if (chapter.id === chapterId) { pageIndex += pageForOffset(chapter.pages, position?.textOffset || 0); break; }
-      pageIndex += chapter.pages.length;
-    }
-    const pagination = { status, pageIndex, pageCount: chapters.reduce((sum, chapter) => sum + chapter.pages.length, 0) };
+  function publish() {
+    const state = store.getState();
+    const pagination = {
+      status: state.reader.effectiveMode === null ? "unavailable" : "ready",
+      scope: "chapter",
+      pageIndex: pageForOffset(localPages, position?.textOffset || 0),
+      pageCount: localPages.length,
+      bookProgress: sourceBookProgress(state.reader.chapterIndex, state.reader.chapterCount,
+        position?.textOffset || 0, source?.length || 0)
+    };
     const signature = JSON.stringify(pagination);
     if (signature !== lastPagination) {
       lastPagination = signature;
@@ -166,7 +190,6 @@ export function createReaderLayout(root, store, controller) {
     if (!content || !scroll || !target) return;
     suppressScroll = true;
     if (restoreFrame !== null) windowRef.cancelAnimationFrame(restoreFrame);
-    const source = sourceUnits(content);
     const offset = Math.min(Math.max(0, target.textOffset || 0), Math.max(0, source.length - 1));
     position = { chapterId, textOffset: offset };
     if (pixels) {
@@ -184,53 +207,13 @@ export function createReaderLayout(root, store, controller) {
     restoreFrame = windowRef.requestAnimationFrame(() => { suppressScroll = false; restoreFrame = null; });
   }
 
-  async function buildIndex(key) {
-    const token = ++generation;
-    chapters = [];
-    publish("loading");
-    const measure = documentRef.createElement("div");
-    measure.className = "r3-reader-measure r3-reader-scroll";
-    measure.dataset.layout = "page";
-    applyReaderAppearanceDataset(measure, resolveReaderAppearance(store.getState().reader));
-    measure.setAttribute("aria-hidden", "true");
-    measure.inert = true;
-    measure.style.width = `${scroll.clientWidth}px`;
-    measure.style.height = `${scroll.clientHeight}px`;
-    const article = documentRef.createElement("section");
-    article.className = "r3-reader-article";
-    const body = documentRef.createElement("div");
-    body.className = "r3-reader-content";
-    article.appendChild(body);
-    measure.appendChild(article);
-    documentRef.body.appendChild(measure);
-    const measured = [];
-    try {
-      await documentRef.fonts?.ready;
-      for await (const chapter of controller.getPaginationChapters()) {
-        if (token !== generation || key !== indexKey) return;
-        body.innerHTML = chapter.html;
-        await Promise.all([...body.querySelectorAll("img")].map(img => img.decode?.().catch(() => {}) ));
-        if (token !== generation) return;
-        const gap = columnGap(body);
-        measured.push({ id: chapter.id, index: chapter.index, pages: measureChapterPages(body, getReaderPageStep(body.clientWidth, gap), gap) });
-        // Yield between chapters; imported books must not lock input while indexing.
-        await new Promise(resolve => windowRef.setTimeout(resolve, 0));
-      }
-      if (token !== generation || key !== indexKey) return;
-      if (measured.length !== store.getState().reader.chapterCount) throw new Error("Incomplete page index");
-      chapters = measured;
-      publish();
-    } catch (error) {
-      if (token === generation) publish("error");
-    } finally {
-      measure.remove();
-    }
-  }
-
   function attach(state, preservedPixels = null) {
+    windowRef.clearTimeout(resizeTimer);
+    observer?.disconnect();
+    transition.cancel();
     const nextScroll = root.querySelector(".r3-reader-scroll");
     if (state.activeScreen !== R3_ROUTES.READER || !nextScroll) {
-      generation += 1; indexKey = ""; bookId = null; position = null;
+      bookId = null; position = null; source = null; lastPagination = "";
       scroll = null; content = null; observer?.disconnect(); return;
     }
     if (state.reader.status !== "ready") return;
@@ -240,6 +223,7 @@ export function createReaderLayout(root, store, controller) {
     }
     scroll = nextScroll;
     content = scroll.querySelector(".r3-reader-content");
+    source = state.reader.contentKind === "empty" ? { units: [], length: 0 } : sourceUnits(content);
     layout = state.reader.readingLayout || "page";
     applyReaderAppearanceDataset(scroll, resolveReaderAppearance(state.reader));
     const sameChapter = chapterId === state.activeChapterId;
@@ -257,6 +241,10 @@ export function createReaderLayout(root, store, controller) {
       end.style.left = `${localPages.length * step() - 1}px`;
     }
     let target = freshRequest ? request.position : sameChapter ? position : null;
+    if (freshRequest && Number.isFinite(request.sourceFraction)) {
+      target = { chapterId, textOffset: Math.floor(request.sourceFraction * Math.max(0, source.length - 1)) };
+    }
+    if (freshRequest && request.edge === "end") target = { chapterId, textOffset: localPages.at(-1) };
     if (!target && freshRequest && request.legacyProgress) {
       // Convert the old vertical ratio once using the actual Scroll layout, then
       // restore that source offset in the requested layout (never ratio -> page).
@@ -268,15 +256,13 @@ export function createReaderLayout(root, store, controller) {
     }
     restore(target || { chapterId, textOffset: 0 }, !freshRequest && sameChapter ? preservedPixels : null);
     const size = `${scroll.clientWidth}:${scroll.clientHeight}`;
-    const appearanceKey = readerAppearanceSignature(state.reader);
-    const key = `${bookId}:${state.activeReadingMode}:${size}:${appearanceKey}`;
     dimensions = size;
-    if (key !== indexKey) { indexKey = key; void buildIndex(key); }
-    else publish();
+    publish();
     observer?.disconnect();
     if (windowRef.ResizeObserver) {
+      const observedScroll = scroll;
       observer = new windowRef.ResizeObserver(() => {
-        if (!scroll || `${scroll.clientWidth}:${scroll.clientHeight}` === dimensions) return;
+        if (scroll !== observedScroll || !observedScroll.isConnected || `${scroll.clientWidth}:${scroll.clientHeight}` === dimensions) return;
         windowRef.clearTimeout(resizeTimer);
         resizeTimer = windowRef.setTimeout(() => attach(store.getState()), 80);
       });
@@ -285,29 +271,65 @@ export function createReaderLayout(root, store, controller) {
   }
 
   function onScroll() {
-    if (suppressScroll || !content?.isConnected || store.getState().reader.status !== "ready") return;
+    if (transition.active || suppressScroll || !content?.isConnected || store.getState().reader.status !== "ready") return;
     const offset = layout === "page" ? localPages[Math.max(0, Math.min(localPages.length - 1, Math.round(scroll.scrollLeft / step())))]
-      : firstOffset(content, sourceUnits(content), rect => rect.bottom > scroll.getBoundingClientRect().top + 24);
+      : firstOffset(content, source, rect => rect.bottom > scroll.getBoundingClientRect().top + 24);
     position = { chapterId, textOffset: offset || 0 };
     controller.recordReaderPosition(position, metrics());
     publish();
   }
 
   function seek(page) {
-    const target = locateBookPage(chapters, page);
-    if (target) return controller.seekReaderPosition(target.chapterIndex, target.position);
+    if (!content || !scroll || store.getState().reader.effectiveMode === null) return;
+    transition.cancel();
+    const index = Math.max(0, Math.min(localPages.length - 1, Math.round(Number(page) || 0)));
+    restore({ chapterId, textOffset: localPages[index] });
+    publish();
+  }
+
+  async function turn(direction) {
+    const state = store.getState();
+    if (!content || layout !== "page" || transition.active || changingChapter
+      || state.reader.status !== "ready" || state.reader.effectiveMode === null
+      || state.openOverlay || state.reader.vocabularyBubble) return false;
+    const next = pageForOffset(localPages, position?.textOffset || 0) + Math.sign(direction);
+    const host = scroll;
+    const body = content;
+    const valid = () => host.isConnected && scroll === host && store.getState().reader.status === "ready";
+    const reducedMotion = windowRef.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    if (next >= 0 && next < localPages.length) {
+      const from = host.scrollLeft;
+      return transition.run({
+        reducedMotion, valid,
+        draw: fraction => { host.scrollLeft = from + (next * step() - from) * fraction; },
+        rollback: () => { host.scrollLeft = from; },
+        commit: () => { restore({ chapterId, textOffset: localPages[next] }); publish(); }
+      });
+    }
+    if (next < 0 ? !state.reader.hasPrevious : !state.reader.hasNext) return false;
+    const completed = await transition.run({
+      reducedMotion, valid,
+      draw: fraction => { body.style.transform = "translateX(" + (-Math.sign(direction) * fraction * 36) + "px)"; body.style.opacity = String(1 - fraction * 0.45); },
+      rollback: () => { body.style.transform = ""; body.style.opacity = ""; },
+      commit: () => { body.style.transform = ""; body.style.opacity = ""; }
+    });
+    if (!completed || !valid()) return false;
+    changingChapter = true;
+    try { await controller.turnReaderChapter(Math.sign(direction)); }
+    finally { changingChapter = false; }
+    return store.getState().reader.status === "ready";
   }
 
   const onAssetsChanged = event => {
     if (!content?.isConnected || (event.type === "load" && !content.contains(event.target))) return;
-    indexKey = "";
     attach(store.getState());
   };
   root.addEventListener("load", onAssetsChanged, true);
   documentRef.fonts?.addEventListener?.("loadingdone", onAssetsChanged);
 
-  return { attach, onScroll, seek,
-    turn(direction) { return seek((store.getState().reader.pagination?.pageIndex || 0) + direction); },
+  return { attach, onScroll, seek, cancelTurn: () => transition.cancel(),
+    waitForTurn: () => transition.whenSettled(),
+    turn,
     showHit(hit) {
       if (layout !== "page" || !scroll) return false;
       const offset = hit.getBoundingClientRect().left - content.getBoundingClientRect().left;
@@ -316,7 +338,7 @@ export function createReaderLayout(root, store, controller) {
       onScroll(); return true;
     },
     destroy() {
-      generation += 1; observer?.disconnect(); windowRef.clearTimeout(resizeTimer);
+      transition.cancel(); observer?.disconnect(); windowRef.clearTimeout(resizeTimer);
       root.removeEventListener("load", onAssetsChanged, true);
       documentRef.fonts?.removeEventListener?.("loadingdone", onAssetsChanged);
     }

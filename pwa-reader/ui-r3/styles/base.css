@@ -780,8 +780,8 @@ body {
   --r3-reader-line-height: 1.8;
   --r3-reader-measure: var(--r3-reading-measure);
   --r3-reader-margin-inline: 24px;
-  --r3-reader-page-safe-top: calc(68px + env(safe-area-inset-top, 0px));
-  --r3-reader-page-safe-bottom: calc(112px + env(safe-area-inset-bottom, 0px));
+  --r3-reader-page-safe-top: calc(12px + env(safe-area-inset-top, 0px));
+  --r3-reader-page-safe-bottom: calc(28px + env(safe-area-inset-bottom, 0px));
 }
 
 .r3-reader-scroll[data-reader-font="sm"] { --r3-reader-font-size: 0.98rem; }
@@ -898,12 +898,60 @@ body {
   box-shadow: 0 -8px 24px rgba(23, 32, 51, 0.05);
 }
 
-/* Chrome visibility never changes geometry; Page keeps permanent safe zones. */
+.r3-reader-detour-actions {
+  position: absolute;
+  inset: auto var(--r3-layout-gutter) calc(92px + env(safe-area-inset-bottom, 0px));
+  z-index: 3;
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--r3-space-2);
+  padding: var(--r3-space-2);
+  border: 1px solid var(--r3-color-border);
+  border-radius: var(--r3-radius);
+  background: var(--r3-color-surface);
+  box-shadow: var(--r3-shadow-soft);
+}
+
+.r3-reader-bookmarks {
+  flex: 0 1 auto;
+  max-height: 42%;
+  min-height: 0;
+  overflow-y: auto;
+  padding-block: var(--r3-space-3);
+  border-top: 1px solid var(--r3-color-border);
+}
+
+.r3-reader-header [data-action="reader-toggle-bookmark"].is-selected {
+  color: var(--r3-color-accent);
+  background: var(--r3-color-accent-soft);
+}
+
+.r3-reader-bookmark-row {
+  display: flex;
+  align-items: center;
+  gap: var(--r3-space-2);
+}
+
+.r3-reader-bookmark-row .r3-toc-row {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The prose geometry is identical with and without chrome. Only the HUD and
+   device safe areas reserve space; full toolbars overlay the reading surface. */
+.r3-reader-header, .r3-reader-footer { transition: opacity 140ms ease-out, transform 140ms ease-out, visibility 140ms; }
 .r3-reader-screen[data-chrome-visible="false"] > .r3-reader-header,
-.r3-reader-screen[data-chrome-visible="false"] > .r3-reader-footer,
-.r3-reader-screen[data-chrome-visible="false"] > .r3-reader-page-indicator {
+.r3-reader-screen[data-chrome-visible="false"] > .r3-reader-footer {
+  opacity: 0;
   visibility: hidden;
   pointer-events: none;
+}
+
+.r3-reader-screen[data-chrome-visible="false"] > .r3-reader-header { transform: translateY(-100%); }
+.r3-reader-screen[data-chrome-visible="false"] > .r3-reader-footer { transform: translateY(100%); }
+@media (prefers-reduced-motion: reduce) {
+  .r3-reader-header, .r3-reader-footer { transition: none; }
 }
 
 .r3-reader-quick-controls {
@@ -928,6 +976,15 @@ body {
   font: inherit;
   font-size: 0.75rem;
   cursor: pointer;
+}
+
+.r3-reader-quick-control.is-active {
+  background: var(--r3-color-accent-soft);
+  color: var(--r3-color-accent);
+}
+
+.r3-reader-screen[data-reader-theme="dark"] > .r3-reader-footer .r3-reader-quick-control.is-active {
+  color: var(--r3-color-accent);
 }
 
 .r3-reader-quick-control:focus-visible,
@@ -966,6 +1023,7 @@ body {
 .r3-reader-layout-list { display: grid; grid-template-columns: 1fr 1fr; }
 
 .r3-reader-scroll[data-layout="page"] {
+  touch-action: pan-y pinch-zoom;
   width: min(100%, calc(var(--r3-reading-measure) + 48px));
   margin-inline: auto;
   overflow: hidden;
@@ -998,13 +1056,23 @@ body {
 }
 .r3-reader-page-indicator {
   position: absolute;
-  inset: auto 24px calc(84px + env(safe-area-inset-bottom, 0px));
+  inset: auto auto calc(4px + env(safe-area-inset-bottom, 0px)) 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 48px);
+  padding-inline: 6px;
+  border-radius: 4px;
+  z-index: 1;
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 0.75rem;
   color: var(--r3-color-text-muted);
 }
+.r3-reader-screen[data-chrome-visible="true"] > .r3-reader-page-indicator { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); z-index: 3; }
+.r3-reader-screen.has-overlay > .r3-reader-page-indicator { visibility: hidden; }
 .r3-reader-page-end { position: absolute; top: 0; width: 1px; height: 1px; pointer-events: none; }
 
 .r3-reader-chapter-end-nav {
@@ -1361,6 +1429,7 @@ body {
 }
 
 .r3-reader-contents .r3-toc-list {
+  flex: 1 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;

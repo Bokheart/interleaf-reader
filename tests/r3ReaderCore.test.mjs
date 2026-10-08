@@ -134,7 +134,18 @@ test("Rapid history events serialize and leave the latest requested screen visib
   assert.equal(h.entries.length, 2);
 });
 
-test("Reader Page columns retain selectable source prose and reserve stable chrome safe areas", async () => {
+test("Settings opened over Reader A keeps A in history instead of revealing older Reader B", async () => {
+  const h = historyHarness();
+  await h.controller.selectBook("book-b");
+  await h.controller.selectBook("book-a");
+  await h.controller.navigate(R3_ROUTES.SETTINGS_HOME);
+  h.history.back();
+  await settle();
+  assert.equal(h.store.getState().activeScreen, R3_ROUTES.READER);
+  assert.equal(h.store.getState().activeBookId, "book-a");
+});
+
+test("Reader Page columns retain selectable source prose and reserve stable device safe areas and minimal HUD space", async () => {
   const css = await readFile(new URL("../pwa-reader/ui-r3/styles/base.css", import.meta.url), "utf8");
   for (const selector of ["header", "footer", "scroll"]) {
     assert.match(css, new RegExp(`\\.r3-reader-${selector} \\{\\s+position: absolute;`));

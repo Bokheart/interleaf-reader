@@ -5,6 +5,7 @@ import {
   createIconButton
 } from "../components/dom.js";
 import { R3_OVERLAYS } from "../routes.js";
+import { R3_ROUTES } from "../routes.js";
 import { createTranslator } from "../../i18n.js";
 import {
   READER_APPEARANCE_FONT_SIZES,
@@ -26,8 +27,10 @@ function createReaderButton(documentRef, action, label, disabled = false) {
 
 function getReaderMessage(reader = {}, t) {
   if (reader.status === "loading") {
-    return t("reader.status.chapterLoading");
+    return reader.chapterTitle ? t("reader.status.chapterLoading", { title: reader.chapterTitle }) : t("r3.common.loading");
   }
+
+  if (reader.status === "ready" && reader.contentKind === "empty") return t("r3.reader.emptySection");
 
   if (reader.error?.message) {
     return reader.error.message;
@@ -37,7 +40,7 @@ function getReaderMessage(reader = {}, t) {
 }
 
 function getReaderProgressLabel(reader = {}, t) {
-  if (reader.status === "loading") return t("reader.status.chapterLoading");
+  if (reader.status === "loading") return reader.chapterTitle ? t("reader.status.chapterLoading", { title: reader.chapterTitle }) : t("r3.common.loading");
   if (!Number.isInteger(reader.chapterIndex) || reader.chapterIndex < 0) {
     return t("reader.empty.noChapter");
   }
@@ -136,6 +139,28 @@ function createReaderContents(documentRef, reader = {}, t) {
   });
 
   panel.appendChild(list);
+  const bookmarks = createElement(documentRef, "section", { className: "r3-reader-bookmarks" });
+  bookmarks.appendChild(createElement(documentRef, "h3", { text: t("r3.reader.bookmarks") }));
+  const saved = Array.isArray(reader.bookmarks) ? reader.bookmarks : [];
+  if (!saved.length) bookmarks.appendChild(createElement(documentRef, "p", {
+    className: "r3-muted", text: t("r3.reader.bookmarksEmpty")
+  }));
+  for (const bookmark of saved) {
+    const row = createElement(documentRef, "div", { className: "r3-reader-bookmark-row" });
+    row.appendChild(createActionButton(documentRef, {
+      className: "r3-toc-row", label: `${bookmark.chapterTitle || bookmark.chapterId} · ${bookmark.textOffset}`,
+      dataset: { action: "reader-seek-bookmark", bookmarkId: bookmark.id }
+    }));
+    row.appendChild(createIconButton(documentRef, {
+      icon: "eyeOff", label: t("r3.reader.deleteBookmark"),
+      dataset: { action: "reader-delete-bookmark", bookmarkId: bookmark.id }
+    }));
+    bookmarks.appendChild(row);
+  }
+  if (reader.bookmarkMessage) bookmarks.appendChild(createElement(documentRef, "p", {
+    text: reader.bookmarkMessage, attrs: { role: "alert" }
+  }));
+  panel.appendChild(bookmarks);
   return panel;
 }
 
@@ -287,12 +312,12 @@ function createReaderSheet(documentRef, state, t) {
   } else {
     panel.appendChild(createElement(documentRef, "p", { className: "r3-reader-progress-title", text: reader.chapterTitle }));
     panel.appendChild(createElement(documentRef, "p", { className: "r3-error-text", dataset: { role: "reader-seek-message" }, attrs: { role: "status" } }));
-    panel.appendChild(createElement(documentRef, "p", { className: "r3-muted", text: t("r3.reader.paginating"), dataset: { role: "reader-page-label" } }));
+    panel.appendChild(createElement(documentRef, "p", { className: "r3-muted", text: "", dataset: { role: "reader-page-label" } }));
     panel.appendChild(createElement(documentRef, "input", {
       className: "r3-reader-chapter-slider",
-      attrs: { type: "range", min: 0, max: Math.max(0, (reader.pagination?.pageCount || 1) - 1), step: 1,
-        "aria-label": t("r3.reader.seekPage"), "aria-valuetext": reader.chapterTitle },
-      value: reader.pagination?.pageIndex || 0,
+      attrs: { type: "range", min: 0, max: 1000, step: 1,
+        "aria-label": t("r3.reader.sourceProgress"), "aria-valuetext": reader.chapterTitle },
+      value: Math.round((reader.pagination?.bookProgress || 0) * 1000),
       dataset: { action: "reader-progress-page" },
       disabled: reader.pagination?.status !== "ready"
     }));
@@ -315,7 +340,7 @@ function createVocabularyStateButton(documentRef, row, reader, state, label, ico
       vocabularyState: state,
       vocabularyTerm: row.term
     },
-    disabled: reader.vocabularySaving
+    disabled: false
   });
   button.setAttribute("aria-pressed", row.state === state ? "true" : "false");
   return button;
@@ -502,7 +527,12 @@ function createVocabularyPreview(documentRef, reader = {}, t) {
   panel.appendChild(header);
 
   const list = createElement(documentRef, "div", { className: "r3-vocabulary-preview-list" });
-  if (!rows.length) list.appendChild(createElement(documentRef, "p", {
+  if (reader.vocabularyPreview?.loading) list.appendChild(createElement(documentRef, "p", {
+    className: "r3-muted",
+    text: t("r3.reader.preview.loading"),
+    attrs: { role: "status" }
+  }));
+  else if (!rows.length) list.appendChild(createElement(documentRef, "p", {
     className: "r3-muted",
     text: t("r3.reader.preview.empty")
   }));
@@ -620,6 +650,19 @@ export function createReaderView(documentRef, state, t = createTranslator("en"))
     text: reader.chapterTitle || getReaderProgressLabel(reader, t)
   }));
   header.appendChild(titleGroup);
+  const headerActions = createElement(documentRef, "div", { className: "r3-header-actions" });
+  const bookmarkButton = createIconButton(documentRef, {
+    className: `r3-icon-button${reader.bookmarkActive ? " is-selected" : ""}`,
+    icon: "bookmark",
+    label: t(reader.bookmarkActive ? "r3.reader.removeBookmark" : "r3.reader.addBookmark"),
+    dataset: { action: "reader-toggle-bookmark" }, disabled: reader.status !== "ready"
+  });
+  bookmarkButton.setAttribute("aria-pressed", String(Boolean(reader.bookmarkActive)));
+  headerActions.appendChild(bookmarkButton);
+  headerActions.appendChild(createIconButton(documentRef, {
+    icon: "settings", label: t("settings.open"),
+    dataset: { action: "navigate", route: R3_ROUTES.SETTINGS_HOME }
+  }));
   const appearanceButton = createElement(documentRef, "button", {
     className: "r3-reader-aa-button",
     text: "Aa",
@@ -630,7 +673,8 @@ export function createReaderView(documentRef, state, t = createTranslator("en"))
     dataset: { action: "reader-appearance" },
     disabled: reader.status !== "ready" || reader.modeSaving
   });
-  header.appendChild(appearanceButton);
+  headerActions.appendChild(appearanceButton);
+  header.appendChild(headerActions);
   view.appendChild(header);
 
   const scrollWorkspace = createElement(documentRef, "div", {
@@ -645,10 +689,10 @@ export function createReaderView(documentRef, state, t = createTranslator("en"))
   applyReaderAppearanceDataset(scrollWorkspace, appearance);
   scrollWorkspace.appendChild(createReaderContent(documentRef, reader, t));
   view.appendChild(scrollWorkspace);
-  if (reader.readingLayout !== "scroll") {
+  {
     const pageIndicator = createElement(documentRef, "div", {
       className: "r3-reader-page-indicator",
-      attrs: { ...chromeAttrs, role: "status", "aria-live": "polite" }
+      attrs: { "aria-hidden": hasReaderOverlay ? "true" : undefined, role: "status", "aria-live": "polite" }
     });
     pageIndicator.appendChild(createElement(documentRef, "span", { dataset: { role: "reader-page-label" } }));
     view.appendChild(pageIndicator);
@@ -660,13 +704,26 @@ export function createReaderView(documentRef, state, t = createTranslator("en"))
     ["vocabulary-preview-open", "preview", "vocabulary"], ["reader-mode", "mode", "mode"]
   ]) {
     nav.appendChild(createActionButton(documentRef, {
-      className: "r3-reader-quick-control", label: t(`reader.controls.${key}`), icon,
+      className: `r3-reader-quick-control${action === "vocabulary-preview-open" && hasVocabularyPreview ? " is-active" : ""}`,
+      label: t(`reader.controls.${key}`), icon,
       dataset: { action }, disabled: reader.status !== "ready" || reader.modeSaving
     }));
   }
   const footer = createElement(documentRef, "footer", { className: "r3-reader-footer", attrs: chromeAttrs });
   footer.appendChild(nav);
   view.appendChild(footer);
+  if (reader.passageReturn) {
+    const detour = createElement(documentRef, "div", { className: "r3-reader-detour-actions" });
+    detour.appendChild(createActionButton(documentRef, {
+      className: "r3-primary-button", label: t("r3.reader.returnPosition"),
+      dataset: { action: "reader-return-position" }, disabled: reader.status !== "ready"
+    }));
+    detour.appendChild(createActionButton(documentRef, {
+      className: "r3-secondary-button", label: t("r3.reader.continueHere"),
+      dataset: { action: "reader-continue-here" }, disabled: reader.status !== "ready"
+    }));
+    view.appendChild(detour);
+  }
   view.appendChild(createSelectionSaveBar(documentRef, t));
 
   if (reader.vocabularyBubble && !hasReaderOverlay) {

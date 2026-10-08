@@ -436,6 +436,12 @@ export async function loadEpubFromFile(file, options = {}) {
   };
 }
 
+export function classifyChapterContent(html, plainText) {
+  if (plainText.trim()) return "text";
+  const markup = html.replace(/<!--[\s\S]*?-->|<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, "");
+  return /<(img|svg|video|audio|canvas|object)\b/i.test(markup) ? "media" : "empty";
+}
+
 // Chapters are loaded on demand. Later phases can add caching or richer cleanup
 // without changing the app-level contract.
 export async function loadChapterContent(epubBook, chapter) {
@@ -468,14 +474,15 @@ export async function loadChapterContent(epubBook, chapter) {
   const bodyHtml = extractBodyHtml(serializeRenderedChapter(rendered));
   const plainText = extractPlainTextFromHtml(bodyHtml);
 
-  if (!plainText) {
-    throw new Error(`Chapter rendered without readable text: ${chapter.title}`);
-  }
+  const contentKind = classifyChapterContent(bodyHtml, plainText);
+  // Serialized source is owned by the Reader cache; release epub.js DOM retention.
+  section.unload?.();
 
   return {
     ...chapter,
     originalHtml: bodyHtml,
     plainText,
+    contentKind,
     renderError: null
   };
 }
