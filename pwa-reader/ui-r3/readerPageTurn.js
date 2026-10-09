@@ -13,8 +13,13 @@ export function createPageTurnTransition(windowRef, duration = 160) {
         if (active !== transaction) return;
         active = null;
         if (frame !== null) windowRef.cancelAnimationFrame(frame);
+        let committed = success;
         try { if (success) commit(); else rollback(); }
-        finally { resolve(success); }
+        catch (_) {
+          committed = false;
+          if (success) { try { rollback(); } catch (_) { /* still settle the transaction */ } }
+        }
+        finally { resolve(committed); }
       } };
       active = transaction;
       const tick = time => {

@@ -997,7 +997,7 @@ test("Bootstrap binds one file-change, delegated click, reader-scroll, and lifec
   assert.equal(first.root.eventListeners.get("click").length, 1);
   assert.equal(first.root.eventListeners.get("change").length, 1);
   assert.equal(first.root.eventListeners.get("scroll").length, 1);
-  assert.equal(documentRef.listeners.filter((entry) => entry.type === "visibilitychange").length, 1);
+  assert.equal(documentRef.listeners.filter((entry) => entry.type === "visibilitychange").length, 2);
 });
 
 test("Bootstrap preserves Vocabulary scroll only across same-route rerenders", async () => {

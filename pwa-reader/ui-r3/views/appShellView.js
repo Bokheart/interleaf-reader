@@ -18,7 +18,8 @@ function createActiveScreen(documentRef, state, t) {
   if (state.activeScreen === R3_ROUTES.VOCABULARY) {
     return createVocabularyView(documentRef, state, t);
   }
-  if ([R3_ROUTES.SETTINGS_HOME, R3_ROUTES.SETTINGS_LANGUAGE].includes(state.activeScreen)) {
+  if ([R3_ROUTES.SETTINGS_HOME, R3_ROUTES.SETTINGS_LANGUAGE,
+    R3_ROUTES.SETTINGS_APPEARANCE, R3_ROUTES.SETTINGS_READING].includes(state.activeScreen)) {
     return createSettingsView(documentRef, state, t);
   }
   return createHomeView(documentRef, state, t);
@@ -94,7 +95,8 @@ function createVocabularyToast(documentRef, state) {
 
 export function createAppShellView(documentRef, state) {
   const isReader = state.activeScreen === R3_ROUTES.READER;
-  const isSettings = [R3_ROUTES.SETTINGS_HOME, R3_ROUTES.SETTINGS_LANGUAGE].includes(state.activeScreen);
+  const isSettings = [R3_ROUTES.SETTINGS_HOME, R3_ROUTES.SETTINGS_LANGUAGE,
+    R3_ROUTES.SETTINGS_APPEARANCE, R3_ROUTES.SETTINGS_READING].includes(state.activeScreen);
   const isBootstrapping = !state.initialized;
   const t = createTranslator(state.settings?.uiLanguage);
   const frame = createElement(documentRef, "div", {

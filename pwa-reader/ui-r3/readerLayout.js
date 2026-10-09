@@ -11,13 +11,14 @@ export const READER_PAGE_SWIPE = Object.freeze({
 
 // Ownership is delayed until 12px of horizontal intent. Once rejected, a
 // gesture cannot turn into a page swipe later (selection/scroll/long press).
-export function readerSwipeIntent(gesture, x, y, time) {
-  if (gesture.intent === "rejected" || gesture.startX <= 24
-    || gesture.startX >= gesture.viewportWidth - 24) return "rejected";
+export function readerSwipeIntent(gesture, x, y, time, onReject = () => {}) {
+  const reject = reason => { onReject(reason); return "rejected"; };
+  if (gesture.intent === "rejected") return reject("sticky-rejection");
+  if (gesture.startX <= 24 || gesture.startX >= gesture.viewportWidth - 24) return reject("native-edge");
   const dx = Math.abs(x - gesture.startX), dy = Math.abs(y - gesture.startY);
-  if (gesture.intent === "horizontal") return dy > Math.max(24, dx / 1.35) ? "rejected" : "horizontal";
-  if (time - gesture.startTime >= 350) return "rejected";
-  if (dy >= 12 && dy >= dx) return "rejected";
+  if (gesture.intent === "horizontal") return dy > Math.max(24, dx / 1.35) ? reject("axis-changed") : "horizontal";
+  if (time - gesture.startTime >= 350) return reject("pending-expired");
+  if (dy >= 12 && dy >= dx) return reject("vertical-intent");
   return dx >= 12 && dx >= dy * 1.35 ? "horizontal" : "pending";
 }
 
@@ -156,14 +157,52 @@ export function createReaderLayout(root, store, controller) {
   let requestSequence = null;
   let localPages = [0];
   const transition = createPageTurnTransition(windowRef);
+  let cancellationReason = "context-invalid";
+  function cancelTurn(reason = "render") {
+    cancellationReason = reason; transition.cancel();
+    if (!chapterTurn) return;
+    const state = store.getState();
+    // The owner's loading/commit renders belong to this transaction. Other
+    // presentation changes and explicit lifecycle cancellation invalidate it.
+    const ownRender = ["render", "attach"].includes(reason)
+      && state.activeScreen === R3_ROUTES.READER && state.activeBookId === chapterTurn.bookId
+      && !state.openOverlay && !state.reader.vocabularyBubble
+      && (state.reader.status === "loading" || state.activeChapterIndex === chapterTurn.targetIndex);
+    if (ownRender) return;
+    const obsolete = chapterTurn;
+    chapterTurn = null;
+    obsolete.cancel();
+    controller.cancelReaderChapterTurn?.();
+  }
   let source = null;
-  let changingChapter = false;
+  let chapterTurn = null;
   let suppressScroll = false;
   let restoreFrame = null;
   let resizeTimer = null;
   let observer = null;
   let dimensions = "";
   let lastPagination = "";
+  let feedbackTimer = null;
+  const trace = (event, reason = null) => root.__readerInteractionTrace?.record(event, "layout", reason);
+  function feedback(reason) {
+    const screen = root.querySelector(".r3-reader-screen");
+    if (!screen || store.getState().activeScreen !== R3_ROUTES.READER) return;
+    let status = screen.querySelector(".r3-reader-interaction-status");
+    if (!status) {
+      status = documentRef.createElement("div");
+      status.className = "r3-reader-interaction-status";
+      status.setAttribute("role", "status"); status.setAttribute("aria-live", "polite");
+      screen.appendChild(status);
+    }
+    const message = ["animation-active", "chapter-changing"].includes(reason) ? "busy"
+      : reason === "book-boundary" ? "boundary"
+        : ["overlay-open", "bubble-open"].includes(reason) ? "closePanel"
+          : reason === "cancelled" ? "cancelled" : "unavailable";
+    status.textContent = controller.getTranslation?.(`r3.reader.turn.${message}`) || reason;
+    windowRef.clearTimeout(feedbackTimer);
+    feedbackTimer = windowRef.setTimeout(() => status.remove(), 1800);
+  }
+  const rejectTurn = reason => { trace("TURN_REJECTED", reason); feedback(reason); return false; };
   const metrics = () => ({ scrollTop: scroll?.scrollTop || 0,
     scrollHeight: scroll?.scrollHeight || 0, clientHeight: scroll?.clientHeight || 0 });
   const columnGap = element => Number.parseFloat(windowRef.getComputedStyle?.(element)?.columnGap) || 48;
@@ -204,13 +243,15 @@ export function createReaderLayout(root, store, controller) {
       scroll.scrollLeft = 0;
     }
     controller.recordReaderPosition(position, metrics());
+    trace("POSITION_COMMITTED", "restore");
     restoreFrame = windowRef.requestAnimationFrame(() => { suppressScroll = false; restoreFrame = null; });
   }
 
   function attach(state, preservedPixels = null) {
+    trace("READER_ATTACH");
     windowRef.clearTimeout(resizeTimer);
     observer?.disconnect();
-    transition.cancel();
+    cancelTurn("attach");
     const nextScroll = root.querySelector(".r3-reader-scroll");
     if (state.activeScreen !== R3_ROUTES.READER || !nextScroll) {
       bookId = null; position = null; source = null; lastPagination = "";
@@ -276,12 +317,13 @@ export function createReaderLayout(root, store, controller) {
       : firstOffset(content, source, rect => rect.bottom > scroll.getBoundingClientRect().top + 24);
     position = { chapterId, textOffset: offset || 0 };
     controller.recordReaderPosition(position, metrics());
+    trace("POSITION_COMMITTED", "scroll");
     publish();
   }
 
   function seek(page) {
     if (!content || !scroll || store.getState().reader.effectiveMode === null) return;
-    transition.cancel();
+    cancelTurn("seek");
     const index = Math.max(0, Math.min(localPages.length - 1, Math.round(Number(page) || 0)));
     restore({ chapterId, textOffset: localPages[index] });
     publish();
@@ -289,35 +331,80 @@ export function createReaderLayout(root, store, controller) {
 
   async function turn(direction) {
     const state = store.getState();
-    if (!content || layout !== "page" || transition.active || changingChapter
-      || state.reader.status !== "ready" || state.reader.effectiveMode === null
-      || state.openOverlay || state.reader.vocabularyBubble) return false;
+    trace("TURN_REQUESTED");
+    const reason = state.activeScreen !== R3_ROUTES.READER ? "no-reader"
+      : chapterTurn ? "chapter-changing"
+      : !content?.isConnected || !scroll ? "no-reader"
+      : layout !== "page" ? "scroll-mode"
+      : transition.active ? "animation-active"
+      : state.reader.status !== "ready" ? "reader-not-ready"
+      : state.reader.effectiveMode === null ? "mode-unavailable"
+      : state.openOverlay ? "overlay-open" : state.reader.vocabularyBubble ? "bubble-open"
+      : !Number.isFinite(direction) || !direction ? "invalid-direction" : null;
+    if (reason) return rejectTurn(reason);
+    cancellationReason = "context-invalid";
     const next = pageForOffset(localPages, position?.textOffset || 0) + Math.sign(direction);
     const host = scroll;
     const body = content;
-    const valid = () => host.isConnected && scroll === host && store.getState().reader.status === "ready";
+    const valid = () => {
+      const current = store.getState();
+      return host.isConnected && scroll === host && current.activeScreen === R3_ROUTES.READER
+        && current.activeBookId === state.activeBookId && current.activeChapterId === state.activeChapterId
+        && current.reader.status === "ready" && current.reader.readingLayout === "page"
+        && !current.openOverlay && !current.reader.vocabularyBubble;
+    };
     const reducedMotion = windowRef.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
     if (next >= 0 && next < localPages.length) {
       const from = host.scrollLeft;
-      return transition.run({
+      const origin = { ...position };
+      let committing = false;
+      trace("TURN_STARTED");
+      const completed = await transition.run({
         reducedMotion, valid,
         draw: fraction => { host.scrollLeft = from + (next * step() - from) * fraction; },
-        rollback: () => { host.scrollLeft = from; },
-        commit: () => { restore({ chapterId, textOffset: localPages[next] }); publish(); }
+        rollback: () => {
+          host.scrollLeft = from;
+          const current = store.getState();
+          if (committing && current.activeScreen === R3_ROUTES.READER
+            && current.activeBookId === state.activeBookId && current.activeChapterId === state.activeChapterId
+            && current.reader.status === "ready") {
+            restore(origin); publish();
+          }
+          trace("TURN_CANCELLED", committing ? "commit-failed" : cancellationReason);
+        },
+        commit: () => { committing = true; restore({ chapterId, textOffset: localPages[next] }); publish(); }
       });
+      if (completed) trace("TURN_COMMITTED"); else feedback("cancelled");
+      return completed;
     }
-    if (next < 0 ? !state.reader.hasPrevious : !state.reader.hasNext) return false;
+    if (next < 0 ? !state.reader.hasPrevious : !state.reader.hasNext) return rejectTurn("book-boundary");
+    trace("TURN_STARTED");
     const completed = await transition.run({
       reducedMotion, valid,
       draw: fraction => { body.style.transform = "translateX(" + (-Math.sign(direction) * fraction * 36) + "px)"; body.style.opacity = String(1 - fraction * 0.45); },
-      rollback: () => { body.style.transform = ""; body.style.opacity = ""; },
+      rollback: () => { body.style.transform = ""; body.style.opacity = ""; trace("TURN_CANCELLED", cancellationReason); },
       commit: () => { body.style.transform = ""; body.style.opacity = ""; }
     });
-    if (!completed || !valid()) return false;
-    changingChapter = true;
-    try { await controller.turnReaderChapter(Math.sign(direction)); }
-    finally { changingChapter = false; }
-    return store.getState().reader.status === "ready";
+    if (!completed || !valid()) { feedback("cancelled"); return false; }
+    let cancelled;
+    const interruption = new Promise(resolve => { cancelled = () => resolve(false); });
+    const owner = { bookId: state.activeBookId, targetIndex: state.activeChapterIndex + Math.sign(direction), cancel: cancelled };
+    chapterTurn = owner;
+    let result;
+    try {
+      result = await Promise.race([
+        Promise.resolve(controller.turnReaderChapter(Math.sign(direction), () => chapterTurn === owner)),
+        interruption
+      ]);
+    }
+    catch (_) { trace("TURN_CANCELLED", "chapter-failed"); feedback("cancelled"); return false; }
+    finally { if (chapterTurn === owner) chapterTurn = null; }
+    const current = store.getState();
+    const committed = result !== false && current.activeScreen === R3_ROUTES.READER && current.activeBookId === state.activeBookId
+      && current.activeChapterId !== state.activeChapterId && current.reader.status === "ready";
+    trace(committed ? "TURN_COMMITTED" : "TURN_CANCELLED", committed ? null : "chapter-interrupted");
+    if (!committed) feedback("cancelled");
+    return committed;
   }
 
   const onAssetsChanged = event => {
@@ -326,8 +413,13 @@ export function createReaderLayout(root, store, controller) {
   };
   root.addEventListener("load", onAssetsChanged, true);
   documentRef.fonts?.addEventListener?.("loadingdone", onAssetsChanged);
+  const cancelOnLifecycle = event => cancelTurn(event?.type || "lifecycle");
+  const cancelOnVisibility = () => { if (documentRef.visibilityState === "hidden") cancelTurn("hidden"); };
+  windowRef.addEventListener("pagehide", cancelOnLifecycle);
+  windowRef.addEventListener("blur", cancelOnLifecycle);
+  documentRef.addEventListener("visibilitychange", cancelOnVisibility);
 
-  return { attach, onScroll, seek, cancelTurn: () => transition.cancel(),
+  return { attach, onScroll, seek, cancelTurn,
     waitForTurn: () => transition.whenSettled(),
     turn,
     showHit(hit) {
@@ -338,7 +430,11 @@ export function createReaderLayout(root, store, controller) {
       onScroll(); return true;
     },
     destroy() {
-      transition.cancel(); observer?.disconnect(); windowRef.clearTimeout(resizeTimer);
+      cancelTurn("destroy"); observer?.disconnect(); windowRef.clearTimeout(resizeTimer);
+      windowRef.clearTimeout(feedbackTimer);
+      windowRef.removeEventListener("pagehide", cancelOnLifecycle);
+      windowRef.removeEventListener("blur", cancelOnLifecycle);
+      documentRef.removeEventListener("visibilitychange", cancelOnVisibility);
       root.removeEventListener("load", onAssetsChanged, true);
       documentRef.fonts?.removeEventListener?.("loadingdone", onAssetsChanged);
     }

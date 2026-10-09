@@ -1,4 +1,4 @@
-const CACHE_NAME = 'interleaf-reader-static-v6';
+const CACHE_NAME = 'interleaf-reader-static-v7';
 const CACHE_PREFIX = 'interleaf-reader-static-';
 const DICTIONARY_CACHE_NAME = 'interleaf-reader-dictionary-metadata-v1';
 const DICTIONARY_CACHE_PREFIX = 'interleaf-reader-dictionary-';
@@ -21,6 +21,7 @@ const PRECACHE_ASSETS = [
   './ui-r3/components/dom.js',
   './ui-r3/controller.js',
   './ui-r3/readerHistory.js',
+  './ui-r3/readerInteractionTrace.js',
   './ui-r3/readerLayout.js',
   './ui-r3/readerPageTurn.js',
   './ui-r3/routes.js',

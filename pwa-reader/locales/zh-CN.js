@@ -135,6 +135,7 @@ export const zhCN = Object.freeze({
   "settings.backHome": "\u8fd4\u56de\u4e3b\u9875",
   "r3.settings.backReader": "\u8fd4\u56de\u9605\u8bfb\u5668",
   "r3.settings.backLibrary": "\u8fd4\u56de\u4e66\u5e93",
+  "r3.settings.returnOrigin": "\u8fd4\u56de",
   "settings.language.title": "\u8bed\u8a00",
   "settings.language.label": "\u754c\u9762\u8bed\u8a00",
   "settings.language.feedback": "\u754c\u9762\u8bed\u8a00\u5df2\u4fdd\u5b58\u5728\u672c\u5730\u3002",
@@ -382,4 +383,9 @@ export const zhCN = Object.freeze({
   "r3.reader.seekPage": "本章页码",
   "r3.reader.previousPage": "上一页",
   "r3.reader.nextPage": "下一页",
+  "r3.reader.turn.busy": "正在翻页… 请稍后再试。",
+  "r3.reader.turn.boundary": "已到本书的开头或结尾。",
+  "r3.reader.turn.closePanel": "请关闭已打开的面板后再翻页。",
+  "r3.reader.turn.cancelled": "翻页已中断，请重试。",
+  "r3.reader.turn.unavailable": "当前视图无法翻页。",
 });

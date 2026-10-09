@@ -73,6 +73,22 @@ test("reduced motion commits without scheduling intermediate frames",async()=>{
  assert.equal(await turn.run({draw:()=>{},commit:()=>position++,rollback:()=>{},reducedMotion:true}),true);
  assert.equal(position,1);assert.equal(turn.active,false);
 });
+test("failed commit rolls back and leaves the transaction usable", async () => {
+ const clock = frameClock(), turn = createPageTurnTransition(clock);
+ let rolledBack = false;
+ const completed = await turn.run({ draw() {}, commit() { throw Error("commit failed"); },
+   rollback() { rolledBack = true; }, reducedMotion: true });
+ assert.equal(completed, false); assert.equal(rolledBack, true); assert.equal(turn.active, false);
+ assert.equal(await turn.run({ draw() {}, commit() {}, rollback() {}, reducedMotion: true }), true);
+});
+test("cancellation is idempotent and late frames cannot commit a cancelled transaction", async () => {
+ const clock = frameClock(), turn = createPageTurnTransition(clock); let commits = 0, rollbacks = 0;
+ const done = turn.run({ draw() {}, commit() { commits++; }, rollback() { rollbacks++; } });
+ clock.tick(10); turn.cancel(); turn.cancel(); clock.tick(200);
+ assert.equal(await done, false); assert.equal(commits, 0); assert.equal(rollbacks, 1);
+ const retry = turn.run({ draw() {}, commit() { commits++; }, rollback() {} });
+ clock.tick(300); clock.tick(500); assert.equal(await retry, true); assert.equal(commits, 1);
+});
 test("genuine EPUB render failure still reports an error",async()=>{
  const {loadChapterContent}=await import("../pwa-reader/epubLoader.js");
  await assert.rejects(loadChapterContent({load(){},spine:{spineItems:[{async render(){throw Error("bad zip")}}]}},{order:1,title:"Broken"}),/Chapter failed to render: Broken/);

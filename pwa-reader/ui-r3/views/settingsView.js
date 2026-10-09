@@ -43,7 +43,9 @@ export function createSettingsView(documentRef, state, t) {
     icon: "chevronLeft",
     label: settings.returnScreen === R3_ROUTES.READER
       ? t("r3.settings.backReader")
-      : settings.returnScreen === R3_ROUTES.LIBRARY ? t("r3.settings.backLibrary") : t("settings.backHome"),
+      : settings.returnScreen === R3_ROUTES.LIBRARY ? t("r3.settings.backLibrary")
+        : !settings.returnScreen || settings.returnScreen === R3_ROUTES.HOME
+          ? t("settings.backHome") : t("r3.settings.returnOrigin"),
     dataset: { action: "settings-return" }
   }));
   header.appendChild(createElement(documentRef, "h1", { text: t("settings.title") }));

@@ -19,7 +19,7 @@ test('R3 offline manifest covers the complete mounted runtime module graph and s
  assert.ok(assets.has(new URL('ui-r3/readerPageTurn.js',pwa).href));
  assert.ok(assets.has(new URL('readerBookmarks.js',pwa).href));
  assert.ok(![...assets].some(url=>url.includes('/data/dictionary/')));
- assert.match(source,/interleaf-reader-static-v6/);
+ assert.match(source,/interleaf-reader-static-v7/);
 });
 
 test('offline R3 navigation returns R3 while Legacy retains its own fallback',async()=>{

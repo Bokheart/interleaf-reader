@@ -135,6 +135,7 @@ export const en = Object.freeze({
   "settings.backHome": "Back to Home",
   "r3.settings.backReader": "Back to Reader",
   "r3.settings.backLibrary": "Back to Library",
+  "r3.settings.returnOrigin": "Return",
   "settings.language.title": "Language",
   "settings.language.label": "Interface Language",
   "settings.language.feedback": "Interface language saved locally.",
@@ -382,4 +383,9 @@ export const en = Object.freeze({
   "r3.reader.seekPage": "Page in this chapter",
   "r3.reader.previousPage": "Previous page",
   "r3.reader.nextPage": "Next page",
+  "r3.reader.turn.busy": "Turning page… Try again when it settles.",
+  "r3.reader.turn.boundary": "You are at the beginning or end of this book.",
+  "r3.reader.turn.closePanel": "Close the open panel to turn the page.",
+  "r3.reader.turn.cancelled": "Page turn interrupted. Try again.",
+  "r3.reader.turn.unavailable": "Page turning is unavailable in this view.",
 });

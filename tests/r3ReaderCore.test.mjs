@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import {
   getReaderPageSwipeDirection,
   getReaderPageStep,
+  readerSwipeIntent,
   locateBookPage,
   pageForOffset,
   measureChapterPages
@@ -42,20 +43,26 @@ test("Existing progress overrides preserve logical anchors and old fields withou
   assert.equal(stale.readingLayout, "scroll");
 });
 
-function historyHarness(initial = null) {
-  const entries = [initial];
-  let index = 0;
+function historyHarness(initial = null, savedEntries = null, savedIndex = 0) {
+  const entries = savedEntries || [initial];
+  let index = savedIndex;
   const listeners = new Map();
   const history = {
     get state() { return entries[index]; },
     replaceState(entry) { entries[index] = entry; },
     pushState(entry) { entries.splice(++index); entries[index] = entry; },
-    back() { if (index) { index -= 1; listeners.get("popstate")?.({ state: entries[index] }); } },
-    forward() { if (index < entries.length - 1) { index += 1; listeners.get("popstate")?.({ state: entries[index] }); } }
+    go(delta) { const next = index + delta; if (next >= 0 && next < entries.length) { index = next; listeners.get("popstate")?.({ state: entries[index] }); } },
+    back() { this.go(-1); },
+    forward() { this.go(1); }
   };
   const store = createR3Store();
+  let settingsOrigin = R3_ROUTES.HOME;
   const controller = {
-    async navigate(screen) { store.dispatch(r3Actions.navigate(screen)); },
+    async navigate(screen) {
+      if (screen.startsWith("settings.") && !store.getState().activeScreen.startsWith("settings.")) settingsOrigin = store.getState().activeScreen;
+      store.dispatch(r3Actions.navigate(screen));
+    },
+    async returnFromSettings() { store.dispatch(r3Actions.navigate(settingsOrigin)); },
     async selectBook(bookId) {
       store.dispatch(r3Actions.setActiveBook({ bookId }));
       store.dispatch(r3Actions.navigate(R3_ROUTES.READER));
@@ -89,6 +96,21 @@ test("Page swipe direction maps touch movement to the locked next and previous c
 test("Page swipe rejects movement below its centralized threshold or dominated by vertical travel", () => {
   assert.equal(getReaderPageSwipeDirection({ startX: 200, startY: 420, endX: 165, endY: 422, viewportWidth: 393 }), 0);
   assert.equal(getReaderPageSwipeDirection({ startX: 260, startY: 300, endX: 190, endY: 410, viewportWidth: 393 }), 0);
+});
+test("gesture ownership protects edges selection and long press without timing out an owned deliberate swipe", () => {
+  const gesture = { startX: 280, startY: 400, startTime: 100, viewportWidth: 393, intent: "pending" };
+  assert.equal(readerSwipeIntent(gesture, 275, 402, 120), "pending");
+  assert.equal(readerSwipeIntent(gesture, 260, 402, 140), "horizontal");
+  assert.equal(readerSwipeIntent({ ...gesture, intent: "horizontal" }, 100, 402, 900), "horizontal");
+  assert.equal(readerSwipeIntent(gesture, 260, 402, 480), "rejected");
+  assert.equal(readerSwipeIntent({ ...gesture, startX: 10 }, 100, 400, 150), "rejected");
+  assert.equal(readerSwipeIntent({ ...gesture, startX: 385 }, 240, 400, 150), "rejected");
+  assert.equal(readerSwipeIntent(gesture, 275, 420, 150), "rejected");
+  assert.equal(readerSwipeIntent({ ...gesture, intent: "rejected" }, 100, 400, 150), "rejected");
+  const reasons = [];
+  readerSwipeIntent({ ...gesture, startX: 10 }, 100, 400, 150, reason => reasons.push(reason));
+  readerSwipeIntent(gesture, 260, 402, 480, reason => reasons.push(reason));
+  assert.deepEqual(reasons, ["native-edge", "pending-expired"]);
 });
 
 test("Page step follows the rendered column gap so wide margins cannot reveal the next page", () => {
@@ -134,15 +156,81 @@ test("Rapid history events serialize and leave the latest requested screen visib
   assert.equal(h.entries.length, 2);
 });
 
-test("Settings opened over Reader A keeps A in history instead of revealing older Reader B", async () => {
+test("Temporary Settings returns to live Reader A without a stale Forward entry", async () => {
   const h = historyHarness();
   await h.controller.selectBook("book-b");
   await h.controller.selectBook("book-a");
   await h.controller.navigate(R3_ROUTES.SETTINGS_HOME);
-  h.history.back();
+  assert.equal(h.entries.length, 3, "Settings owns one temporary entry over its origin");
+  assert.equal(h.bridge.backFromSettings(), true);
   await settle();
   assert.equal(h.store.getState().activeScreen, R3_ROUTES.READER);
   assert.equal(h.store.getState().activeBookId, "book-a");
+  h.history.forward(); await settle();
+  assert.equal(h.store.getState().activeScreen, R3_ROUTES.READER);
+  assert.equal(h.history.state.interleafR3.screen, R3_ROUTES.READER);
+  h.history.back(); await settle();
+  assert.equal(h.store.getState().activeScreen, R3_ROUTES.HOME);
+});
+
+for (const origin of Object.values(R3_ROUTES).filter(route => !route.startsWith("settings."))) {
+  for (const native of [true, false]) test(`Settings ${native ? "native Back" : "Return"} preserves ${origin} through nested screens and Forward`, async () => {
+    const h = historyHarness();
+    if (origin === R3_ROUTES.READER) { await h.controller.selectBook("a"); await h.controller.selectBook("b"); }
+    else await h.controller.navigate(origin);
+    const originLength = h.entries.length;
+    await h.controller.navigate(R3_ROUTES.SETTINGS_HOME);
+    await h.controller.navigate(R3_ROUTES.SETTINGS_LANGUAGE);
+    await h.controller.navigate(R3_ROUTES.SETTINGS_APPEARANCE);
+    assert.equal(h.entries.length, originLength + 1);
+    if (native) h.history.back(); else assert.equal(h.bridge.backFromSettings(), true);
+    await settle();
+    assert.equal(h.store.getState().activeScreen, origin);
+    if (origin === R3_ROUTES.READER) assert.equal(h.store.getState().activeBookId, "b");
+    h.history.forward(); await settle();
+    assert.equal(h.store.getState().activeScreen, origin);
+    assert.equal(h.history.state.interleafR3.screen, origin);
+  });
+}
+
+test("legacy Settings Forward entries normalize to their live origin", async () => {
+  const h = historyHarness(); await h.controller.selectBook("b");
+  h.history.pushState({ interleafR3: { screen: R3_ROUTES.SETTINGS_HOME } });
+  h.history.back(); await settle(); h.history.forward(); await settle();
+  assert.equal(h.store.getState().activeScreen, R3_ROUTES.READER);
+  assert.equal(h.store.getState().activeBookId, "b");
+  assert.equal(h.history.state.interleafR3.screen, R3_ROUTES.READER);
+});
+
+test("dismissal survives reload at the origin before Forward", async () => {
+  const h = historyHarness(); await h.controller.selectBook("b");
+  await h.controller.navigate(R3_ROUTES.SETTINGS_HOME); h.history.back(); await settle();
+  const saved = structuredClone(h.entries), restored = historyHarness(saved[1], saved, 1);
+  await restored.bridge.restoreInitial(); restored.history.forward(); await settle();
+  assert.equal(restored.store.getState().activeScreen, R3_ROUTES.READER);
+  assert.equal(restored.store.getState().activeBookId, "b");
+});
+
+test("Settings reopened from a consumed Forward slot retains origin and normal Reader Back", async () => {
+  const h = historyHarness(); await h.controller.navigate(R3_ROUTES.LIBRARY); await h.controller.selectBook("b");
+  for (let repeat = 0; repeat < 3; repeat += 1) {
+    await h.controller.navigate(R3_ROUTES.SETTINGS_HOME);
+    // Direct controller callers and the UI bridge must share dismissal semantics.
+    await h.controller.returnFromSettings(); await settle();
+    assert.equal(h.store.getState().activeScreen, R3_ROUTES.READER);
+    h.history.forward(); await settle();
+    assert.equal(h.store.getState().activeBookId, "b");
+    assert.equal(h.store.getState().activeScreen, R3_ROUTES.READER);
+  }
+  h.history.back(); await settle();
+  assert.equal(h.store.getState().activeScreen, R3_ROUTES.LIBRARY);
+});
+
+test("unidentified legacy Settings reload falls back safely instead of reopening Settings", async () => {
+  const h = historyHarness({ interleafR3: { screen: R3_ROUTES.SETTINGS_LANGUAGE } });
+  await h.bridge.restoreInitial();
+  assert.equal(h.store.getState().activeScreen, R3_ROUTES.HOME);
+  assert.equal(h.history.state.interleafR3.screen, R3_ROUTES.HOME);
 });
 
 test("Reader Page columns retain selectable source prose and reserve stable device safe areas and minimal HUD space", async () => {

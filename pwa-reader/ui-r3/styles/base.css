@@ -1075,6 +1075,21 @@ body {
 .r3-reader-screen.has-overlay > .r3-reader-page-indicator { visibility: hidden; }
 .r3-reader-page-end { position: absolute; top: 0; width: 1px; height: 1px; pointer-events: none; }
 
+.r3-reader-interaction-status {
+  position: absolute;
+  z-index: 12;
+  bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - 32px);
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--r3-color-surface);
+  color: var(--r3-color-text);
+  box-shadow: var(--r3-shadow-soft);
+  pointer-events: none;
+}
+
 .r3-reader-chapter-end-nav {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));

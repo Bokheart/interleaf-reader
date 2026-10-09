@@ -7,6 +7,7 @@ import { R3_OVERLAYS, R3_ROUTES } from "./routes.js";
 import { createAppShellView } from "./views/appShellView.js";
 import { createReaderLayout, readerSwipeIntent, getReaderPageSwipeDirection } from "./readerLayout.js";
 import { bindReaderHistory } from "./readerHistory.js";
+import { bindReaderInteractionTrace } from "./readerInteractionTrace.js";
 import { readerAppearanceSignature } from "../readerAppearance.js";
 
 let autoBootstrapScheduled = false;
@@ -415,6 +416,7 @@ function readScrollMetrics(element) {
 
 function mountAppShell(root, store, documentRef, controller, options = {}) {
   let previousState = null;
+  let settingsOriginScroll = null;
   let readerScrollPreservationSequence = 0;
   let vocabularyFocusDescriptor = null;
   let vocabularyToastSignature = "";
@@ -541,6 +543,17 @@ function mountAppShell(root, store, documentRef, controller, options = {}) {
       previousState = state;
       return;
     }
+    root.__readerInteractionTrace?.record("READER_RENDER", "shell", action?.type || "initial");
+    // Capture before Settings' origin-state dispatch replaces the shell DOM.
+    if (state.settings?.returnScreen === state.activeScreen
+      && previousState?.settings?.returnScreen !== state.settings.returnScreen
+      && state.activeScreen !== R3_ROUTES.READER) {
+      settingsOriginScroll = { screen: state.activeScreen,
+        main: root.querySelector?.(".r3-main")?.scrollTop || 0,
+        vocabulary: findVocabularyScrollElement(root)?.scrollTop || 0 };
+    }
+    const returningToOrigin = previousState?.activeScreen?.startsWith("settings.")
+      && state.activeScreen === settingsOriginScroll?.screen;
     readerLayout?.cancelTurn();
     const previousReaderScroll = findReaderScrollElement(root);
     const readerHadFocus = previousReaderScroll && documentRef.activeElement === previousReaderScroll;
@@ -629,6 +642,13 @@ function mountAppShell(root, store, documentRef, controller, options = {}) {
       root.replaceChildren(view);
     }
     restorePendingUnderlines?.();
+    if (returningToOrigin) {
+      const main = root.querySelector?.(".r3-main");
+      const vocabulary = findVocabularyScrollElement(root);
+      if (main) main.scrollTop = settingsOriginScroll.main;
+      if (vocabulary) vocabulary.scrollTop = settingsOriginScroll.vocabulary;
+      settingsOriginScroll = null;
+    }
     if (Number.isFinite(preservedPreviewScrollTop)) {
       const previewScroll = findVocabularyPreviewScrollElement(root);
       if (previewScroll) previewScroll.scrollTop = preservedPreviewScrollTop;
@@ -858,6 +878,13 @@ function bindAppShellEvents(root, store, controller, browserEffects) {
     swipeClickTimer = chromeTimers.setTimeout?.(() => { suppressReaderClick = false; }, 450);
   };
   const activeTouchPointers = new Set();
+  const traceGesture = (event, reason = null) => root.__readerInteractionTrace?.record(event, "gesture", reason);
+  const resetTouchSession = reason => {
+    if (pageSwipe) traceGesture("GESTURE_REJECTED", reason);
+    pageSwipe = null;
+    activeTouchPointers.clear();
+    cancelChromeTap();
+  };
   const cancelChromeTap = () => {
     if (pendingChromeTap !== null) chromeTimers.clearTimeout(pendingChromeTap);
     pendingChromeTap = null;
@@ -924,8 +951,13 @@ function bindAppShellEvents(root, store, controller, browserEffects) {
   root.ownerDocument?.addEventListener?.("selectionchange", scheduleReaderSelectionSync);
   root.addEventListener("pointerdown", event => {
     if (event.pointerType !== "touch") return;
+    // A new primary touch means the previous physical touch session has ended,
+    // even if DOM removal/native navigation kept its terminal event off this root.
+    if (event.isPrimary === true) resetTouchSession("new-primary");
+    traceGesture("POINTER_DOWN");
     activeTouchPointers.add(event.pointerId);
     if (activeTouchPointers.size > 1 || event.isPrimary === false) {
+      traceGesture("GESTURE_REJECTED", "multitouch");
       pageSwipe = null;
       return;
     }
@@ -933,6 +965,9 @@ function bindAppShellEvents(root, store, controller, browserEffects) {
     const surface = getReaderPageGestureSurface(event.target, root);
     if (!surface || state?.activeScreen !== R3_ROUTES.READER || state.openOverlay
       || state.reader?.status !== "ready" || state.reader?.vocabularyBubble || hasActiveReaderSelection(root.ownerDocument)) {
+      traceGesture("GESTURE_REJECTED", !surface ? "non-page-surface-or-control"
+        : state.openOverlay ? "overlay-open" : state.reader?.vocabularyBubble ? "bubble-open"
+          : hasActiveReaderSelection(root.ownerDocument) ? "selection" : "reader-not-ready");
       pageSwipe = null;
       return;
     }
@@ -943,35 +978,50 @@ function bindAppShellEvents(root, store, controller, browserEffects) {
       startTime: event.timeStamp || Date.now(),
       viewportWidth: root.ownerDocument?.defaultView?.innerWidth || surface.clientWidth,
       intent: "pending",
+      bookId: state.activeBookId,
+      chapterId: state.activeChapterId,
       surface
     };
+    traceGesture("GESTURE_PENDING");
   }, { passive: true });
   root.addEventListener("pointermove", event => {
     if (!pageSwipe || pageSwipe.pointerId !== event.pointerId) return;
+    traceGesture("POINTER_MOVE");
     const state = store.getState();
     if (state.openOverlay || state.reader?.vocabularyBubble || hasActiveReaderSelection(root.ownerDocument)) {
       pageSwipe.intent = "rejected";
+      traceGesture("GESTURE_REJECTED", "blocking-ui-or-selection");
       return;
     }
-    pageSwipe.intent = readerSwipeIntent(pageSwipe, event.clientX, event.clientY, event.timeStamp || Date.now());
+    const previousIntent = pageSwipe.intent;
+    pageSwipe.intent = readerSwipeIntent(pageSwipe, event.clientX, event.clientY, event.timeStamp || Date.now(),
+      reason => traceGesture("GESTURE_REJECTED", reason));
+    if (pageSwipe.intent === "horizontal" && previousIntent !== "horizontal") traceGesture("GESTURE_ACCEPTED", "horizontal-intent");
     if (pageSwipe.intent === "horizontal") {
       cancelChromeTap();
       if (event.cancelable) event.preventDefault();
     }
   }, { passive: false });
-  root.addEventListener("pointerup", event => {
+  const onPointerUp = event => {
     if (event.pointerType !== "touch") return;
+    traceGesture("POINTER_UP");
     activeTouchPointers.delete(event.pointerId);
     const gesture = pageSwipe;
     pageSwipe = null;
     if (!gesture || gesture.pointerId !== event.pointerId || activeTouchPointers.size
       || hasActiveReaderSelection(root.ownerDocument)) return;
     if (Math.hypot(event.clientX - gesture.startX, event.clientY - gesture.startY) >= 12) suppressGestureClick();
-    gesture.intent = readerSwipeIntent(gesture, event.clientX, event.clientY, event.timeStamp || Date.now());
-    if (gesture.intent !== "horizontal") return;
+    gesture.intent = readerSwipeIntent(gesture, event.clientX, event.clientY, event.timeStamp || Date.now(),
+      reason => traceGesture("GESTURE_REJECTED", reason));
+    if (gesture.intent !== "horizontal") {
+      if (gesture.intent === "pending") traceGesture("GESTURE_REJECTED", "pending-release");
+      return;
+    }
     const state = store.getState();
     if (state?.activeScreen !== R3_ROUTES.READER || state.openOverlay || state.reader?.vocabularyBubble
-      || state.reader?.readingLayout !== "page" || state.reader?.status !== "ready") return;
+      || state.reader?.readingLayout !== "page" || state.reader?.status !== "ready"
+      || gesture.surface.isConnected === false || gesture.bookId !== state.activeBookId
+      || gesture.chapterId !== state.activeChapterId) { traceGesture("GESTURE_REJECTED", "context-changed"); return; }
     const direction = getReaderPageSwipeDirection({
       startX: gesture.startX,
       startY: gesture.startY,
@@ -979,14 +1029,41 @@ function bindAppShellEvents(root, store, controller, browserEffects) {
       endY: event.clientY,
       viewportWidth: gesture.surface.clientWidth || root.ownerDocument?.defaultView?.innerWidth
     });
-    if (!direction) return;
+    if (!direction) { traceGesture("GESTURE_REJECTED", "distance"); return; }
+    traceGesture("GESTURE_ACCEPTED", "page-command");
     suppressGestureClick();
     root.__readerLayout?.turn(direction);
-  }, { passive: true });
-  root.addEventListener("pointercancel", event => {
+  };
+  const onPointerCancel = event => {
+    if (event.pointerType !== "touch") return;
+    traceGesture("POINTER_CANCEL", "browser-cancel");
+    if (pageSwipe?.pointerId === event.pointerId) traceGesture("GESTURE_REJECTED", "browser-cancel");
     activeTouchPointers.delete(event.pointerId);
     if (pageSwipe?.pointerId === event.pointerId || activeTouchPointers.size > 1) pageSwipe = null;
-  }, { passive: true });
+  };
+  // Stable capture listeners see terminal events retargeted outside the replaced
+  // shell. Root listeners remain as a fallback for minimal mounted-test DOMs.
+  const eventWindow = root.ownerDocument?.defaultView;
+  const seenTerminals = new WeakSet();
+  const once = handler => event => { if (!seenTerminals.has(event)) { seenTerminals.add(event); handler(event); } };
+  const pointerUp = once(onPointerUp), pointerCancel = once(onPointerCancel);
+  root.addEventListener("pointerup", pointerUp, { passive: true });
+  root.addEventListener("pointercancel", pointerCancel, { passive: true });
+  eventWindow?.addEventListener?.("pointerup", pointerUp, { capture: true, passive: true });
+  eventWindow?.addEventListener?.("pointercancel", pointerCancel, { capture: true, passive: true });
+  const resetOnLifecycle = () => resetTouchSession("lifecycle");
+  const resetOnVisibility = () => { if (root.ownerDocument.visibilityState === "hidden") resetOnLifecycle(); };
+  eventWindow?.addEventListener?.("pagehide", resetOnLifecycle);
+  eventWindow?.addEventListener?.("blur", resetOnLifecycle);
+  root.ownerDocument?.addEventListener?.("visibilitychange", resetOnVisibility);
+  root.__unbindReaderGestures = () => {
+    eventWindow?.removeEventListener?.("pointerup", pointerUp, true);
+    eventWindow?.removeEventListener?.("pointercancel", pointerCancel, true);
+    eventWindow?.removeEventListener?.("pagehide", resetOnLifecycle);
+    eventWindow?.removeEventListener?.("blur", resetOnLifecycle);
+    root.ownerDocument?.removeEventListener?.("visibilitychange", resetOnVisibility);
+    resetOnLifecycle();
+  };
   root.addEventListener("pointerup", scheduleReaderSelectionSync, { passive: true });
   root.addEventListener("keyup", scheduleReaderSelectionSync);
   root.addEventListener("click", (event) => {
@@ -1376,6 +1453,7 @@ export async function bootstrapR3App(options = {}) {
     waitForReaderTurn: () => root.__readerLayout?.waitForTurn(),
     collectVocabularyOccurrences: () => collectVocabularyOccurrences(root, store.getState().activeChapterId)
   });
+  root.__readerInteractionTrace = bindReaderInteractionTrace(root, store);
   const unsubscribe = mountAppShell(root, store, documentRef, controller, {
     toastTimers: options.toastTimers,
     toastDurationMs: options.toastDurationMs,
@@ -1383,13 +1461,16 @@ export async function bootstrapR3App(options = {}) {
   });
   bindAppShellEvents(root, store, controller, options.browserEffects || createBrowserEffects(documentRef));
   bindPageLifecycleEvents(documentRef, controller);
-  root.__readerHistory = bindReaderHistory(documentRef.defaultView, store, controller);
+  root.__readerHistory = bindReaderHistory(documentRef.defaultView, store, controller,
+    root.__readerInteractionTrace?.record);
   const app = {
     root,
     store,
     controller,
     unsubscribe() {
       unsubscribe();
+      root.__unbindReaderGestures?.();
+      root.__readerInteractionTrace?.destroy();
       root.__readerHistory?.destroy();
     }
   };

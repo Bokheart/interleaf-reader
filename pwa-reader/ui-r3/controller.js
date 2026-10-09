@@ -216,6 +216,9 @@ export function createR3Controller(options = {}) {
   let activeReader = null;
   let refreshSequence = 0;
   let readerSequence = 0;
+  // A layout restoration is a new DOM request, not a new book/chapter render.
+  // Keep pending vocabulary completion valid across Settings return and seeks.
+  let readerPositionSequence = 0;
   let bubbleMetadataSequence = 0;
   let vocabularyOperation = null;
   let pendingVocabularyOperations = 0;
@@ -693,8 +696,13 @@ export function createR3Controller(options = {}) {
     const isSelectionSave = nextState === "learning" && Boolean(requestedTerm) && Boolean(term);
     if (!activeReader || (!bubble && !previewRow && !isSelectionSave) || !["known", "learning", "hidden"].includes(nextState)) return state;
     const reader = activeReader;
-    const sequence = readerSequence;
     const chapter = getCurrentReaderChapter(reader);
+    const readingMode = reader.readingMode;
+    // A cancelled chapter load can restore this same committed context with a
+    // newer load token. Validate the actual prose owner, not an attempted load.
+    const isCurrentVocabularyContext = () => activeReader === reader
+      && getCurrentReaderChapter(reader) === chapter && reader.readingMode === readingMode
+      && store.getState().activeChapterId === chapter?.id && store.getState().reader.status === "ready";
     const previousOperation = vocabularyOperation;
     const intent = { state: nextState, sequence: ++vocabularyIntentSequence };
     vocabularyIntents.set(term, intent);
@@ -708,7 +716,7 @@ export function createR3Controller(options = {}) {
           await adapters.vocabulary.setTermState(term, nextState, capture);
         } catch (error) {
           await options.waitForReaderTurn?.();
-          if (activeReader === reader && sequence === readerSequence) {
+          if (isCurrentVocabularyContext()) {
             try {
               const authoritative = await adapters.vocabulary.getReaderVocabulary(chapter);
               reader.vocabularyProfile = authoritative.profile;
@@ -716,7 +724,7 @@ export function createR3Controller(options = {}) {
             } catch { /* Keep the last confirmed profile when the read also fails. */ }
             // A new turn or session may have started during the authoritative read.
             await options.waitForReaderTurn?.();
-            if (activeReader !== reader || sequence !== readerSequence) return store.getState();
+            if (!isCurrentVocabularyContext()) return store.getState();
             if (vocabularyIntents.get(term) === intent) vocabularyIntents.delete(term);
             dispatchVocabularyProjection(reader, chapter, {
               vocabularyMessage: translate("r3.vocabulary.choiceError")
@@ -726,14 +734,14 @@ export function createR3Controller(options = {}) {
         }
         // Persistence remains serialized; visual completion must precede prose refresh.
         await options.waitForReaderTurn?.();
-        if (activeReader !== reader || sequence !== readerSequence) return store.getState();
+        if (!isCurrentVocabularyContext()) return store.getState();
         if (!requestedTerm && store.getState().reader.vocabularyBubble?.term === bubble?.term) {
           closeVocabularyBubble();
         }
         const result = await renderWithVocabulary(reader, chapter, { waitForVocabularyOperation: false });
         // Persistence remains serialized; visual completion must precede prose refresh.
         await options.waitForReaderTurn?.();
-        if (activeReader !== reader || sequence !== readerSequence) return store.getState();
+        if (!isCurrentVocabularyContext()) return store.getState();
         reader.vocabularyProfile = result.vocabulary.profile;
         reader.vocabularyItems = result.vocabulary.items;
         if (vocabularyIntents.get(term) !== intent) return store.getState();
@@ -838,6 +846,24 @@ export function createR3Controller(options = {}) {
     }
 
     return reader?.lastValidReaderState || null;
+  }
+
+  function cancelPendingReaderLoad() {
+    const current = store.getState().reader;
+    if (!activeReader || current.status !== "loading") return;
+    const valid = captureValidReaderState(activeReader);
+    if (!valid) return;
+    ++readerSequence;
+    store.dispatch(r3Actions.setReaderState({
+      ...valid,
+      readingLayout: activeReader.readingLayout,
+      readerAppearance: activeReader.readerAppearance,
+      vocabularyBubble: null,
+      vocabularyPreview: null,
+      vocabularySaving: current.vocabularySaving,
+      pendingVocabularyTerms: current.pendingVocabularyTerms,
+      learningWords: current.learningWords
+    }));
   }
 
   function buildReaderToc(reader = activeReader) {
@@ -950,10 +976,11 @@ export function createR3Controller(options = {}) {
     }
 
     const signature = createSaveSignature(payload);
+    // Deduplicate against the latest requested write. An older completed or
+    // in-flight signature cannot suppress a newer return to that same anchor.
     if (
       signature === reader.pendingSave?.signature
-      || signature === reader.inFlightSaveSignature
-      || signature === reader.lastCompletedSaveSignature
+      || (!reader.saveInFlight && signature === reader.lastCompletedSaveSignature)
     ) {
       return reader.saveInFlight || Promise.resolve(null);
     }
@@ -1018,7 +1045,7 @@ export function createR3Controller(options = {}) {
     return loaded;
   }
 
-  async function renderReaderChapter(chapterIndex, position = null, edge = null, sourceFraction = null) {
+  async function renderReaderChapter(chapterIndex, position = null, edge = null, sourceFraction = null, ownsTurn = () => true) {
     const reader = activeReader;
     if (!reader) {
       return store.getState();
@@ -1037,7 +1064,7 @@ export function createR3Controller(options = {}) {
     const chapter = chapters[chapterIndex];
     const previousReaderState = captureValidReaderState(reader);
     await flushReaderProgress(reader);
-    if (sequence !== readerSequence || activeReader !== reader) {
+    if (!ownsTurn() || sequence !== readerSequence || activeReader !== reader) {
       return store.getState();
     }
 
@@ -1062,12 +1089,12 @@ export function createR3Controller(options = {}) {
 
     try {
       const loadedChapter = await resolveChapterForReader(reader, chapter);
-      if (sequence !== readerSequence || activeReader !== reader) {
+      if (!ownsTurn() || sequence !== readerSequence || activeReader !== reader) {
         return store.getState();
       }
 
       const { rendered, vocabulary, vocabularyMessage } = await renderWithVocabulary(reader, loadedChapter);
-      if (sequence !== readerSequence || activeReader !== reader) return store.getState();
+      if (!ownsTurn() || sequence !== readerSequence || activeReader !== reader) return store.getState();
       // Commit runtime chapter/anchor together, only after rendering succeeds.
       reader.book.chapters = chapters.map((entry, index) => {
         if (index === chapterIndex) return loadedChapter;
@@ -1106,7 +1133,7 @@ export function createR3Controller(options = {}) {
       const nextState = store.dispatch(r3Actions.setReaderState(
         {
           ...getReaderStateFromChapter(reader, loadedChapter, chapterIndex, rendered),
-          positionRequest: { sequence, position: reader.logicalPosition, edge, sourceFraction, legacyProgress: reader.pendingScrollRestore?.progress || null },
+          positionRequest: { sequence: ++readerPositionSequence, position: reader.logicalPosition, edge, sourceFraction, legacyProgress: reader.pendingScrollRestore?.progress || null },
           vocabularyItems: rendered.vocabularyPreview || [],
           learningWords: vocabulary.profile.learningWords || [],
           vocabularyMessage,
@@ -1124,7 +1151,7 @@ export function createR3Controller(options = {}) {
       queueProgressSave(reader);
       return nextState;
     } catch (error) {
-      if (sequence !== readerSequence || activeReader !== reader) {
+      if (!ownsTurn() || sequence !== readerSequence || activeReader !== reader) {
         return store.getState();
       }
 
@@ -1581,7 +1608,7 @@ export function createR3Controller(options = {}) {
     store.dispatch(r3Actions.setReaderState({ bookmarkActive: isCurrentPositionBookmarked() }));
     if (activeReader.pendingScrollRestore) activeReader.pendingScrollRestore.userScrolled = true;
     return store.dispatch(r3Actions.setReaderState({
-      positionRequest: { sequence: ++readerSequence, position }, vocabularyBubble: null
+      positionRequest: { sequence: ++readerPositionSequence, position }, vocabularyBubble: null
     }));
   }
 
@@ -1751,7 +1778,7 @@ export function createR3Controller(options = {}) {
       store.dispatch(r3Actions.setReaderState({
         html: result.rendered.html,
         ...getReaderModeRepresentation(reader, mode),
-        positionRequest: { sequence, position: reader.logicalPosition, legacyProgress: reader.pendingScrollRestore?.progress || null },
+        positionRequest: { sequence: ++readerPositionSequence, position: reader.logicalPosition, legacyProgress: reader.pendingScrollRestore?.progress || null },
         chapterTitle: nextChapter?.title || store.getState().reader.chapterTitle || "",
         vocabularyItems: result.rendered.vocabularyPreview || [],
         learningWords: result.vocabulary.profile.learningWords || [],
@@ -1853,7 +1880,10 @@ export function createR3Controller(options = {}) {
         if (!isSettings(currentScreen)) {
           settingsReturnScreen = currentScreen;
           store.dispatch(r3Actions.setSettingsState({ returnScreen: currentScreen }));
-          if (currentScreen === R3_ROUTES.READER) await flushReaderProgress();
+          if (currentScreen === R3_ROUTES.READER) {
+            cancelPendingReaderLoad();
+            await flushReaderProgress();
+          }
         }
         return store.dispatch(r3Actions.navigate(screen));
       }
@@ -1890,17 +1920,25 @@ export function createR3Controller(options = {}) {
       settingsReturnScreen = null;
       store.dispatch(r3Actions.setSettingsState({ returnScreen: null }));
       if (origin === R3_ROUTES.READER && activeReader) {
+        cancelPendingReaderLoad();
         const chapter = getCurrentReaderChapter();
         const position = activeReader.logicalPosition?.chapterId === chapter?.id
           ? { ...activeReader.logicalPosition }
           : chapter?.id ? { chapterId: chapter.id, textOffset: 0 } : null;
-        store.dispatch(r3Actions.navigate(R3_ROUTES.READER));
         if (position) store.dispatch(r3Actions.setReaderState({
-          positionRequest: { sequence: ++readerSequence, position, legacyProgress: null }
+          readingLayout: activeReader.readingLayout,
+          readerAppearance: activeReader.readerAppearance,
+          positionRequest: { sequence: ++readerPositionSequence, position, legacyProgress: null }
         }));
+        // Restore before exposing the Reader so attach cannot briefly
+        // commit page zero or retain an abandoned chapter-loading presentation.
+        store.dispatch(r3Actions.navigate(R3_ROUTES.READER));
         return store.getState();
       }
-      return this.navigate(origin === R3_ROUTES.LIBRARY ? R3_ROUTES.LIBRARY : R3_ROUTES.HOME);
+      // Settings is a detour over any registered origin. Returning must not run
+      // the origin's fresh-navigation refresh/reset behavior.
+      return store.dispatch(r3Actions.navigate(Object.values(R3_ROUTES).includes(origin)
+        && !origin.startsWith("settings.") ? origin : R3_ROUTES.HOME));
     },
 
     recordReaderScroll,
@@ -1923,13 +1961,14 @@ export function createR3Controller(options = {}) {
         return renderReaderChapter(index, null, null, sourceFraction);
       }
       return store.dispatch(r3Actions.setReaderState({
-        positionRequest: { sequence: ++readerSequence, position: null, sourceFraction }, vocabularyBubble: null
+        positionRequest: { sequence: ++readerPositionSequence, position: null, sourceFraction }, vocabularyBubble: null
       }));
     },
-    turnReaderChapter(direction) {
+    cancelReaderChapterTurn: cancelPendingReaderLoad,
+    turnReaderChapter(direction, ownsTurn = () => true) {
       if (!activeReader) return store.getState();
       const target = activeReader.currentIndex + Math.sign(direction);
-      return renderReaderChapter(target, null, direction < 0 ? "end" : null);
+      return renderReaderChapter(target, null, direction < 0 ? "end" : null, null, ownsTurn);
     },
     setReadingLayout,
     setReaderAppearance,
