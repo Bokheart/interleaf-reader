@@ -7,6 +7,7 @@ import {
 } from "../components/dom.js";
 import { createTranslator } from "../../i18n.js";
 import { R3_ROUTES } from "../routes.js";
+import { isLikelyIPhone, isStandaloneDisplay } from "../standaloneDisplay.js";
 
 function createLibraryHeader(documentRef, t) {
   const header = createElement(documentRef, "header", { className: "r3-library-header" });
@@ -54,6 +55,14 @@ function createEmptyState(documentRef, importStatus = {}, t) {
   empty.appendChild(createElement(documentRef, "p", {
     text: t("r3.library.emptyBody")
   }));
+  const windowRef = documentRef.defaultView;
+  if (isStandaloneDisplay(windowRef) && isLikelyIPhone(windowRef)) {
+    empty.appendChild(createElement(documentRef, "p", {
+      className: "r3-muted",
+      text: t("r3.library.emptyStandaloneHint"),
+      attrs: { "data-role": "r3-library-standalone-hint" }
+    }));
+  }
   empty.appendChild(createActionButton(documentRef, {
     className: "r3-primary-button",
     icon: "import",

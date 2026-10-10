@@ -1,4 +1,4 @@
-const CACHE_NAME = 'interleaf-reader-static-v7';
+const CACHE_NAME = 'interleaf-reader-static-v8';
 const CACHE_PREFIX = 'interleaf-reader-static-';
 const DICTIONARY_CACHE_NAME = 'interleaf-reader-dictionary-metadata-v1';
 const DICTIONARY_CACHE_PREFIX = 'interleaf-reader-dictionary-';
@@ -25,6 +25,7 @@ const PRECACHE_ASSETS = [
   './ui-r3/readerLayout.js',
   './ui-r3/readerPageTurn.js',
   './ui-r3/routes.js',
+  './ui-r3/standaloneDisplay.js',
   './ui-r3/store.js',
   './ui-r3/styles/base.css',
   './ui-r3/styles/reader-content.css',
@@ -37,6 +38,7 @@ const PRECACHE_ASSETS = [
   './ui-r3/views/vocabularyView.js',
   './styles.css',
   './manifest.webmanifest',
+  './manifest-r3.webmanifest',
   './app.js',
   './epubLoader.js',
   './glossaryEngine.js',

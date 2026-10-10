@@ -8,7 +8,8 @@ import { createAppShellView } from "./views/appShellView.js";
 import { createReaderLayout, readerSwipeIntent, getReaderPageSwipeDirection } from "./readerLayout.js";
 import { bindReaderHistory } from "./readerHistory.js";
 import { bindReaderInteractionTrace } from "./readerInteractionTrace.js";
-import { readerAppearanceSignature } from "../readerAppearance.js";
+import { readerAppearanceSignature, resolveReaderAppearance } from "../readerAppearance.js";
+import { applyDisplayModeDataset, syncDocumentTheme } from "./standaloneDisplay.js";
 
 let autoBootstrapScheduled = false;
 const READER_SELECTION_MAX_LENGTH = 80;
@@ -422,8 +423,18 @@ function mountAppShell(root, store, documentRef, controller, options = {}) {
   let vocabularyToastSignature = "";
   let vocabularyToastTimer = null;
   const windowRef = documentRef.defaultView || globalThis.window;
+  applyDisplayModeDataset(documentRef, windowRef);
   const readerLayout = createReaderLayout(root, store, controller);
   root.__readerLayout = readerLayout;
+
+  const syncShellTheme = (state) => {
+    // Reader Appearance Dark retints Reader chrome/prose only. Outside Reader,
+    // document chrome stays on the light shell tokens.
+    const theme = state.activeScreen === R3_ROUTES.READER
+      ? resolveReaderAppearance(state.reader).theme
+      : "light";
+    syncDocumentTheme(documentRef, theme);
+  };
 
   const updatePaginationControls = (state) => {
     const pages = state.reader.pagination || {};
@@ -500,6 +511,7 @@ function mountAppShell(root, store, documentRef, controller, options = {}) {
   };
 
   const render = (state, action = null) => {
+    syncShellTheme(state);
     if (action?.optimisticVocabulary
         && previousState?.activeScreen === R3_ROUTES.READER
         && state.activeScreen === R3_ROUTES.READER

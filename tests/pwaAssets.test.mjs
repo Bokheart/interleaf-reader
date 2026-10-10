@@ -39,8 +39,22 @@ test('pwaAssets - manifest and icons exist', async () => {
   await assert.doesNotReject(fs.access(manifestPath));
   
   const manifestJson = JSON.parse(await fs.readFile(manifestPath, 'utf8'));
+  assert.equal(manifestJson.start_url, './');
+  assert.equal(manifestJson.display, 'standalone');
   for (const icon of manifestJson.icons) {
     const iconPath = path.join(pwaDir, icon.src);
     await assert.doesNotReject(fs.access(iconPath), `Icon ${icon.src} should exist locally`);
+  }
+
+  const r3ManifestPath = path.join(pwaDir, 'manifest-r3.webmanifest');
+  await assert.doesNotReject(fs.access(r3ManifestPath));
+  const r3Manifest = JSON.parse(await fs.readFile(r3ManifestPath, 'utf8'));
+  assert.equal(r3Manifest.start_url, './r3.html');
+  assert.equal(r3Manifest.id, './r3.html');
+  assert.equal(r3Manifest.scope, './');
+  assert.equal(r3Manifest.display, 'standalone');
+  for (const icon of r3Manifest.icons) {
+    const iconPath = path.join(pwaDir, icon.src);
+    await assert.doesNotReject(fs.access(iconPath), `R3 icon ${icon.src} should exist locally`);
   }
 });

@@ -1,6 +1,10 @@
 import { getLanguageChoices } from "../../i18n.js";
 import { createElement, createIconButton } from "../components/dom.js";
 import { R3_ROUTES } from "../routes.js";
+import {
+  isStandaloneDisplay,
+  shouldShowImmersiveInstallGuidance
+} from "../standaloneDisplay.js";
 
 export function createLanguageChoices(documentRef, settings, t, options = {}) {
   const group = createElement(documentRef, "div", {
@@ -78,5 +82,26 @@ export function createSettingsView(documentRef, state, t) {
     text: t("r3.settings.localData.body")
   }));
   view.appendChild(privacySection);
+
+  const windowRef = documentRef.defaultView;
+  if (shouldShowImmersiveInstallGuidance(windowRef)) {
+    const standalone = isStandaloneDisplay(windowRef);
+    const immersiveSection = createElement(documentRef, "section", {
+      className: "r3-settings-section",
+      attrs: { "data-role": "r3-immersive-install" }
+    });
+    immersiveSection.appendChild(createElement(documentRef, "h2", {
+      text: t(standalone
+        ? "r3.settings.immersive.standaloneTitle"
+        : "r3.settings.immersive.installTitle")
+    }));
+    immersiveSection.appendChild(createElement(documentRef, "p", {
+      className: "r3-muted",
+      text: t(standalone
+        ? "r3.settings.immersive.standaloneBody"
+        : "r3.settings.immersive.installBody")
+    }));
+    view.appendChild(immersiveSection);
+  }
   return view;
 }

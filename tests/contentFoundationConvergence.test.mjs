@@ -333,8 +333,8 @@ test('current cache preserves every base precache asset and adds dictionary and 
   assert.deepEqual(before.filter(asset => !after.includes(asset)), []);
   assert.ok(after.includes('./dictionaryMetadata.js'));
   for (const asset of after.filter(asset => !before.includes(asset))) {
-    assert.match(asset, /^\.\/(?:dictionaryMetadata\.js|readerBookmarks\.js|readerProgress\.js|r3\.html|ui-r3\/|adapters\/)/);
+    assert.match(asset, /^\.\/(?:dictionaryMetadata\.js|readerBookmarks\.js|readerProgress\.js|r3\.html|manifest-r3\.webmanifest|ui-r3\/|adapters\/)/);
   }
-  assert.match(current, /CACHE_NAME = 'interleaf-reader-static-v7'/);
+  assert.match(current, /CACHE_NAME = 'interleaf-reader-static-v8'/);
   assert.ok(!after.some(asset => asset.includes('data/dictionary/')));
 });

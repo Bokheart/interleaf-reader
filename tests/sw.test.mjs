@@ -65,7 +65,9 @@ test('Service Worker Test Suite', async (t) => {
     assert.ok(assets.includes('./vendor/epubjs-0.3.93/epub.min.js'), 'epub.js should be precached');
 
     // 6. Required manifest/icons/local JSON files are included
-    assert.ok(assets.includes('./manifest.webmanifest'), 'Manifest should be precached');
+    assert.ok(assets.includes('./manifest.webmanifest'), 'Legacy manifest should be precached');
+    assert.ok(assets.includes('./manifest-r3.webmanifest'), 'R3 manifest should be precached');
+    assert.ok(assets.includes('./ui-r3/standaloneDisplay.js'), 'R3 standalone display helper should be precached');
     assert.ok(assets.includes('../data/vocabulary.json'), 'vocabulary.json should be precached');
     assert.ok(assets.some(a => a.includes('icon-192.png')), 'Icon should be precached');
   });
@@ -91,7 +93,7 @@ test('Service Worker Test Suite', async (t) => {
 
 test('dictionary foundation cache retires v4 and retains appearance, identity and frozen corpus dependencies', async () => {
   const source = await fs.readFile(path.join(ROOT_DIR, 'pwa-reader/sw.js'), 'utf8');
-  assert.match(source, /const CACHE_NAME = 'interleaf-reader-static-v7'/);
+  assert.match(source, /const CACHE_NAME = 'interleaf-reader-static-v8'/);
   const assets = [...source.match(/const PRECACHE_ASSETS = \[([\s\S]*?)\];/)[1].matchAll(/'([^']+)'/g)].map(match => match[1]);
   assert.ok(assets.includes('./readerAppearance.js'), 'shared storage appearance dependency available under SW control');
   for (const module of ['runtime', 'identity-resolver', 'identity-lexicon', 'resolver', 'lexicon', 'phrase-constraints']) {
