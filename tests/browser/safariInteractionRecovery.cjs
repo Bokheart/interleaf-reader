@@ -293,7 +293,10 @@ async function main() {
       assert.ok(trace?.length); assert.ok(trace.length <= 256);
       assert.ok(trace.some(event => event.event === 'POPSTATE'));
       assert.ok(trace.some(event => event.event === 'TURN_COMMITTED'));
-      assert.doesNotMatch(JSON.stringify(trace), /Recovery Garden|Garden 0|visitor|bookKey|textOffset|chapterId/);
+      assert.doesNotMatch(JSON.stringify(trace), /Recovery Garden|Garden 0|visitor|bookKey|bookId|chapterId/);
+      // R4.3 explicitly permits anonymous chapter ordinal + numeric offset.
+      const anchor = trace.at(-1).navigation?.durableAnchor;
+      assert.ok(Number.isInteger(anchor?.chapter) && Number.isInteger(anchor?.textOffset));
       const ordinary = await context.newPage(); await ordinary.goto(origin + '/pwa-reader/r3.html');
       await ordinary.waitForFunction(() => document.querySelector('#r3-root')?.__r3App?.store.getState().initialized);
       assert.equal(await ordinary.evaluate(() => Boolean(document.querySelector('#r3-root').__readerInteractionTrace)), false); await ordinary.close();

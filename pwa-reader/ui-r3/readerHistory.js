@@ -10,6 +10,7 @@ export function bindReaderHistory(windowRef, store, controller, trace = () => {}
   const initial = history.state?.interleafR3;
   let previous = store.getState(), restoring = false, sequence = 0, ordinal = 0;
   let pending = Promise.resolve(), session = null, closing = false;
+  let applyingRestore = false;
   const id = () => windowRef.crypto?.randomUUID?.() || `${Date.now().toString(36)}-${++ordinal}`;
   const clean = entry => {
     const { settingsSession, consumedSettings, ...rest } = entry || {};
@@ -26,6 +27,18 @@ export function bindReaderHistory(windowRef, store, controller, trace = () => {}
   if (!valid(initial)) write(current);
   const consumed = active => ({ ...clean(active.origin), step: current.step,
     consumedSettings: { id: active.id, originId: active.origin.id } });
+  const unsubscribeNavigation = controller.subscribeNavigation?.(() => {
+    if (!restoring || applyingRestore) return;
+    ++sequence; restoring = false; closing = false;
+    // The incoming entry was selected before its async restoration completed.
+    // A newer explicit intent starts at the surface actually visible now.
+    write(fromState(store.getState(), current));
+  });
+  const applyRestore = operation => {
+    applyingRestore = true;
+    try { return operation(); }
+    finally { applyingRestore = false; }
+  };
   const dismiss = () => {
     if (closing) return;
     if (!session) { void controller.returnFromSettings(); return; }
@@ -39,7 +52,11 @@ export function bindReaderHistory(windowRef, store, controller, trace = () => {}
   const unsubscribe = store.subscribe(state => {
     const before = previous;
     previous = state;
-    if (restoring) return;
+    if (restoring) {
+      if (state.activeScreen === before.activeScreen || state.activeScreen === current.screen) return;
+      // An explicit route change while async restore is pending supersedes it.
+      ++sequence; restoring = false; closing = false;
+    }
     if (state.activeScreen === before.activeScreen) {
       if (state.activeScreen === R3_ROUTES.READER && state.activeBookId !== before.activeBookId)
         write({ ...current, bookId: state.activeBookId });
@@ -83,6 +100,7 @@ export function bindReaderHistory(windowRef, store, controller, trace = () => {}
   const restore = (entry, fallback) => {
     const target = normalize(entry, fallback);
     if (!target) return Promise.resolve();
+    controller.cancelNavigation?.();
     const token = ++sequence;
     restoring = true;
     write(target);
@@ -91,17 +109,24 @@ export function bindReaderHistory(windowRef, store, controller, trace = () => {}
       const state = store.getState();
       if (isSettings(state.activeScreen) && state.settings?.returnScreen === target.screen
         && (target.screen !== R3_ROUTES.READER || state.activeBookId === target.bookId))
-        await controller.returnFromSettings();
+        await applyRestore(() => controller.returnFromSettings());
       else if (target.screen === R3_ROUTES.READER && target.bookId) {
         if (state.activeScreen !== R3_ROUTES.READER || state.activeBookId !== target.bookId
-          || state.reader.status !== "ready") await controller.selectBook(target.bookId);
-      } else if (state.activeScreen !== target.screen) await controller.navigate(target.screen);
+          || state.reader.status !== "ready") await applyRestore(() => controller.selectBook(target.bookId));
+      } else if (state.activeScreen !== target.screen) await applyRestore(() => controller.navigate(target.screen));
     }).finally(() => { if (token === sequence) { restoring = false; closing = false; } });
     return pending;
   };
   const onPopState = event => {
-    trace("POPSTATE", "history", "browser-navigation");
     const from = current, incoming = event.state?.interleafR3;
+    trace("POPSTATE", "history", "browser-navigation", {
+      incomingScreen: valid(incoming) ? incoming.screen : null,
+      incomingStep: Number.isInteger(incoming?.step) ? incoming.step : null,
+      direction: Number.isInteger(incoming?.step) && Number.isInteger(from.step)
+        ? Math.sign(incoming.step - from.step) : null,
+      hasUAVisualTransition: event.hasUAVisualTransition === true
+    });
+    controller.cancelNavigation?.();
     const wasSettings = isSettings(store.getState().activeScreen);
     const fallback = session?.origin || fromState(store.getState(), from);
     session = null;
@@ -121,6 +146,8 @@ export function bindReaderHistory(windowRef, store, controller, trace = () => {}
   return {
     restoreInitial: () => valid(initial) ? restore(initial, null) : Promise.resolve(),
     whenSettled: () => pending,
+    snapshot: () => ({ sequence, restoring, closing, screen: current.screen, step: current.step,
+      consumedSettings: Boolean(current.consumedSettings), settingsSession: Boolean(session) }),
     backFromSettings() {
       if (!isSettings(store.getState().activeScreen)) return false;
       dismiss(); return true;
@@ -133,6 +160,7 @@ export function bindReaderHistory(windowRef, store, controller, trace = () => {}
       else history.back();
       return true;
     },
-    destroy() { unsubscribe(); windowRef.removeEventListener("popstate", onPopState); }
+    destroy() { ++sequence; controller.cancelNavigation?.(); unsubscribeNavigation?.();
+      unsubscribe(); windowRef.removeEventListener("popstate", onPopState); }
   };
 }

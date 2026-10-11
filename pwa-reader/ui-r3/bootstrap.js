@@ -558,14 +558,19 @@ function mountAppShell(root, store, documentRef, controller, options = {}) {
     root.__readerInteractionTrace?.record("READER_RENDER", "shell", action?.type || "initial");
     // Capture before Settings' origin-state dispatch replaces the shell DOM.
     if (state.settings?.returnScreen === state.activeScreen
-      && previousState?.settings?.returnScreen !== state.settings.returnScreen
-      && state.activeScreen !== R3_ROUTES.READER) {
+      && previousState?.settings?.returnScreen !== state.settings.returnScreen) {
+      const readerScroll = findReaderScrollElement(root);
       settingsOriginScroll = { screen: state.activeScreen,
         main: root.querySelector?.(".r3-main")?.scrollTop || 0,
-        vocabulary: findVocabularyScrollElement(root)?.scrollTop || 0 };
+        vocabulary: findVocabularyScrollElement(root)?.scrollTop || 0,
+        reader: readerScroll ? { bookId: state.activeBookId, chapterId: state.activeChapterId,
+          layout: state.reader.readingLayout, appearance: readerAppearanceSignature(state.reader),
+          width: readerScroll.clientWidth, height: readerScroll.clientHeight,
+          scrollTop: readerScroll.scrollTop, scrollLeft: readerScroll.scrollLeft } : null };
     }
     const returningToOrigin = previousState?.activeScreen?.startsWith("settings.")
       && state.activeScreen === settingsOriginScroll?.screen;
+    const originReaderPixels = returningToOrigin ? settingsOriginScroll.reader : null;
     readerLayout?.cancelTurn();
     const previousReaderScroll = findReaderScrollElement(root);
     const readerHadFocus = previousReaderScroll && documentRef.activeElement === previousReaderScroll;
@@ -726,7 +731,13 @@ function mountAppShell(root, store, documentRef, controller, options = {}) {
     }
     syncVocabularyToastTimer(state);
     previousState = state;
-    readerLayout?.attach(state, preservedLayoutScroll);
+    const returnedScroll = findReaderScrollElement(root);
+    const matchingOriginGeometry = originReaderPixels && returnedScroll
+      && state.activeBookId === originReaderPixels.bookId && state.activeChapterId === originReaderPixels.chapterId
+      && state.reader.readingLayout === originReaderPixels.layout
+      && readerAppearanceSignature(state.reader) === originReaderPixels.appearance
+      && returnedScroll.clientWidth === originReaderPixels.width && returnedScroll.clientHeight === originReaderPixels.height;
+    readerLayout?.attach(state, preservedLayoutScroll, matchingOriginGeometry ? originReaderPixels : null);
     updatePaginationControls(store.getState());
     if (state.activeScreen === R3_ROUTES.READER && !state.openOverlay) {
       if (readerHadFocus) focusWithoutScrolling(findReaderScrollElement(root));

@@ -247,7 +247,7 @@ export function createReaderLayout(root, store, controller) {
     restoreFrame = windowRef.requestAnimationFrame(() => { suppressScroll = false; restoreFrame = null; });
   }
 
-  function attach(state, preservedPixels = null) {
+  function attach(state, preservedPixels = null, originPixels = null) {
     trace("READER_ATTACH");
     windowRef.clearTimeout(resizeTimer);
     observer?.disconnect();
@@ -295,7 +295,9 @@ export function createReaderLayout(root, store, controller) {
       target = { chapterId, textOffset: firstOffset(content, source, rect => rect.bottom > scroll.getBoundingClientRect().top + 24) };
       scroll.dataset.layout = layout;
     }
-    restore(target || { chapterId, textOffset: 0 }, !freshRequest && sameChapter ? preservedPixels : null);
+    // Settings return keeps the source request authoritative while retaining
+    // exact pixels only when the shell verified unchanged origin geometry.
+    restore(target || { chapterId, textOffset: 0 }, originPixels || (!freshRequest && sameChapter ? preservedPixels : null));
     const size = `${scroll.clientWidth}:${scroll.clientHeight}`;
     dimensions = size;
     publish();
@@ -420,6 +422,7 @@ export function createReaderLayout(root, store, controller) {
   documentRef.addEventListener("visibilitychange", cancelOnVisibility);
 
   return { attach, onScroll, seek, cancelTurn,
+    snapshot: () => ({ turnActive: transition.active, scrollRestorePending: restoreFrame !== null, layout }),
     waitForTurn: () => transition.whenSettled(),
     turn,
     showHit(hit) {

@@ -11,6 +11,7 @@ import {
   scrollToVocabularyHit
 } from "../pwa-reader/ui-r3/bootstrap.js";
 import { createR3Controller } from "../pwa-reader/ui-r3/controller.js";
+import { bindReaderHistory } from "../pwa-reader/ui-r3/readerHistory.js";
 import { R3_OVERLAYS, R3_ROUTES } from "../pwa-reader/ui-r3/routes.js";
 import { createAppShellView } from "../pwa-reader/ui-r3/views/appShellView.js";
 import { createReaderView } from "../pwa-reader/ui-r3/views/readerView.js";
@@ -3722,6 +3723,161 @@ test("R3 source progress seeks restore a source fraction without enumerating cha
   await controller.flushReaderProgress();
   assert.equal("sourceFraction" in (calls.savePosition.at(-1).overrides || {}), false);
   assert.equal("pageIndex" in (calls.savePosition.at(-1).overrides || {}), false);
+});
+
+test("dismissed Settings cannot reopen when its origin progress write completes", async () => {
+  const { adapters, readerRuntime } = createAdapters();
+  const store = createR3Store(), controller = createR3Controller({ store, adapters, readerRuntime });
+  await controller.resumeBook("recent");
+  await controller.setReaderAppearance({ theme: "dark" });
+  const save = createDeferred();
+  adapters.reader.savePosition = () => save.promise;
+  const entering = controller.navigate(R3_ROUTES.SETTINGS_HOME);
+  await controller.returnFromSettings();
+  save.resolve(); await entering;
+  assert.equal(store.getState().activeScreen, R3_ROUTES.READER);
+  assert.equal(store.getState().settings.returnScreen, null);
+  assert.equal(store.getState().reader.readerAppearance.theme, "dark");
+});
+
+for (const phase of ["adapter", "epub", "bookmarks"]) test(`abandoned ${phase} Reader restore cannot reopen a route`, async () => {
+  const { adapters, readerRuntime } = createAdapters();
+  const pending = createDeferred(), entered = createDeferred();
+  const hold = original => async (...args) => {
+    entered.resolve(); await pending.promise; return original(...args);
+  };
+  if (phase === "adapter") adapters.reader.openBook = hold(adapters.reader.openBook);
+  if (phase === "epub") readerRuntime.loadEpubFromFile = hold(readerRuntime.loadEpubFromFile);
+  if (phase === "bookmarks") adapters.bookmarks = { list: hold(async () => []) };
+  const store = createR3Store(), controller = createR3Controller({ store, adapters, readerRuntime });
+  const opening = controller.selectBook("recent"); await entered.promise;
+  await controller.navigate(R3_ROUTES.LIBRARY);
+  pending.resolve(); await opening;
+  assert.equal(store.getState().activeScreen, R3_ROUTES.LIBRARY);
+  assert.equal(store.getState().activeBookId, null);
+  assert.equal(store.getState().openOverlay, null);
+});
+
+test("Reader exit never publishes Light Reader between Dark Reader and Library", async () => {
+  const { adapters, readerRuntime } = createAdapters();
+  const store = createR3Store(), controller = createR3Controller({ store, adapters, readerRuntime });
+  await controller.resumeBook("recent"); await controller.setReaderAppearance({ theme: "dark" });
+  const appearances = [];
+  const unsubscribe = store.subscribe(state => {
+    if (state.activeScreen === R3_ROUTES.READER) appearances.push(state.reader.readerAppearance.theme);
+  });
+  await controller.navigate(R3_ROUTES.LIBRARY); unsubscribe();
+  assert.ok(appearances.every(theme => theme === "dark"), JSON.stringify(appearances));
+});
+
+test("Forward to live Reader cancels an already running Back restore before progress resolves", async () => {
+  const { adapters, readerRuntime } = createAdapters();
+  const store = createR3Store(), controller = createR3Controller({ store, adapters, readerRuntime });
+  const entries = [{}], listeners = new Map(); let index = 0;
+  const history = {
+    get state() { return entries[index]; },
+    replaceState(entry) { entries[index] = entry; },
+    pushState(entry) { entries.splice(++index); entries[index] = entry; },
+    go(delta) { index += delta; listeners.get("popstate")({ state: entries[index] }); },
+    back() { this.go(-1); }, forward() { this.go(1); }
+  };
+  const bridge = bindReaderHistory({ history, addEventListener: (key, fn) => listeners.set(key, fn),
+    removeEventListener: key => listeners.delete(key) }, store, controller);
+  await controller.navigate(R3_ROUTES.LIBRARY); await controller.selectBook("recent");
+  controller.recordReaderPosition({ chapterId: "chapter-2", textOffset: 12 });
+  const save = createDeferred(), entered = createDeferred();
+  adapters.reader.savePosition = () => { entered.resolve(); return save.promise; };
+  history.back(); await entered.promise; history.forward();
+  const routes = [];
+  const unsubscribe = store.subscribe(state => routes.push(state.activeScreen));
+  save.resolve(); await bridge.whenSettled();
+  unsubscribe();
+  assert.equal(history.state.interleafR3.screen, R3_ROUTES.READER);
+  assert.equal(store.getState().activeScreen, R3_ROUTES.READER);
+  assert.ok(!routes.includes(R3_ROUTES.LIBRARY), "obsolete Back must never publish Library after Forward");
+  bridge.destroy();
+});
+
+test("queued history restore cannot cancel a newer explicit book choice", async () => {
+  const { adapters, readerRuntime } = createAdapters();
+  const open = adapters.reader.openBook;
+  adapters.reader.openBook = async key => ({ ...(await open(key)), bookKey: key });
+  const store = createR3Store(), controller = createR3Controller({ store, adapters, readerRuntime });
+  const entries = [{}], listeners = new Map(); let index = 0;
+  const history = {
+    get state() { return entries[index]; },
+    replaceState(entry) { entries[index] = entry; },
+    pushState(entry) { entries.splice(++index); entries[index] = entry; },
+    go(delta) { index += delta; listeners.get("popstate")({ state: entries[index] }); },
+    back() { this.go(-1); }, forward() { this.go(1); }
+  };
+  const bridge = bindReaderHistory({ history, addEventListener: (key, fn) => listeners.set(key, fn),
+    removeEventListener: key => listeners.delete(key) }, store, controller);
+  await controller.navigate(R3_ROUTES.LIBRARY); await controller.selectBook("recent");
+  history.back(); await bridge.whenSettled();
+  history.forward();
+  await controller.selectBook("older"); await bridge.whenSettled();
+  assert.equal(store.getState().activeBookId, "older");
+  assert.equal(history.state.interleafR3.bookId, "older");
+  bridge.destroy();
+});
+
+test("obsolete book open failure cannot overwrite a newer navigation loading or error state", async () => {
+  const { adapters, readerRuntime } = createAdapters();
+  const old = createDeferred(), latest = createDeferred();
+  adapters.reader.openBook = key => key === "old" ? old.promise : latest.promise;
+  const store = createR3Store(), controller = createR3Controller({ store, adapters, readerRuntime });
+  const abandoned = controller.selectBook("old"), opening = controller.selectBook("latest");
+  old.reject(new Error("obsolete open failed")); await abandoned;
+  assert.equal(store.getState().loading.isLoading, true);
+  assert.equal(store.getState().error, null);
+  await controller.navigate(R3_ROUTES.LIBRARY);
+  assert.equal(store.getState().loading.isLoading, false);
+  latest.reject(new Error("dismissed open failed")); await opening;
+  assert.equal(store.getState().error, null);
+});
+
+test("chapter restore awaiting a progress write is canceled before Settings is dismissed", async () => {
+  const { adapters, readerRuntime } = createAdapters();
+  const store = createR3Store(), controller = createR3Controller({ store, adapters, readerRuntime });
+  await controller.resumeBook("recent");
+  controller.recordReaderPosition({ chapterId: "chapter-2", textOffset: 12 });
+  const save = createDeferred(), entered = createDeferred();
+  adapters.reader.savePosition = () => { entered.resolve(); return save.promise; };
+  const chapter = controller.selectReaderChapter(0); await entered.promise;
+  const entering = controller.navigate(R3_ROUTES.SETTINGS_HOME);
+  await controller.returnFromSettings();
+  save.resolve(); await Promise.all([entering, chapter]);
+  assert.equal(store.getState().activeScreen, R3_ROUTES.READER);
+  assert.equal(store.getState().activeChapterId, "chapter-2");
+});
+
+test("superseded Settings entry clears origin metadata before a later Reader visit", async () => {
+  const { adapters, readerRuntime } = createAdapters();
+  const store = createR3Store(), controller = createR3Controller({ store, adapters, readerRuntime });
+  await controller.resumeBook("recent");
+  controller.recordReaderPosition({ chapterId: "chapter-2", textOffset: 12 });
+  const save = createDeferred(); adapters.reader.savePosition = () => save.promise;
+  const entering = controller.navigate(R3_ROUTES.SETTINGS_HOME);
+  const leaving = controller.navigate(R3_ROUTES.LIBRARY);
+  save.resolve(); await Promise.all([entering, leaving]);
+  assert.equal(store.getState().settings.returnScreen, null);
+  assert.equal(store.getState().activeScreen, R3_ROUTES.LIBRARY);
+});
+
+test("Settings cancellation releases mode controls while a mode change awaits progress", async () => {
+  const { adapters, readerRuntime } = createAdapters();
+  const store = createR3Store(), controller = createR3Controller({ store, adapters, readerRuntime });
+  await controller.resumeBook("recent");
+  controller.recordReaderPosition({ chapterId: "chapter-2", textOffset: 12 });
+  const save = createDeferred(), entered = createDeferred();
+  adapters.reader.savePosition = () => { entered.resolve(); return save.promise; };
+  const mode = controller.setReaderMode("english-study"); await entered.promise;
+  const entering = controller.navigate(R3_ROUTES.SETTINGS_HOME); await controller.returnFromSettings();
+  save.resolve(); await Promise.all([mode, entering]);
+  assert.equal(store.getState().reader.modeSaving, false);
+  await controller.setReaderMode("english-study");
+  assert.equal(store.getState().activeReadingMode, "english-study");
 });
 
 test("Settings returns to the exact live Reader A session after language change", async () => {

@@ -174,17 +174,17 @@ function createSaveSignature(payload = {}) {
   });
 }
 
-async function runControllerOperation(store, operation, callback) {
+async function runControllerOperation(store, operation, callback, ownsOperation = () => true) {
   store.dispatch(r3Actions.setLoading(true, operation));
   store.dispatch(r3Actions.clearError());
 
   try {
     return await callback();
   } catch (error) {
-    store.dispatch(r3Actions.setError(error));
+    if (ownsOperation()) store.dispatch(r3Actions.setError(error));
     return store.getState();
   } finally {
-    store.dispatch(r3Actions.setLoading(false));
+    if (ownsOperation()) store.dispatch(r3Actions.setLoading(false));
   }
 }
 
@@ -227,6 +227,37 @@ export function createR3Controller(options = {}) {
   let vocabularyProfileReadSequence = 0;
   let vocabularyPreviewSequence = 0;
   let settingsReturnScreen = null;
+  let navigationSequence = 0;
+  let navigationTarget = null;
+  let navigationPending = false;
+  const navigationListeners = new Set();
+
+  // Every route intent (including a native traversal with no work to do) owns
+  // its async completions. Persistence continues, but obsolete UI work cannot.
+  function cancelNavigation() {
+    ++navigationSequence;
+    if (navigationPending && navigationTarget?.startsWith("settings.")
+      && !store.getState().activeScreen.startsWith("settings.")) {
+      settingsReturnScreen = null;
+      store.dispatch(r3Actions.setSettingsState({ returnScreen: null }));
+    }
+    const opening = navigationPending && ["reader.openBook", "reader.openGuide", "reader.resumeBook"]
+      .includes(store.getState().loading?.operation);
+    navigationPending = false;
+    cancelPendingReaderLoad();
+    if (opening) store.dispatch(r3Actions.setLoading(false));
+  }
+
+  async function runNavigation(target, operation) {
+    cancelNavigation();
+    const sequence = navigationSequence;
+    navigationTarget = target;
+    navigationPending = true;
+    for (const listener of navigationListeners) listener();
+    const ownsNavigation = () => sequence === navigationSequence;
+    try { return await operation(ownsNavigation); }
+    finally { if (ownsNavigation()) navigationPending = false; }
+  }
 
   function translate(key, params = {}) {
     return createTranslator(store.getState().settings?.uiLanguage)(key, params);
@@ -850,10 +881,13 @@ export function createR3Controller(options = {}) {
 
   function cancelPendingReaderLoad() {
     const current = store.getState().reader;
+    // A chapter operation can still be waiting on a progress write while the
+    // visible Reader is ready. Invalidate that phase as well as chapter I/O.
+    ++readerSequence;
+    if (current.modeSaving) store.dispatch(r3Actions.setReaderState({ modeSaving: false }));
     if (!activeReader || current.status !== "loading") return;
     const valid = captureValidReaderState(activeReader);
     if (!valid) return;
-    ++readerSequence;
     store.dispatch(r3Actions.setReaderState({
       ...valid,
       readingLayout: activeReader.readingLayout,
@@ -946,6 +980,7 @@ export function createR3Controller(options = {}) {
       .then(() => adapters.reader.savePosition(pendingSave.payload))
       .then((result) => {
         reader.lastCompletedSaveSignature = pendingSave.signature;
+        reader.durablePosition = pendingSave.payload.overrides?.logicalPosition || null;
         return result;
       })
       .catch((error) => {
@@ -1165,8 +1200,9 @@ export function createR3Controller(options = {}) {
     }
   }
 
-  async function openReaderFromGuide(guidePayload) {
+  async function openReaderFromGuide(guidePayload, ownsNavigation) {
     await flushReaderProgress();
+    if (!ownsNavigation()) return store.getState();
     cleanupReaderRuntime();
 
     if (!guidePayload?.guideBook?.isBuiltInGuide) {
@@ -1207,6 +1243,8 @@ export function createR3Controller(options = {}) {
       error: null
     }));
 
+    const bookmarks = await Promise.resolve(adapters.bookmarks.list(GUIDE_BOOK_KEY));
+    if (!ownsNavigation()) return store.getState();
     activeReader = {
       bookKey: GUIDE_BOOK_KEY,
       restoration: {
@@ -1224,7 +1262,7 @@ export function createR3Controller(options = {}) {
       readerAppearance: resolveReaderAppearance(store.getState().settings),
       logicalPosition: progress?.logicalPosition || null,
       passageDetour: null,
-      bookmarks: await Promise.resolve(adapters.bookmarks.list(GUIDE_BOOK_KEY)),
+      bookmarks,
       scrollMetrics: normalizeScrollMetrics(),
       pendingScrollTimer: null,
       pendingScrollRestore: null,
@@ -1244,11 +1282,12 @@ export function createR3Controller(options = {}) {
       readingMode
     }));
     store.dispatch(r3Actions.navigate(R3_ROUTES.READER));
-    return renderReaderChapter(chapterIndex);
+    return renderReaderChapter(chapterIndex, null, null, null, ownsNavigation);
   }
 
-  async function openReaderFromRestoration(restoration) {
+  async function openReaderFromRestoration(restoration, ownsNavigation) {
     await flushReaderProgress();
+    if (!ownsNavigation()) return store.getState();
     cleanupReaderRuntime();
 
     if (!restoration?.file) {
@@ -1289,6 +1328,7 @@ export function createR3Controller(options = {}) {
     try {
       loaded = await readerRuntime.loadEpubFromFile(restoration.file);
     } catch (error) {
+      if (!ownsNavigation()) return store.getState();
       store.dispatch(r3Actions.setReaderState({
         status: "error",
         html: "",
@@ -1299,6 +1339,10 @@ export function createR3Controller(options = {}) {
       }));
       throw error;
     }
+    if (!ownsNavigation()) {
+      readerRuntime.destroyHandle(loaded.handle);
+      return store.getState();
+    }
 
     const book = {
       ...(restoration.savedBook || {}),
@@ -1306,6 +1350,11 @@ export function createR3Controller(options = {}) {
       chapters: loaded.book?.chapters || restoration.savedBook?.chapters || []
     };
     const chapterIndex = resolveChapterIndex(book.chapters, restoration.progress);
+    const bookmarks = await Promise.resolve(adapters.bookmarks.list(selection.bookId));
+    if (!ownsNavigation()) {
+      readerRuntime.destroyHandle(loaded.handle);
+      return store.getState();
+    }
 
     activeReader = {
       bookKey: selection.bookId,
@@ -1324,7 +1373,7 @@ export function createR3Controller(options = {}) {
       readerAppearance: resolveReaderAppearance(store.getState().settings),
       logicalPosition: restoration.progress?.logicalPosition || null,
       passageDetour: null,
-      bookmarks: await Promise.resolve(adapters.bookmarks.list(selection.bookId)),
+      bookmarks,
       scrollMetrics: normalizeScrollMetrics(),
       pendingScrollTimer: null,
       pendingScrollRestore: null,
@@ -1344,7 +1393,7 @@ export function createR3Controller(options = {}) {
       readingMode
     }));
     store.dispatch(r3Actions.navigate(R3_ROUTES.READER));
-    return renderReaderChapter(chapterIndex);
+    return renderReaderChapter(chapterIndex, null, null, null, ownsNavigation);
   }
 
   async function refreshShellData(options = {}) {
@@ -1409,20 +1458,22 @@ export function createR3Controller(options = {}) {
       return openGuide();
     }
 
-    return runControllerOperation(store, "reader.openBook", async () => {
+    return runNavigation(R3_ROUTES.READER, ownsNavigation => runControllerOperation(store, "reader.openBook", async () => {
       const restoration = await adapters.reader.openBook(bookKey);
-      return openReaderFromRestoration(restoration);
-    });
+      if (!ownsNavigation()) return store.getState();
+      return openReaderFromRestoration(restoration, ownsNavigation);
+    }, ownsNavigation));
   }
 
   async function openGuide() {
-    return runControllerOperation(store, "reader.openGuide", async () => {
+    return runNavigation(R3_ROUTES.READER, ownsNavigation => runControllerOperation(store, "reader.openGuide", async () => {
       if (typeof adapters.reader.openGuide !== "function") {
         throw new Error("Built-in Guide adapter is unavailable.");
       }
       const guidePayload = await adapters.reader.openGuide();
-      return openReaderFromGuide(guidePayload);
-    });
+      if (!ownsNavigation()) return store.getState();
+      return openReaderFromGuide(guidePayload, ownsNavigation);
+    }, ownsNavigation));
   }
 
   async function resumeBook(bookKey = null) {
@@ -1430,10 +1481,11 @@ export function createR3Controller(options = {}) {
       return openGuide();
     }
 
-    return runControllerOperation(store, "reader.resumeBook", async () => {
+    return runNavigation(R3_ROUTES.READER, ownsNavigation => runControllerOperation(store, "reader.resumeBook", async () => {
       const restoration = await adapters.reader.resumeBook(bookKey);
-      return openReaderFromRestoration(restoration);
-    });
+      if (!ownsNavigation()) return store.getState();
+      return openReaderFromRestoration(restoration, ownsNavigation);
+    }, ownsNavigation));
   }
 
   async function importBook(file) {
@@ -1864,59 +1916,70 @@ export function createR3Controller(options = {}) {
     },
 
     async exitReader() {
-      await flushReaderProgress();
-      cleanupReaderRuntime();
-      store.dispatch(r3Actions.clearReader());
-      store.dispatch(r3Actions.navigate(R3_ROUTES.HOME));
-      await refreshShellData({ operation: "shell.refreshAfterReaderExit", silent: true });
-      return store.getState();
+      return runNavigation(R3_ROUTES.HOME, async ownsNavigation => {
+          await flushReaderProgress();
+          if (!ownsNavigation()) return store.getState();
+          cleanupReaderRuntime();
+          store.dispatch(r3Actions.navigate(R3_ROUTES.HOME));
+          store.dispatch(r3Actions.clearReader());
+          await refreshShellData({ operation: "shell.refreshAfterReaderExit", silent: true });
+          return store.getState();
+      });
     },
 
     async navigate(screen) {
-      const currentScreen = store.getState().activeScreen;
-      const isSettings = route => [R3_ROUTES.SETTINGS_HOME, R3_ROUTES.SETTINGS_LANGUAGE,
-        R3_ROUTES.SETTINGS_APPEARANCE, R3_ROUTES.SETTINGS_READING].includes(route);
-      if (isSettings(screen)) {
-        if (!isSettings(currentScreen)) {
-          settingsReturnScreen = currentScreen;
-          store.dispatch(r3Actions.setSettingsState({ returnScreen: currentScreen }));
-          if (currentScreen === R3_ROUTES.READER) {
-            cancelPendingReaderLoad();
-            await flushReaderProgress();
+      return runNavigation(screen, async ownsNavigation => {
+          const currentScreen = store.getState().activeScreen;
+          const isSettings = route => [R3_ROUTES.SETTINGS_HOME, R3_ROUTES.SETTINGS_LANGUAGE,
+            R3_ROUTES.SETTINGS_APPEARANCE, R3_ROUTES.SETTINGS_READING].includes(route);
+          if (isSettings(screen)) {
+            if (!isSettings(currentScreen)) {
+              settingsReturnScreen = currentScreen;
+              store.dispatch(r3Actions.setSettingsState({ returnScreen: currentScreen }));
+              if (currentScreen === R3_ROUTES.READER) {
+                cancelPendingReaderLoad();
+                await flushReaderProgress();
+                if (!ownsNavigation()) return store.getState();
+              }
+            }
+            return store.dispatch(r3Actions.navigate(screen));
           }
-        }
-        return store.dispatch(r3Actions.navigate(screen));
-      }
-      if (isSettings(currentScreen)) {
-        settingsReturnScreen = null;
-        store.dispatch(r3Actions.setSettingsState({ returnScreen: null }));
-      }
-      if (
-        store.getState().activeScreen === R3_ROUTES.VOCABULARY
-        && screen !== R3_ROUTES.VOCABULARY
-      ) {
-        setVocabularyFeedback();
-      }
-      if (screen !== R3_ROUTES.READER && activeReader) {
-        await flushReaderProgress();
-        cleanupReaderRuntime();
-        store.dispatch(r3Actions.clearReader());
-        store.dispatch(r3Actions.navigate(screen));
-        await refreshShellData({ operation: "shell.refreshAfterReaderExit", silent: true });
-        if (screen === R3_ROUTES.VOCABULARY) {
-          await refreshVocabularyLibrary();
-        }
-        return store.getState();
-      }
-      store.dispatch(r3Actions.navigate(screen));
-      if (screen === R3_ROUTES.VOCABULARY) {
-        await refreshVocabularyLibrary();
-      }
-      return store.getState();
+          if (isSettings(currentScreen)) {
+            settingsReturnScreen = null;
+            store.dispatch(r3Actions.setSettingsState({ returnScreen: null }));
+          }
+          if (
+            store.getState().activeScreen === R3_ROUTES.VOCABULARY
+            && screen !== R3_ROUTES.VOCABULARY
+          ) {
+            setVocabularyFeedback();
+          }
+          if (screen !== R3_ROUTES.READER && activeReader) {
+            await flushReaderProgress();
+            if (!ownsNavigation()) return store.getState();
+            cleanupReaderRuntime();
+            store.dispatch(r3Actions.navigate(screen));
+            store.dispatch(r3Actions.clearReader());
+            await refreshShellData({ operation: "shell.refreshAfterReaderExit", silent: true });
+            if (ownsNavigation() && screen === R3_ROUTES.VOCABULARY) {
+              await refreshVocabularyLibrary();
+            }
+            return store.getState();
+          }
+          store.dispatch(r3Actions.navigate(screen));
+          if (screen !== R3_ROUTES.READER) store.dispatch(r3Actions.clearReader());
+          if (screen === R3_ROUTES.VOCABULARY) {
+            await refreshVocabularyLibrary();
+          }
+          return store.getState();
+      });
     },
 
     async returnFromSettings() {
       const origin = settingsReturnScreen;
+      // Also cancels an entry still waiting for its origin's progress write.
+      cancelNavigation();
+      for (const listener of navigationListeners) listener();
       settingsReturnScreen = null;
       store.dispatch(r3Actions.setSettingsState({ returnScreen: null }));
       if (origin === R3_ROUTES.READER && activeReader) {
@@ -1977,6 +2040,22 @@ export function createR3Controller(options = {}) {
     },
     applyReaderScrollRestoration,
     flushReaderProgress,
+    cancelNavigation,
+    subscribeNavigation(listener) {
+      navigationListeners.add(listener);
+      return () => navigationListeners.delete(listener);
+    },
+    getNavigationState() {
+      const anchor = position => {
+        const chapter = activeReader?.book?.chapters?.findIndex(item => item.id === position?.chapterId);
+        return chapter >= 0 && Number.isInteger(position?.textOffset)
+          ? { chapter: chapter + 1, textOffset: position.textOffset } : null;
+      };
+      return { sequence: navigationSequence, target: navigationTarget, pending: navigationPending,
+        chapterLoad: store.getState().reader.status === "loading", progressSave: Boolean(activeReader?.saveInFlight),
+        positionRequest: readerPositionSequence, anchor: anchor(activeReader?.logicalPosition),
+        durableAnchor: anchor(activeReader?.durablePosition || activeReader?.restoration?.progress?.logicalPosition) };
+    },
     openReaderContents,
     toggleReaderChrome,
     openReaderProgress: () => openReaderSurface(R3_OVERLAYS.PROGRESS),
