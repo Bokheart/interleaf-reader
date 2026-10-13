@@ -1,4 +1,4 @@
-const CACHE_NAME = 'interleaf-reader-static-v9';
+const CACHE_NAME = 'interleaf-reader-static-v10';
 const CACHE_PREFIX = 'interleaf-reader-static-';
 const DICTIONARY_CACHE_NAME = 'interleaf-reader-dictionary-metadata-v1';
 const DICTIONARY_CACHE_PREFIX = 'interleaf-reader-dictionary-';

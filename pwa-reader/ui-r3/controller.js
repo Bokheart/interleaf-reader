@@ -1927,7 +1927,11 @@ export function createR3Controller(options = {}) {
       });
     },
 
-    async navigate(screen) {
+    async navigate(screen, options = {}) {
+      const navigationAction = {
+        ...r3Actions.navigate(screen),
+        restoreShellScroll: options.restoreShellScroll === true
+      };
       return runNavigation(screen, async ownsNavigation => {
           const currentScreen = store.getState().activeScreen;
           const isSettings = route => [R3_ROUTES.SETTINGS_HOME, R3_ROUTES.SETTINGS_LANGUAGE,
@@ -1942,7 +1946,7 @@ export function createR3Controller(options = {}) {
                 if (!ownsNavigation()) return store.getState();
               }
             }
-            return store.dispatch(r3Actions.navigate(screen));
+            return store.dispatch(navigationAction);
           }
           if (isSettings(currentScreen)) {
             settingsReturnScreen = null;
@@ -1958,7 +1962,7 @@ export function createR3Controller(options = {}) {
             await flushReaderProgress();
             if (!ownsNavigation()) return store.getState();
             cleanupReaderRuntime();
-            store.dispatch(r3Actions.navigate(screen));
+            store.dispatch(navigationAction);
             store.dispatch(r3Actions.clearReader());
             await refreshShellData({ operation: "shell.refreshAfterReaderExit", silent: true });
             if (ownsNavigation() && screen === R3_ROUTES.VOCABULARY) {
@@ -1966,7 +1970,7 @@ export function createR3Controller(options = {}) {
             }
             return store.getState();
           }
-          store.dispatch(r3Actions.navigate(screen));
+          store.dispatch(navigationAction);
           if (screen !== R3_ROUTES.READER) store.dispatch(r3Actions.clearReader());
           if (screen === R3_ROUTES.VOCABULARY) {
             await refreshVocabularyLibrary();

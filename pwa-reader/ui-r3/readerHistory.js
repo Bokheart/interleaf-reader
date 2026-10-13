@@ -113,7 +113,7 @@ export function bindReaderHistory(windowRef, store, controller, trace = () => {}
       else if (target.screen === R3_ROUTES.READER && target.bookId) {
         if (state.activeScreen !== R3_ROUTES.READER || state.activeBookId !== target.bookId
           || state.reader.status !== "ready") await applyRestore(() => controller.selectBook(target.bookId));
-      } else if (state.activeScreen !== target.screen) await applyRestore(() => controller.navigate(target.screen));
+      } else if (state.activeScreen !== target.screen) await applyRestore(() => controller.navigate(target.screen, { restoreShellScroll: true }));
     }).finally(() => { if (token === sequence) { restoring = false; closing = false; } });
     return pending;
   };

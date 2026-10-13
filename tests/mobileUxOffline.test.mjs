@@ -19,7 +19,7 @@ test('R3 offline manifest covers the complete mounted runtime module graph and s
  assert.ok(assets.has(new URL('ui-r3/readerPageTurn.js',pwa).href));
  assert.ok(assets.has(new URL('readerBookmarks.js',pwa).href));
  assert.ok(![...assets].some(url=>url.includes('/data/dictionary/')));
- assert.match(source,/interleaf-reader-static-v9/);
+ assert.match(source,/interleaf-reader-static-v10/);
  assert.ok(assets.has(new URL('manifest-r3.webmanifest',pwa).href));
  assert.ok(assets.has(new URL('ui-r3/standaloneDisplay.js',pwa).href));
 });

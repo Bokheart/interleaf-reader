@@ -233,6 +233,19 @@ async function main() {
     const state=await read();assert.equal(state.reader.effectiveMode,mode);assert.equal(state.reader.pagination.status,'ready');assert.equal(state.reader.pagination.scope,'chapter');
    }
    assert.ok(await page.locator('.vocab-hit').count());
+   // R4.3.1 page-safe clearance can push Guide vocab hits onto a later Page; reach one via normal turns.
+   for(let i=0;i<8;i++){
+    const ready=await page.evaluate(()=>{
+     for(const hit of document.querySelectorAll('.vocab-hit')){
+      const r=hit.getBoundingClientRect(),x=r.left+r.width/2,y=r.top+r.height/2;
+      if(x>12 && x<innerWidth-12 && y>110 && y<innerHeight-150 && hit.contains(document.elementFromPoint(x,y))) return true;
+     }
+     return false;
+    });
+    if(ready) break;
+    const turned=await page.evaluate(async()=>document.querySelector('#r3-root').__readerLayout.turn(1));
+    assert.equal(turned,true,'expected a later Page to expose a Guide vocabulary hit');
+   }
    await clickHit();assert.ok((await read()).reader.vocabularyBubble);
    await page.evaluate(()=>document.querySelector('#r3-root').__r3App.controller.closeVocabularyBubble());
   });
@@ -293,13 +306,13 @@ async function main() {
    await flush();const before=(await saved(b)).logicalPosition;
    await page.reload();await page.waitForFunction(()=>navigator.serviceWorker.controller && document.querySelector('#r3-root')?.__r3App?.store.getState().reader.status==='ready');
    const cache=await page.evaluate(async()=>{
-    const names=await caches.keys(),bucket=await caches.open('interleaf-reader-static-v9');
+    const names=await caches.keys(),bucket=await caches.open('interleaf-reader-static-v10');
     const paths=(await bucket.keys()).map(req=>new URL(req.url).pathname);
     await fetch('/data/dictionary/qa-safe/manifest.json');await fetch('/data/dictionary/qa-safe/shards/ga.json');
     const dictionary=await caches.open('interleaf-reader-dictionary-metadata-v1');
     return {names,paths,dictionary:(await dictionary.keys()).map(req=>new URL(req.url).pathname)};
    });
-   assert.ok(cache.names.includes('interleaf-reader-static-v9'));assert.ok(!cache.names.includes('interleaf-reader-static-v5'));
+   assert.ok(cache.names.includes('interleaf-reader-static-v10'));assert.ok(!cache.names.includes('interleaf-reader-static-v5'));
    for(const path of ['/pwa-reader/r3.html','/pwa-reader/readerBookmarks.js','/pwa-reader/ui-r3/readerPageTurn.js']) assert.ok(cache.paths.includes(path),path);
    assert.ok(!cache.paths.some(path=>path.includes('/data/dictionary/') || path.endsWith('.epub')));
    assert.ok(cache.dictionary.includes('/data/dictionary/qa-safe/shards/ga.json'));
@@ -339,19 +352,19 @@ async function main() {
    if(registration.waiting?.state==='installed')return {waiting:registration.waiting.state,keys:await caches.keys()};
    await new Promise(resolve=>setTimeout(resolve,20));
   }
-  throw Error('v9 did not enter waiting while v5 client remained open');
+  throw Error('v10 did not enter waiting while v5 client remained open');
  });
- assert.ok(waiting.keys.includes('interleaf-reader-static-v5'));assert.ok(waiting.keys.includes('interleaf-reader-static-v9'));assert.equal(waiting.waiting,'installed');
+ assert.ok(waiting.keys.includes('interleaf-reader-static-v5'));assert.ok(waiting.keys.includes('interleaf-reader-static-v10'));assert.equal(waiting.waiting,'installed');
  await upgradePage.close();
  upgradePage=await upgradeContext.newPage();await upgradePage.goto(origin+'/pwa-reader/r3.html');
  await upgradePage.evaluate(async()=>{
   for(let i=0;i<150;i++){if(!(await caches.keys()).includes('interleaf-reader-static-v5'))return;await new Promise(resolve=>setTimeout(resolve,20));}
   throw Error('v5 cache was not retired after its client closed');
  });
- assert.ok(await upgradePage.evaluate(async()=>(await caches.keys()).includes('interleaf-reader-static-v9')));
+ assert.ok(await upgradePage.evaluate(async()=>(await caches.keys()).includes('interleaf-reader-static-v10')));
  await upgradeContext.setOffline(true);await upgradePage.reload();
  await upgradePage.waitForFunction(()=>document.querySelector('#r3-root')?.__r3App?.store.getState().initialized);
- await upgradeContext.close();results.push({label:'update',name:'v5 active -> v9 waiting -> close clients -> v9 offline R3',passed:true});
+ await upgradeContext.close();results.push({label:'update',name:'v5 active -> v10 waiting -> close clients -> v10 offline R3',passed:true});
  console.log('PASS update v5 waiting activation and offline R3');
  await fs.writeFile(path.join(output,'convergence.json'),JSON.stringify(results,null,2));
  } finally {await browser.close();await new Promise(resolve=>server.close(resolve));}

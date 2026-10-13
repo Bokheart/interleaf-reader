@@ -77,7 +77,9 @@ async function verifyViewport(browser, viewport, fixtures, label) {
   const geometry = () => page.evaluate(() => {
     const scroll = document.querySelector('.r3-reader-scroll'), content = scroll.querySelector('.r3-reader-content');
     const style = getComputedStyle(scroll);
-    return { height: content.clientHeight, width: content.clientWidth, top: style.paddingTop, bottom: style.paddingBottom, pages: document.querySelector('#r3-root').__r3App.store.getState().reader.pagination.pageCount };
+    return { height: content.clientHeight, width: content.clientWidth, top: style.paddingTop, bottom: style.paddingBottom,
+      headerHeight: document.querySelector('.r3-reader-header').offsetHeight, footerHeight: document.querySelector('.r3-reader-footer').offsetHeight,
+      pages: document.querySelector('#r3-root').__r3App.store.getState().reader.pagination.pageCount };
   });
   const visible = await geometry();
   await page.evaluate(() => {
@@ -85,7 +87,9 @@ async function verifyViewport(browser, viewport, fixtures, label) {
     document.querySelector('#r3-root').__r3App.controller.toggleReaderChrome();
   });
   assert.deepEqual(await geometry(), visible);
-  assert.ok(parseFloat(visible.top) <= 24 && parseFloat(visible.bottom) <= 40);
+  assert.ok(parseFloat(visible.top) >= visible.headerHeight + 8);
+  assert.ok(parseFloat(visible.bottom) >= visible.footerHeight + 28);
+  assert.ok(visible.height > 0 && visible.width > 0);
   await page.waitForFunction(() => getComputedStyle(document.querySelector('.r3-reader-header')).visibility === 'hidden');
   assert.equal(await page.locator('.r3-reader-page-indicator').isVisible(), true);
   assert.equal(await page.evaluate(() => document.querySelector('.r3-reader-content') === window.qaOriginalContent), true);

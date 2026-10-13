@@ -1,5 +1,6 @@
 import { createR3Controller } from "./controller.js";
 import { createR3Store } from "./store.js";
+import { R3_ACTIONS } from "./actions.js";
 import { getTranslation } from "../i18n.js";
 import { normalizeWord } from "../levelBaselineEngine.js";
 import { normalizeTerm } from "../vocabEngine.js";
@@ -418,6 +419,8 @@ function readScrollMetrics(element) {
 function mountAppShell(root, store, documentRef, controller, options = {}) {
   let previousState = null;
   let settingsOriginScroll = null;
+  const shellScrollPositions = new Map();
+  const hasShellScroll = screen => screen === R3_ROUTES.HOME || screen === R3_ROUTES.LIBRARY;
   let readerScrollPreservationSequence = 0;
   let vocabularyFocusDescriptor = null;
   let vocabularyToastSignature = "";
@@ -556,6 +559,15 @@ function mountAppShell(root, store, documentRef, controller, options = {}) {
       return;
     }
     root.__readerInteractionTrace?.record("READER_RENDER", "shell", action?.type || "initial");
+    // These scroll owners are replaced on every shell render. Keep rerenders
+    // and history returns in place; explicit fresh navigation still starts at 0.
+    if (hasShellScroll(previousState?.activeScreen)) {
+      const main = root.querySelector?.(".r3-main");
+      if (main) shellScrollPositions.set(previousState.activeScreen, main.scrollTop || 0);
+    }
+    const shellScrollTop = (state.activeScreen === previousState?.activeScreen && action?.type !== R3_ACTIONS.NAVIGATE)
+      || action?.restoreShellScroll
+      ? shellScrollPositions.get(state.activeScreen) || 0 : 0;
     // Capture before Settings' origin-state dispatch replaces the shell DOM.
     if (state.settings?.returnScreen === state.activeScreen
       && previousState?.settings?.returnScreen !== state.settings.returnScreen) {
@@ -659,6 +671,10 @@ function mountAppShell(root, store, documentRef, controller, options = {}) {
       root.replaceChildren(view);
     }
     restorePendingUnderlines?.();
+    if (hasShellScroll(state.activeScreen)) {
+      const main = root.querySelector?.(".r3-main");
+      if (main) main.scrollTop = shellScrollTop;
+    }
     if (returningToOrigin) {
       const main = root.querySelector?.(".r3-main");
       const vocabulary = findVocabularyScrollElement(root);
