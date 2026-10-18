@@ -795,8 +795,10 @@ body {
   --r3-reader-line-height: 1.8;
   --r3-reader-measure: var(--r3-reading-measure);
   --r3-reader-margin-inline: 24px;
-  --r3-reader-page-safe-top: max(calc(12px + env(safe-area-inset-top, 0px)), calc(var(--r3-reader-chrome-top, 0px) + 8px));
-  --r3-reader-page-safe-bottom: max(calc(28px + env(safe-area-inset-bottom, 0px)), calc(var(--r3-reader-chrome-bottom, 0px) + 28px));
+  /* System text clearance only; application toolbars overlay the viewport.
+     Keep the existing small text margin and page-indicator clearance. */
+  --r3-reader-page-safe-top: calc(12px + env(safe-area-inset-top, 0px));
+  --r3-reader-page-safe-bottom: calc(28px + env(safe-area-inset-bottom, 0px));
 }
 
 .r3-reader-scroll[data-reader-font="sm"] { --r3-reader-font-size: 0.98rem; }
@@ -958,8 +960,8 @@ body {
   min-width: 0;
 }
 
-/* The prose geometry is identical with and without chrome. Page reserves
-   measured clearance so even a one-line final page stays readable. */
+/* The prose geometry is identical with and without chrome. Only the HUD and
+   device safe areas reserve space; full toolbars overlay the reading surface. */
 .r3-reader-header, .r3-reader-footer { transition: opacity 140ms ease-out, transform 140ms ease-out, visibility 140ms; }
 .r3-reader-screen[data-chrome-visible="false"] > .r3-reader-header,
 .r3-reader-screen[data-chrome-visible="false"] > .r3-reader-footer {

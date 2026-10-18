@@ -6,6 +6,7 @@ const http = require('node:http');
 const { chromium } = require('playwright');
 const JSZip = require('../../pwa-reader/vendor/jszip-3.10.1/jszip.min.js');
 const root = path.resolve(__dirname, '../..');
+const output = path.join(root, 'generated/fullscreen-reader-qa');
 
 async function fixture() {
   const zip = new JSZip();
@@ -19,6 +20,7 @@ async function fixture() {
 }
 
 async function main() {
+  await fs.mkdir(output, { recursive: true });
   const book = await fixture();
   const server = http.createServer(async (req, res) => {
     try {
@@ -43,7 +45,7 @@ async function main() {
     catch (error) { failures++; console.log('FAIL ' + name + ': ' + error.message); }
   };
   try {
-    await page.goto('http://127.0.0.1:' + server.address().port + '/pwa-reader/r3.html');
+    await page.goto('http://127.0.0.1:' + server.address().port + '/pwa-reader/r3.html?interactionTrace=1');
     await page.waitForFunction(() => document.querySelector('#r3-root')?.__r3App?.store.getState().initialized);
     await page.evaluate(async () => {
       const app = document.querySelector('#r3-root').__r3App;
@@ -161,33 +163,131 @@ async function main() {
       const r = range.getClientRects()[0], header = root.querySelector('.r3-reader-header'), footer = root.querySelector('.r3-reader-footer'), host = root.querySelector('.r3-reader-scroll');
       const { getReadingProgress } = await import('/pwa-reader/storage.js');
       const hit = document.elementFromPoint((r.left + r.right) / 2, (r.top + r.bottom) / 2);
+      const style = getComputedStyle(host), content = root.querySelector('.r3-reader-content');
       return { rect: { top: r.top, bottom: r.bottom, left: r.left, right: r.right }, headerBottom: header.getBoundingClientRect().bottom, footerTop: footer.getBoundingClientRect().top,
+        geometry: { top: parseFloat(style.paddingTop), bottom: parseFloat(style.paddingBottom), height: content.clientHeight,
+          hostTop: host.getBoundingClientRect().top, hostHeight: host.clientHeight },
+        chromeVisible: app.store.getState().reader.chromeVisible,
         hitsProse: Boolean(hit?.closest('.r3-reader-content')), left: host.scrollLeft, top: host.scrollTop,
         pagination: app.store.getState().reader.pagination, position: (await getReadingProgress(window.qaBook)).logicalPosition,
         status: app.store.getState().reader.status, loading: app.store.getState().loading.isLoading };
     });
     const checkChrome = async () => {
-      const before = await sample(); assert.ok(before.rect.top >= before.headerBottom + 2, JSON.stringify(before));
-      assert.ok(before.rect.bottom <= before.footerTop - 2, JSON.stringify(before)); assert.equal(before.hitsProse, true);
+      const before = await sample();
+      await page.evaluate(() => document.querySelector('#r3-root').__readerInteractionTrace.clear());
       for (let i = 0; i < 4; i++) {
         await page.evaluate(() => document.querySelector('#r3-root').__r3App.controller.toggleReaderChrome()); await frames();
+        await page.waitForTimeout(180); // Include chrome transition and the resize debounce.
         const after = await sample(); assert.deepEqual(after.rect, before.rect); assert.deepEqual(after.position, before.position);
+        assert.deepEqual(after.geometry, before.geometry);
         assert.deepEqual(after.pagination, before.pagination); assert.equal(after.left, before.left); assert.equal(after.top, before.top);
         assert.equal(after.status, 'ready'); assert.equal(after.loading, false);
+        if (!after.chromeVisible) assert.equal(after.hitsProse, true, 'hidden overlays must expose the short final line');
       }
+      assert.deepEqual(await page.evaluate(() => document.querySelector('#r3-root').__readerInteractionTrace.snapshot()
+        .filter(entry => entry.event === 'READER_ATTACH')), [], 'chrome toggles must not rebuild pagination');
     };
     for (const [name, viewport, insets, appearance] of [
       ['reproducing portrait', { width: 393, height: 740 }, { top: 47, left: 0, right: 0, bottom: 34 }, { fontSize: 'md', lineHeight: 'normal', margin: 'medium' }],
       ['small tight narrow', { width: 393, height: 740 }, { top: 47, left: 0, right: 0, bottom: 34 }, { fontSize: 'sm', lineHeight: 'tight', margin: 'narrow' }],
       ['large relaxed wide', { width: 393, height: 740 }, { top: 47, left: 0, right: 0, bottom: 34 }, { fontSize: 'xl', lineHeight: 'relaxed', margin: 'wide' }],
-      ['landscape safe areas', { width: 852, height: 393 }, { top: 0, left: 59, right: 59, bottom: 21 }, { fontSize: 'xl', lineHeight: 'relaxed', margin: 'wide' }]
-    ]) await run(name + ' short final Page clears chrome and remains stable', async () => {
+      ['landscape safe areas', { width: 852, height: 393 }, { top: 0, left: 59, right: 59, bottom: 21 }, { fontSize: 'xl', lineHeight: 'relaxed', margin: 'wide' }],
+      ['small viewport without insets', { width: 320, height: 568 }, { top: 0, left: 0, right: 0, bottom: 0 }, { fontSize: 'sm', lineHeight: 'tight', margin: 'narrow' }],
+      ['standalone-sized portrait', { width: 393, height: 852 }, { top: 59, left: 0, right: 0, bottom: 34 }, { fontSize: 'xl', lineHeight: 'relaxed', margin: 'wide' }]
+    ]) await run(name + ' short final Page uses viewport and system insets only', async () => {
       await page.setViewportSize(viewport); await cdp.send('Emulation.setSafeAreaInsetsOverride', { insets });
       await page.evaluate(async appearance => { const root = document.querySelector('#r3-root'); await root.__r3App.controller.setReaderAppearance({ ...appearance, theme: 'light' }); root.__readerLayout.seek(99999); }, appearance);
       // Let the existing 80ms resize restoration finish before starting turns.
       await page.waitForTimeout(120); await frames(); const state = await sample(); assert.equal(state.pagination.pageCount, 1); assert.equal(state.pagination.pageIndex, 0);
+      assert.deepEqual(state.geometry, { top: 12 + insets.top, bottom: 28 + insets.bottom,
+        height: viewport.height - 40 - insets.top - insets.bottom, hostTop: 0, hostHeight: viewport.height });
       assert.ok(state.rect.left >= insets.left && state.rect.right <= viewport.width - insets.right, JSON.stringify(state)); await checkChrome();
-      if (name === 'reproducing portrait') console.log('Page clearance: ' + JSON.stringify({ textTop: state.rect.top, textBottom: state.rect.bottom, headerBottom: state.headerBottom }));
+      if (name === 'reproducing portrait') {
+        console.log('Page clearance: ' + JSON.stringify({ textTop: state.rect.top, textBottom: state.rect.bottom, headerBottom: state.headerBottom }));
+        for (let i = 0; i < 2; i++) {
+          const visible = (await sample()).chromeVisible;
+          await page.screenshot({ path: path.join(output, visible ? 'short-page-chrome-shown.png' : 'short-page-chrome-hidden.png') });
+          await page.evaluate(() => document.querySelector('#r3-root').__r3App.controller.toggleReaderChrome()); await page.waitForTimeout(180);
+        }
+      }
+    });
+    await run('toolbar size changes do not move prose or rebuild pagination', async () => {
+      await page.evaluate(() => document.querySelector('#r3-root').__r3App.controller.selectReaderChapter(0));
+      await frames(); await page.evaluate(() => document.querySelector('#r3-root').__readerLayout.seek(1)); await frames();
+      const capture = () => page.evaluate(async () => {
+        const root = document.querySelector('#r3-root'), app = root.__r3App;
+        await app.controller.flushReaderProgress();
+        const { getReadingProgress } = await import('/pwa-reader/storage.js');
+        const rect = root.querySelector('.r3-reader-content').getBoundingClientRect();
+        return { rect: rect.toJSON(), pagination: app.store.getState().reader.pagination,
+          position: (await getReadingProgress(window.qaBook)).logicalPosition };
+      });
+      const before = await capture(); assert.ok(before.pagination.pageCount > 1);
+      await page.evaluate(() => {
+        const root = document.querySelector('#r3-root'); root.__readerInteractionTrace.clear();
+        root.querySelector('.r3-reader-header').style.paddingBottom = '100px';
+        root.querySelector('.r3-reader-footer').style.paddingTop = '100px';
+      });
+      try {
+        await page.waitForTimeout(200); assert.deepEqual(await capture(), before);
+        assert.deepEqual(await page.evaluate(() => document.querySelector('#r3-root').__readerInteractionTrace.snapshot()
+          .filter(entry => entry.event === 'READER_ATTACH')), []);
+      } finally {
+        await page.evaluate(() => document.querySelector('#r3-root').__r3App.controller.selectReaderChapter(1)); await frames();
+      }
+    });
+    await run('system inset changes at fixed viewport repaginate from the same logical anchor', async () => {
+      await page.evaluate(() => document.querySelector('#r3-root').__r3App.controller.selectReaderChapter(0));
+      await frames(); await page.evaluate(() => document.querySelector('#r3-root').__readerLayout.seek(1)); await frames();
+      const capture = () => page.evaluate(async () => {
+        const root = document.querySelector('#r3-root'), app = root.__r3App;
+        await app.controller.flushReaderProgress();
+        const { getReadingProgress } = await import('/pwa-reader/storage.js');
+        return { height: root.querySelector('.r3-reader-content').clientHeight,
+          pages: app.store.getState().reader.pagination.pageCount,
+          position: (await getReadingProgress(window.qaBook)).logicalPosition };
+      });
+      const before = await capture(); assert.equal(before.height, 719); assert.ok(before.position.textOffset > 0);
+      try {
+        await cdp.send('Emulation.setSafeAreaInsetsOverride', { insets: { top: 0, bottom: 0, left: 0, right: 0 } });
+        await page.waitForTimeout(200); await frames();
+        const after = await capture(); assert.equal(after.height, 812); assert.ok(after.pages < before.pages);
+        assert.deepEqual(after.position, before.position);
+        await cdp.send('Emulation.setSafeAreaInsetsOverride', { insets: { top: 59, bottom: 34, left: 0, right: 0 } });
+        await page.waitForTimeout(200); await frames(); assert.deepEqual(await capture(), before);
+        console.log('System inset pagination: ' + JSON.stringify({ before, after }));
+      } finally {
+        await page.evaluate(() => document.querySelector('#r3-root').__r3App.controller.selectReaderChapter(1)); await frames();
+      }
+    });
+    await run('ordinary reading-area taps toggle overlays without moving the short final page', async () => {
+      const before = await sample(), viewport = page.viewportSize();
+      for (let i = 0; i < 2; i++) {
+        const visible = (await sample()).chromeVisible;
+        // These are separate single taps, not a native double-tap gesture.
+        await page.waitForTimeout(550);
+        assert.equal(await page.evaluate(({ width, height }) => Boolean(document.elementFromPoint(width / 2, height / 2)
+          ?.closest('.r3-reader-content')), viewport), true);
+        await page.touchscreen.tap(viewport.width / 2, viewport.height / 2);
+        await page.waitForFunction(visible => document.querySelector('#r3-root').__r3App.store.getState().reader.chromeVisible !== visible, visible);
+        const after = await sample(); assert.deepEqual(after.rect, before.rect);
+        assert.deepEqual(after.pagination, before.pagination); assert.deepEqual(after.position, before.position);
+      }
+    });
+    await run('chrome toggles preserve the existing native text selection and prose node', async () => {
+      const selected = await page.evaluate(() => {
+        const range = document.createRange(); window.qaSelectedLine = document.querySelector('.qa-short-line');
+        range.selectNodeContents(window.qaSelectedLine); getSelection().removeAllRanges(); getSelection().addRange(range);
+        return getSelection().toString();
+      });
+      assert.equal(selected, 'Next QA line.');
+      try {
+        for (let i = 0; i < 2; i++) {
+          await page.evaluate(() => document.querySelector('#r3-root').__r3App.controller.toggleReaderChrome()); await frames();
+          assert.equal(await page.evaluate(() => getSelection().toString()), selected);
+          assert.equal(await page.evaluate(() => document.querySelector('.qa-short-line') === window.qaSelectedLine), true);
+        }
+      } finally { await page.evaluate(() => getSelection().removeAllRanges()); }
     });
     await run('chapter boundaries retain the readable one-line Page', async () => {
       await page.evaluate(() => document.querySelector('#r3-root').__readerLayout.turn(-1)); await frames();

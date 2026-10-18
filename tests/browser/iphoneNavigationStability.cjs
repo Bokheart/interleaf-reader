@@ -256,7 +256,7 @@ async function main() {
     await old.evaluate(async () => { const registration = await navigator.serviceWorker.getRegistration(); await registration.update(); });
     await waitForWorker('waiting');
     const waiting = await old.evaluate(() => caches.keys());
-    assert.ok(waiting.includes('interleaf-reader-static-v8') && waiting.includes('interleaf-reader-static-v10'));
+    assert.ok(waiting.includes('interleaf-reader-static-v8') && waiting.includes('interleaf-reader-static-v11'));
     await old.close(); old = await upgrade.newPage();
     // Wait outside the worker scope so a new Reader client cannot keep v8 alive.
     await old.goto(origin + '/qa-empty.html');
@@ -264,7 +264,7 @@ async function main() {
     await old.goto(origin + '/pwa-reader/r3.html');
     await old.waitForFunction(() => typeof document.querySelector('#r3-root')?.__r3App?.controller.getNavigationState === 'function');
     const cacheProof = await old.evaluate(async () => {
-      const cache = await caches.open('interleaf-reader-static-v10');
+      const cache = await caches.open('interleaf-reader-static-v11');
       const response = await cache.match('/pwa-reader/ui-r3/controller.js');
       return { controller: response ? (await response.text()).includes('getNavigationState') : null,
         keys: await caches.keys(), controllerURL: navigator.serviceWorker.controller?.scriptURL };
@@ -275,7 +275,7 @@ async function main() {
     assert.equal(await old.evaluate(() => typeof document.querySelector('#r3-root').__r3App.controller.getNavigationState), 'function');
     const offlineController = await old.evaluate(async () => (await fetch('/pwa-reader/ui-r3/controller.js')).text());
     assert.equal(offlineController, await fs.readFile(path.join(root, 'pwa-reader/ui-r3/controller.js'), 'utf8'));
-    await upgrade.close(); count++; console.log('PASS R4.2 v8 -> waiting v10 -> close clients -> v10 offline runtime bytes');
+    await upgrade.close(); count++; console.log('PASS R4.2 v8 -> waiting v11 -> close clients -> v11 offline runtime bytes');
   } finally { await browser?.close(); await new Promise(resolve => server.close(resolve)); }
   console.log(`${count - failures}/${count} navigation scenarios passed`);
   if (failures) process.exitCode = 1;

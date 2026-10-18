@@ -267,11 +267,6 @@ export function createReaderLayout(root, store, controller) {
     source = state.reader.contentKind === "empty" ? { units: [], length: 0 } : sourceUnits(content);
     layout = state.reader.readingLayout || "page";
     applyReaderAppearanceDataset(scroll, resolveReaderAppearance(state.reader));
-    // offsetHeight is unchanged by chrome visibility/translation. Measure the
-    // real controls, including safe areas, before deriving the Page columns.
-    const header = root.querySelector(".r3-reader-header"), footer = root.querySelector(".r3-reader-footer");
-    scroll.style.setProperty("--r3-reader-chrome-top", `${header?.offsetHeight || 0}px`);
-    scroll.style.setProperty("--r3-reader-chrome-bottom", `${footer?.offsetHeight || 0}px`);
     const sameChapter = chapterId === state.activeChapterId;
     chapterId = state.activeChapterId;
     const request = state.reader.positionRequest;
@@ -303,7 +298,9 @@ export function createReaderLayout(root, store, controller) {
     // Settings return keeps the source request authoritative while retaining
     // exact pixels only when the shell verified unchanged origin geometry.
     restore(target || { chapterId, textOffset: 0 }, originPixels || (!freshRequest && sameChapter ? preservedPixels : null));
-    const size = () => `${scroll.clientWidth}:${scroll.clientHeight}:${header?.offsetHeight || 0}:${footer?.offsetHeight || 0}`;
+    // System insets can change the content box without resizing the viewport.
+    // Chrome is an overlay and never participates in Page geometry.
+    const size = () => `${scroll.clientWidth}:${scroll.clientHeight}:${content.clientWidth}:${content.clientHeight}`;
     dimensions = size();
     publish();
     observer?.disconnect();
@@ -315,9 +312,6 @@ export function createReaderLayout(root, store, controller) {
         resizeTimer = windowRef.setTimeout(() => attach(store.getState()), 80);
       });
       observer.observe(scroll);
-      // Safe-area padding changes the border box, not the controls' content box.
-      if (header) observer.observe(header, { box: "border-box" });
-      if (footer) observer.observe(footer, { box: "border-box" });
     }
   }
 

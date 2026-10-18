@@ -87,8 +87,9 @@ async function verifyViewport(browser, viewport, fixtures, label) {
     document.querySelector('#r3-root').__r3App.controller.toggleReaderChrome();
   });
   assert.deepEqual(await geometry(), visible);
-  assert.ok(parseFloat(visible.top) >= visible.headerHeight + 8);
-  assert.ok(parseFloat(visible.bottom) >= visible.footerHeight + 28);
+  assert.equal(parseFloat(visible.top), 12);
+  assert.equal(parseFloat(visible.bottom), 28);
+  assert.equal(visible.height, viewport.height - 40);
   assert.ok(visible.height > 0 && visible.width > 0);
   await page.waitForFunction(() => getComputedStyle(document.querySelector('.r3-reader-header')).visibility === 'hidden');
   assert.equal(await page.locator('.r3-reader-page-indicator').isVisible(), true);

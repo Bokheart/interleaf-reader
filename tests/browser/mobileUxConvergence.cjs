@@ -306,13 +306,13 @@ async function main() {
    await flush();const before=(await saved(b)).logicalPosition;
    await page.reload();await page.waitForFunction(()=>navigator.serviceWorker.controller && document.querySelector('#r3-root')?.__r3App?.store.getState().reader.status==='ready');
    const cache=await page.evaluate(async()=>{
-    const names=await caches.keys(),bucket=await caches.open('interleaf-reader-static-v10');
+    const names=await caches.keys(),bucket=await caches.open('interleaf-reader-static-v11');
     const paths=(await bucket.keys()).map(req=>new URL(req.url).pathname);
     await fetch('/data/dictionary/qa-safe/manifest.json');await fetch('/data/dictionary/qa-safe/shards/ga.json');
     const dictionary=await caches.open('interleaf-reader-dictionary-metadata-v1');
     return {names,paths,dictionary:(await dictionary.keys()).map(req=>new URL(req.url).pathname)};
    });
-   assert.ok(cache.names.includes('interleaf-reader-static-v10'));assert.ok(!cache.names.includes('interleaf-reader-static-v5'));
+   assert.ok(cache.names.includes('interleaf-reader-static-v11'));assert.ok(!cache.names.includes('interleaf-reader-static-v5'));
    for(const path of ['/pwa-reader/r3.html','/pwa-reader/readerBookmarks.js','/pwa-reader/ui-r3/readerPageTurn.js']) assert.ok(cache.paths.includes(path),path);
    assert.ok(!cache.paths.some(path=>path.includes('/data/dictionary/') || path.endsWith('.epub')));
    assert.ok(cache.dictionary.includes('/data/dictionary/qa-safe/shards/ga.json'));
@@ -337,14 +337,15 @@ async function main() {
   assert.deepEqual(errors,[]);await context.close();
  }
  // Update boundary: an old active worker must wait for its clients to close.
- const previousWorker=require('node:child_process').execFileSync('git',['-C',root,'show','378cca427363903e8cae5134023a483af29e80b0:pwa-reader/sw.js']);
+ for (const [previousVersion, revision] of [['v5', '378cca427363903e8cae5134023a483af29e80b0'], ['v10', '8fd158f8989478ff14c575ac4dc1f3e1af174f5c']]) {
+ const previousWorker=require('node:child_process').execFileSync('git',['-C',root,'show',revision+':pwa-reader/sw.js']);
  fixtures['/pwa-reader/sw.js']=previousWorker;
  const upgradeContext=await browser.newContext({viewport:{width:393,height:852}});
  let upgradePage=await upgradeContext.newPage();
  await upgradePage.goto(origin+'/pwa-reader/r3.html');
  await upgradePage.evaluate(async()=>navigator.serviceWorker.ready);
  await upgradePage.reload();await upgradePage.waitForFunction(()=>navigator.serviceWorker.controller);
- assert.ok(await upgradePage.evaluate(async()=>(await caches.keys()).includes('interleaf-reader-static-v5')));
+ assert.ok(await upgradePage.evaluate(async version=>(await caches.keys()).includes('interleaf-reader-static-'+version),previousVersion));
  delete fixtures['/pwa-reader/sw.js'];
  const waiting=await upgradePage.evaluate(async()=>{
   const registration=await navigator.serviceWorker.getRegistration();await registration.update();
@@ -352,20 +353,23 @@ async function main() {
    if(registration.waiting?.state==='installed')return {waiting:registration.waiting.state,keys:await caches.keys()};
    await new Promise(resolve=>setTimeout(resolve,20));
   }
-  throw Error('v10 did not enter waiting while v5 client remained open');
+  throw Error('v11 did not enter waiting while the previous client remained open');
  });
- assert.ok(waiting.keys.includes('interleaf-reader-static-v5'));assert.ok(waiting.keys.includes('interleaf-reader-static-v10'));assert.equal(waiting.waiting,'installed');
+ assert.ok(waiting.keys.includes('interleaf-reader-static-'+previousVersion));assert.ok(waiting.keys.includes('interleaf-reader-static-v11'));assert.equal(waiting.waiting,'installed');
  await upgradePage.close();
  upgradePage=await upgradeContext.newPage();await upgradePage.goto(origin+'/pwa-reader/r3.html');
- await upgradePage.evaluate(async()=>{
-  for(let i=0;i<150;i++){if(!(await caches.keys()).includes('interleaf-reader-static-v5'))return;await new Promise(resolve=>setTimeout(resolve,20));}
-  throw Error('v5 cache was not retired after its client closed');
- });
- assert.ok(await upgradePage.evaluate(async()=>(await caches.keys()).includes('interleaf-reader-static-v10')));
+ await upgradePage.evaluate(async version=>{
+  for(let i=0;i<150;i++){if(!(await caches.keys()).includes('interleaf-reader-static-'+version))return;await new Promise(resolve=>setTimeout(resolve,20));}
+  throw Error('previous cache was not retired after its client closed');
+ },previousVersion);
+ assert.ok(await upgradePage.evaluate(async()=>(await caches.keys()).includes('interleaf-reader-static-v11')));
  await upgradeContext.setOffline(true);await upgradePage.reload();
  await upgradePage.waitForFunction(()=>document.querySelector('#r3-root')?.__r3App?.store.getState().initialized);
- await upgradeContext.close();results.push({label:'update',name:'v5 active -> v10 waiting -> close clients -> v10 offline R3',passed:true});
- console.log('PASS update v5 waiting activation and offline R3');
+ await upgradePage.evaluate(async()=>document.querySelector('#r3-root').__r3App.controller.openGuide());
+ assert.equal(await upgradePage.evaluate(()=>getComputedStyle(document.querySelector('.r3-reader-scroll')).paddingTop),'12px');
+ await upgradeContext.close();results.push({label:'update',name:previousVersion+' active -> v11 waiting -> close clients -> v11 offline R3',passed:true});
+ console.log('PASS update '+previousVersion+' waiting activation and offline fullscreen R3');
+ }
  await fs.writeFile(path.join(output,'convergence.json'),JSON.stringify(results,null,2));
  } finally {await browser.close();await new Promise(resolve=>server.close(resolve));}
 }
